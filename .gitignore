@@ -1,0 +1,19 @@
+# Local config and secrets (do not commit)
+backend/config.local.php
+.env
+.env.local
+.env.*.local
+
+# Dependencies
+node_modules/
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+*.log
+
+# Build / cache
+build/
+dist/
+*.cache
