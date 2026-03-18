@@ -13,6 +13,7 @@ export interface BasicDetailsTypes {
   email: string;
   location: string;
   avatar: string;
+  profile?: string;
   coverImage: string;
 }
 

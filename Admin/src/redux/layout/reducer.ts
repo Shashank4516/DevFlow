@@ -3,7 +3,7 @@ import { TABS, LAYOUT_MODES } from "../../constants/index";
 
 import { LayoutActionTypes, LayoutState } from "./types";
 
-function getDeviceLayoutMode(): string {
+function getDeviceLayoutMode(): LayoutState["layoutMode"] {
   if (typeof window === "undefined") return LAYOUT_MODES.LIGHT;
   try {
     return window.matchMedia("(prefers-color-scheme: dark)").matches

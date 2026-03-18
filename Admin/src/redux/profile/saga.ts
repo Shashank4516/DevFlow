@@ -9,7 +9,7 @@ import { getLoggedinUser } from "../../api/apiCore";
 
 const PROFILE_STORAGE_KEY = "devflow_profile_basicDetails";
 
-function* getProfileDetails() {
+function* getProfileDetails(): Generator<any, void, any> {
   try {
     let response: any = yield call(getProfileDetailsApi);
     const apiBasicDetails = (response && response.basicDetails) || {};

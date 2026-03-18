@@ -15,7 +15,7 @@ import { getLoggedinUser } from "../../api/apiCore";
 
 const PROFILE_STORAGE_KEY = "devflow_profile_basicDetails";
 
-function* getSettings() {
+function* getSettings(): Generator<any, void, any> {
   try {
     let response: any = yield call(getSettingsApi);
     const apiBasicDetails = (response && response.basicDetails) || {};
@@ -61,7 +61,7 @@ function* getSettings() {
   }
 }
 
-function* updateSettings({ payload: { field, value } }: any) {
+function* updateSettings({ payload: { field, value } }: any): Generator<any, void, any> {
   try {
     const response: any = yield call(updateSettingsApi, field, value);
     yield put(
