@@ -4,6 +4,7 @@
  * Request: GET /auth/me.php
  * Response: JSON { user, basicDetails } or 401.
  */
+require dirname(__DIR__) . '/session_init.php';
 session_start();
 
 header('Content-Type: application/json');
@@ -11,8 +12,13 @@ header('Content-Type: application/json');
 $config = require dirname(__DIR__) . '/config.php';
 $frontendBase = rtrim($config['frontend_base_url'], '/');
 $origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
-if ($origin === $frontendBase) {
+
+// Allow credentials for your React domain. If `FRONTEND_BASE_URL` is misconfigured on Railway,
+// fall back to echoing back the request origin (dev-safety).
+$defaultFrontend = 'http://localhost:5173';
+if ($origin !== '' && ($origin === $frontendBase || $frontendBase === $defaultFrontend)) {
     header('Access-Control-Allow-Origin: ' . $origin);
+    header('Vary: Origin');
 }
 header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Methods: GET, OPTIONS');

@@ -26,9 +26,37 @@ $config = [
     'db_port'     => getenv('DB_PORT')     ?: 3306,
 ];
 
+// `config.local.php` should be a local-dev override only.
+// On Railway, environment variables must take precedence (otherwise redirects/CORS can point to localhost).
 if (is_file(__DIR__ . '/config.local.php')) {
     $local = require __DIR__ . '/config.local.php';
-    $config = array_merge($config, $local);
+
+    // Map config keys -> env var names so env overrides always win.
+    $envMap = [
+        'google_client_id'     => 'GOOGLE_CLIENT_ID',
+        'google_client_secret' => 'GOOGLE_CLIENT_SECRET',
+        'github_client_id'     => 'GITHUB_CLIENT_ID',
+        'github_client_secret' => 'GITHUB_CLIENT_SECRET',
+        'backend_base_url'     => 'BACKEND_BASE_URL',
+        'frontend_base_url'    => 'FRONTEND_BASE_URL',
+        'db_host'              => 'DB_HOST',
+        'db_user'              => 'DB_USER',
+        'db_password'          => 'DB_PASSWORD',
+        'db_name'              => 'DB_NAME',
+        'db_port'              => 'DB_PORT',
+    ];
+
+    foreach ($local as $key => $value) {
+        $envKey = $envMap[$key] ?? null;
+        if ($envKey) {
+            $envVal = getenv($envKey);
+            // If env is set (Railway), keep env value.
+            if ($envVal !== false && $envVal !== '') {
+                continue;
+            }
+        }
+        $config[$key] = $value;
+    }
 }
 
 // Auto-detect backend base URL from request when running under Apache (e.g. XAMPP)

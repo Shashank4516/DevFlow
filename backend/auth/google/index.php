@@ -3,6 +3,7 @@
  * Start Google OAuth: redirect user to Google consent screen.
  * Request: GET /auth/google/
  */
+require dirname(__DIR__, 2) . '/session_init.php';
 session_start();
 
 $config = require dirname(__DIR__, 2) . '/config.php';

@@ -4,6 +4,7 @@
  * GET ?q=trader%20guy
  * Returns JSON array of { id, name, profile_image }.
  */
+require dirname(__DIR__, 2) . '/session_init.php';
 session_start();
 
 header('Content-Type: application/json');

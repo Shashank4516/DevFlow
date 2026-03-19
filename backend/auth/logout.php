@@ -3,6 +3,7 @@
  * Log out: destroy session and redirect to frontend login.
  * Request: GET /auth/logout.php
  */
+require dirname(__DIR__) . '/session_init.php';
 session_start();
 
 $config = require dirname(__DIR__) . '/config.php';

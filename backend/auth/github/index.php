@@ -3,6 +3,7 @@
  * Start GitHub OAuth: redirect user to GitHub.
  * Use for "Connect GitHub" (when already logged in) or "Sign in with GitHub" (from auth page).
  */
+require dirname(__DIR__, 2) . '/session_init.php';
 session_start();
 
 $config = require dirname(__DIR__, 2) . '/config.php';

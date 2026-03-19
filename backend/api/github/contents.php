@@ -4,6 +4,7 @@
  * GET /api/github/contents.php?repo=owner/name&branch=main
  * Optional path for subfolder: &path=src
  */
+require dirname(__DIR__, 2) . '/session_init.php';
 session_start();
 
 header('Content-Type: application/json');

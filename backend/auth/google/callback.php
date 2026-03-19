@@ -3,6 +3,7 @@
  * Google OAuth callback: exchange code for tokens, get user info, create session, redirect to React.
  * This URL must be set as "Authorized redirect URI" in Google Cloud Console.
  */
+require dirname(__DIR__, 2) . '/session_init.php';
 session_start();
 
 $config = require dirname(__DIR__, 2) . '/config.php';

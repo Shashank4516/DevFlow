@@ -3,6 +3,7 @@
  * List branches for a repo. GET /api/github/branches.php?repo=owner/name
  * Requires session with github_token.
  */
+require dirname(__DIR__, 2) . '/session_init.php';
 session_start();
 
 header('Content-Type: application/json');

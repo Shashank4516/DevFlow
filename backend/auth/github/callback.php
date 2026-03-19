@@ -4,6 +4,7 @@
  * If user already logged in (e.g. via Google) -> connect GitHub (add token to session).
  * If not logged in -> login with GitHub (create session from GitHub user).
  */
+require dirname(__DIR__, 2) . '/session_init.php';
 session_start();
 
 $config = require dirname(__DIR__, 2) . '/config.php';
