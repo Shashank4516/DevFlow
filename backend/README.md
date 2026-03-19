@@ -71,3 +71,26 @@ Then:
 ## CORS / cookies
 
 For `auth/me.php` to receive the session cookie from the React app on another port (e.g. 5173), the backend sends `Access-Control-Allow-Origin` for your `frontend_base_url` and `Access-Control-Allow-Credentials: true`. Use `credentials: 'include'` in `fetch` from the React app.
+
+## Railway deployment
+
+Set these environment variables in your Railway backend service:
+
+| Variable | Description |
+|---|---|
+| `GOOGLE_CLIENT_ID` | From Google Cloud Console OAuth credentials |
+| `GOOGLE_CLIENT_SECRET` | From Google Cloud Console OAuth credentials |
+| `GITHUB_CLIENT_ID` | From GitHub OAuth App settings |
+| `GITHUB_CLIENT_SECRET` | From GitHub OAuth App settings |
+| `BACKEND_BASE_URL` | Your Railway backend public domain e.g. `https://xxx.up.railway.app` |
+| `FRONTEND_BASE_URL` | Your Railway frontend public domain e.g. `https://yyy.up.railway.app` |
+| `DB_HOST` | MySQL host (from Railway MySQL service) |
+| `DB_USER` | MySQL user |
+| `DB_PASSWORD` | MySQL password |
+| `DB_NAME` | MySQL database name |
+| `DB_PORT` | MySQL port |
+
+Also add the Railway backend callback URL to Google Cloud Console → OAuth Client → Authorized redirect URIs:
+```
+https://<BACKEND_BASE_URL>/auth/google/callback.php
+```
