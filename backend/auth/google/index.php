@@ -11,8 +11,13 @@ $clientId = $config['google_client_id'];
 $backendBase = rtrim($config['backend_base_url'], '/');
 
 // Build callback base from the current request first, then fall back to config.
+// Railway (and other proxies) terminate TLS: PHP often sees HTTP unless we check X-Forwarded-Proto.
 if (isset($_SERVER['HTTP_HOST'], $_SERVER['REQUEST_URI'])) {
-    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $isHttps =
+        (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off')
+        || (isset($_SERVER['HTTP_X_FORWARDED_PROTO'])
+            && strtolower((string) $_SERVER['HTTP_X_FORWARDED_PROTO']) === 'https');
+    $protocol = $isHttps ? 'https' : 'http';
     $reqPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '';
     $basePath = preg_replace('#/auth/google/index\.php$#', '', rtrim($reqPath, '/'));
     if ($basePath === null) {
