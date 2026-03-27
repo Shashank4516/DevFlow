@@ -10,6 +10,10 @@ import {
 } from "../redux/actions";
 import { TABS } from "../constants/index";
 import avatar1 from "../assets/images/users/avatar-1.jpg";
+import {
+  showErrorNotification,
+  showSuccessNotification,
+} from "../helpers/notifications";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
 const DEBOUNCE_MS = 300;
@@ -21,6 +25,13 @@ export interface SearchProfile {
 }
 
 type ApiError = "auth" | "server" | "network" | null;
+type RelationStatus =
+  | "none"
+  | "accepted"
+  | "incoming_pending"
+  | "outgoing_pending"
+  | "incoming_rejected"
+  | "outgoing_rejected";
 
 const ProfileSearch = () => {
   const { dispatch } = useRedux();
@@ -29,9 +40,57 @@ const ProfileSearch = () => {
   const [loading, setLoading] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const [apiError, setApiError] = useState<ApiError>(null);
+  const [relationByUser, setRelationByUser] = useState<
+    Record<number, { status: RelationStatus; request_id: number | null }>
+  >({});
+  const [pendingRequests, setPendingRequests] = useState<
+    Array<{ request_id: number; user_id: number; name: string; profile_image: string }>
+  >([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const [lastAttemptedUrl, setLastAttemptedUrl] = useState<string | null>(null);
+
+  const fetchStatuses = useCallback(async (ids: number[]) => {
+    if (!BACKEND_URL || ids.length === 0) {
+      setRelationByUser({});
+      return;
+    }
+    try {
+      const url = `${BACKEND_URL.replace(/\/$/, "")}/api/friends/statuses.php?ids=${ids.join(",")}`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json();
+      const next: Record<number, { status: RelationStatus; request_id: number | null }> = {};
+      const statuses = data?.statuses || {};
+      Object.keys(statuses).forEach((k) => {
+        const id = Number(k);
+        const s = statuses[k];
+        next[id] = {
+          status: (s?.status || "none") as RelationStatus,
+          request_id: s?.request_id ?? null,
+        };
+      });
+      setRelationByUser(next);
+    } catch {
+      // keep UI usable even if status API fails
+    }
+  }, []);
+
+  const fetchPendingRequests = useCallback(async () => {
+    if (!BACKEND_URL) {
+      setPendingRequests([]);
+      return;
+    }
+    try {
+      const url = `${BACKEND_URL.replace(/\/$/, "")}/api/friends/pending.php`;
+      const res = await fetch(url, { credentials: "include" });
+      if (!res.ok) return;
+      const data = await res.json();
+      setPendingRequests(Array.isArray(data?.pending) ? data.pending : []);
+    } catch {
+      // no-op
+    }
+  }, []);
 
   const fetchProfiles = useCallback(async (q: string) => {
     if (!q.trim() || q.length < 2) {
@@ -83,6 +142,15 @@ const ProfileSearch = () => {
   }, [query, fetchProfiles]);
 
   useEffect(() => {
+    if (results.length === 0) return;
+    fetchStatuses(results.map((r) => r.id));
+  }, [results, fetchStatuses]);
+
+  useEffect(() => {
+    fetchPendingRequests();
+  }, [fetchPendingRequests]);
+
+  useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
@@ -93,6 +161,11 @@ const ProfileSearch = () => {
   }, []);
 
   const onSelectProfile = (profile: SearchProfile) => {
+    const relation = relationByUser[profile.id]?.status || "none";
+    if (relation !== "accepted") {
+      showErrorNotification("Send a friend request first. Chat unlocks after they accept.");
+      return;
+    }
     dispatch(changeTab(TABS.CHAT));
     dispatch(getChatUserDetails(profile.id));
     dispatch(readConversation(profile.id));
@@ -101,6 +174,62 @@ const ProfileSearch = () => {
     setDropdownOpen(false);
     setQuery("");
     setResults([]);
+  };
+
+  const sendFriendRequest = async (profileId: number) => {
+    try {
+      const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/api/friends/request.php`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_user_id: profileId }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showErrorNotification(data?.error || "Failed to send request");
+        return;
+      }
+      setRelationByUser((prev) => ({
+        ...prev,
+        [profileId]: {
+          status: (data?.status || "outgoing_pending") as RelationStatus,
+          request_id: data?.request_id ?? null,
+        },
+      }));
+      if (data?.status === "accepted") {
+        showSuccessNotification("Friend request accepted. You can chat now.");
+      } else {
+        showSuccessNotification("Friend request sent.");
+      }
+      fetchPendingRequests();
+    } catch {
+      showErrorNotification("Network error while sending request");
+    }
+  };
+
+  const respondToRequest = async (requestId: number, action: "accept" | "reject", userId: number) => {
+    try {
+      const res = await fetch(`${BACKEND_URL.replace(/\/$/, "")}/api/friends/respond.php`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ request_id: requestId, action }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        showErrorNotification(data?.error || "Failed to update request");
+        return;
+      }
+      const nextStatus = action === "accept" ? "accepted" : "incoming_rejected";
+      setRelationByUser((prev) => ({
+        ...prev,
+        [userId]: { status: nextStatus as RelationStatus, request_id: requestId },
+      }));
+      setPendingRequests((prev) => prev.filter((p) => p.request_id !== requestId));
+      showSuccessNotification(action === "accept" ? "Request accepted. Chat enabled." : "Request rejected.");
+    } catch {
+      showErrorNotification("Network error while updating request");
+    }
   };
 
   return (
@@ -155,25 +284,70 @@ const ProfileSearch = () => {
               )}
             </div>
           ) : (
-            results.map((profile) => (
-              <button
-                key={profile.id}
-                type="button"
-                className="dropdown-item d-flex align-items-center gap-2 py-2"
-                onClick={() => onSelectProfile(profile)}
-              >
-                <img
-                  src={profile.profile_image || avatar1}
-                  alt=""
-                  className="rounded-circle flex-shrink-0"
-                  width={36}
-                  height={36}
-                  style={{ objectFit: "cover" }}
-                />
-                <span className="text-truncate">{profile.name || "Unknown"}</span>
-              </button>
-            ))
+            results.map((profile) => {
+              const relation = relationByUser[profile.id]?.status || "none";
+              const reqId = relationByUser[profile.id]?.request_id || null;
+              return (
+                <div
+                  key={profile.id}
+                  className="dropdown-item d-flex align-items-center justify-content-between gap-2 py-2"
+                >
+                  <button
+                    type="button"
+                    className="btn btn-link p-0 text-decoration-none d-flex align-items-center gap-2 flex-grow-1 text-start"
+                    onClick={() => onSelectProfile(profile)}
+                  >
+                    <img
+                      src={profile.profile_image || avatar1}
+                      alt=""
+                      className="rounded-circle flex-shrink-0"
+                      width={36}
+                      height={36}
+                      style={{ objectFit: "cover" }}
+                    />
+                    <span className="text-truncate">{profile.name || "Unknown"}</span>
+                  </button>
+
+                  {relation === "accepted" ? (
+                    <span className="badge bg-success-subtle text-success">Friends</span>
+                  ) : relation === "outgoing_pending" ? (
+                    <span className="badge bg-warning-subtle text-warning">Pending</span>
+                  ) : relation === "incoming_pending" && reqId ? (
+                    <div className="d-flex gap-1">
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-success"
+                        onClick={() => respondToRequest(reqId, "accept", profile.id)}
+                      >
+                        Accept
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-sm btn-outline-danger"
+                        onClick={() => respondToRequest(reqId, "reject", profile.id)}
+                      >
+                        Reject
+                      </button>
+                    </div>
+                  ) : (
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary"
+                      onClick={() => sendFriendRequest(profile.id)}
+                    >
+                      Request
+                    </button>
+                  )}
+                </div>
+              );
+            })
           )}
+        </div>
+      )}
+
+      {pendingRequests.length > 0 && (
+        <div className="mt-2 small text-muted">
+          {pendingRequests.length} request{pendingRequests.length > 1 ? "s" : ""} waiting for your response
         </div>
       )}
 

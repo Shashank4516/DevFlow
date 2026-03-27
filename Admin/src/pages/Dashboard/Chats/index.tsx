@@ -16,6 +16,7 @@ import {
   createChannel,
   changeSelectedChat,
   getChatUserDetails,
+  setChatUserDetails,
   getChatUserConversations,
   getChannelDetails,
   getArchiveContact,
@@ -157,7 +158,11 @@ const Index = (props: IndexProps) => {
     if (isChannel) {
       dispatch(getChannelDetails(id));
     } else {
-      dispatch(getChatUserDetails(id));
+      // Prefer using the already-loaded user object so the header has profileImage immediately.
+      const allUsers = [...(favourites || []), ...(directMessages || [])];
+      const selected = allUsers.find((u: any) => u?.id + "" === id + "");
+      if (selected) dispatch(setChatUserDetails(selected));
+      else dispatch(getChatUserDetails(id));
     }
     dispatch(readConversation(id));
     dispatch(getChatUserConversations(id));
@@ -224,20 +229,6 @@ const Index = (props: IndexProps) => {
               </UncontrolledTooltip>
             </div>
           </div>
-          <Form>
-            <div className="input-group mb-3">
-              <Input
-                onKeyUp={searchUsers}
-                id="serachChatUser"
-                type="text"
-                className="form-control bg-light border-0 pe-0"
-                placeholder="Search here.."
-              />
-              <Button color="light" type="button" id="searchbtn-addon">
-                <i className="bx bx-search align-middle"></i>
-              </Button>
-            </div>
-          </Form>
         </div>{" "}
         {/* .p-4 */}
         <AppSimpleBar className="chat-room-list">

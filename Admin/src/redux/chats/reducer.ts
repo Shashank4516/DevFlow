@@ -284,6 +284,21 @@ const Chats = (state = INIT_STATE, action: any) => {
         getUserConversationsLoading: true,
         isUserMessageSent: false,
       };
+    case ChatsActionTypes.SET_CHAT_USER_CONVERSATIONS:
+      return {
+        ...state,
+        chatUserConversations: action.payload,
+        isUserConversationsFetched: true,
+        getUserConversationsLoading: false,
+        isUserMessageSent: false,
+      };
+    case ChatsActionTypes.SET_CHAT_USER_DETAILS:
+      return {
+        ...state,
+        chatUserDetails: action.payload,
+        isUserDetailsFetched: true,
+        getUserDetailsLoading: false,
+      };
     case ChatsActionTypes.TOGGLE_USER_DETAILS_TAB:
       return {
         ...state,

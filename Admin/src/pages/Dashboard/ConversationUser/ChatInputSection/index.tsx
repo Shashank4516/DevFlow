@@ -16,12 +16,16 @@ interface IndexProps {
   replyData: null | MessagesTypes | undefined;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   chatUserDetails: any;
+  disabled?: boolean;
+  disabledReason?: string;
 }
 const Index = ({
   onSend,
   replyData,
   onSetReplyData,
   chatUserDetails,
+  disabled: transportDisabled,
+  disabledReason,
 }: IndexProps) => {
   /*
   more menu collapse
@@ -35,7 +39,7 @@ const Index = ({
   /*
   disable send button
   */
-  const [disabled, setDisabled] = useState<boolean>(true);
+  const [sendDisabled, setSendDisabled] = useState<boolean>(true);
 
   /*
   input text
@@ -62,9 +66,9 @@ const Index = ({
   };
   useEffect(() => {
     if (text || images || files) {
-      setDisabled(false);
+      setSendDisabled(false);
     } else {
-      setDisabled(true);
+      setSendDisabled(true);
     }
   }, [text, images, files]);
 
@@ -121,6 +125,11 @@ const Index = ({
 
   return (
     <div className="chat-input-section p-3 p-lg-4">
+      {disabledReason ? (
+        <Alert color="warning" className="py-2 px-3 mb-2">
+          {disabledReason}
+        </Alert>
+      ) : null}
       <Form
         id="chatinput-form"
         onSubmit={(e: any) => {
@@ -138,10 +147,15 @@ const Index = ({
             />
           </div>
           <div className="col">
-            <InputSection value={text} onChange={onChangeText} />
+            <InputSection
+              value={text}
+              onChange={onChangeText}
+              disabled={!!transportDisabled}
+              placeholder="Type your message..."
+            />
           </div>
           <div className="col-auto">
-            <EndButtons onSubmit={onSubmit} disabled={disabled} />
+            <EndButtons onSubmit={onSubmit} disabled={sendDisabled || !!transportDisabled} />
           </div>
         </div>
       </Form>

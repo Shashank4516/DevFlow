@@ -1,5 +1,7 @@
 const config = {
-  API_URL: "http://localhost:3000/",
+  // Base URL for backend APIs (PHP backend in this repo).
+  // Example in `Admin/.env`: VITE_BACKEND_URL=http://localhost/devflow-backend/backend
+  API_URL: (import.meta.env.VITE_BACKEND_URL as string) || "http://localhost:3000/",
   AUTH_BACKEND: "Dummy",
   FIRE_BASE: {
     API_KEY: import.meta.env.VITE_APIKEY,

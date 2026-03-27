@@ -49,11 +49,21 @@ export const getChatUserDetails = (selectedChat: string | number | null) => ({
   payload: selectedChat,
 });
 
+export const setChatUserDetails = (data: any) => ({
+  type: ChatsActionTypes.SET_CHAT_USER_DETAILS,
+  payload: data,
+});
+
 export const getChatUserConversations = (
   selectedChat: string | number | null
 ) => ({
   type: ChatsActionTypes.GET_CHAT_USER_CONVERSATIONS,
   payload: selectedChat,
+});
+
+export const setChatUserConversations = (data: any) => ({
+  type: ChatsActionTypes.SET_CHAT_USER_CONVERSATIONS,
+  payload: data,
 });
 
 export const toggleUserDetailsTab = (value: boolean) => ({

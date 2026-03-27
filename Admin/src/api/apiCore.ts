@@ -3,6 +3,8 @@ import config from "../config";
 
 // default
 axios.defaults.baseURL = config.API_URL;
+// Send cookies for PHP-session based auth (Railway/XAMPP).
+axios.defaults.withCredentials = true;
 
 // content type
 axios.defaults.headers.post["Content-Type"] = "application/json";

@@ -28,6 +28,12 @@ export enum ChatsActionTypes {
   READ_CONVERSATION = "@@chats/READ_CONVERSATION",
   DELETE_IMAGE = "@@chats/DELETE_IMAGE",
   REPLY_IMAGE = "@@chats/REPLY_IMAGE",
+
+  // REALTIME
+  SET_CHAT_USER_CONVERSATIONS = "@@chats/SET_CHAT_USER_CONVERSATIONS",
+
+  // UI helpers
+  SET_CHAT_USER_DETAILS = "@@chats/SET_CHAT_USER_DETAILS",
 }
 export interface ChatsState {
   favourites: Array<any>;

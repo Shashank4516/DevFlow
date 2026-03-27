@@ -8,7 +8,8 @@ const getFavourites = () => {
 };
 
 const getDirectMessages = () => {
-  return api.get(url.GET_DIRECT_MESSAGES);
+  // Use accepted friends from the real backend as DM list.
+  return api.get(url.GET_ACCEPTED_FRIENDS);
 };
 const getChannels = () => {
   return api.get(url.GET_CHANNELS);
@@ -27,13 +28,13 @@ const getChatUserDetails = (id: string | number) => {
 };
 
 const getChatUserConversations = (id: string | number) => {
-  return api.get(url.GET_CHAT_USER_CONVERSATIONS + "/" + id, {
-    params: { id },
+  return api.get(url.GET_DM_MESSAGES, {
+    params: { with_user_id: id },
   });
 };
 
-const sendMessage = (data: object) => {
-  return api.create(url.SEND_MESSAGE, data);
+const sendMessage = (data: { to_user_id: string | number; text: string }) => {
+  return api.create(url.POST_DM_MESSAGE, data);
 };
 
 const receiveMessage = (id: string | number) => {

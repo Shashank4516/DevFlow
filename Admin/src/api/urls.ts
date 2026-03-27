@@ -49,3 +49,8 @@ export const DELETE_IMAGE = "/user-delete-img";
 
 // groups
 export const GET_CHANNEL_DETAILS = "/get-channel-details";
+
+// friends (real backend)
+export const GET_ACCEPTED_FRIENDS = "/api/friends/accepted.php";
+export const GET_DM_MESSAGES = "/api/messages/list.php";
+export const POST_DM_MESSAGE = "/api/messages/send.php";

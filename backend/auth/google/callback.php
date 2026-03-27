@@ -11,7 +11,19 @@ $clientId     = $config['google_client_id'];
 $clientSecret = $config['google_client_secret'];
 $backendBase  = rtrim($config['backend_base_url'], '/');
 $frontendBase = rtrim($config['frontend_base_url'], '/');
-$redirectUri  = $backendBase . '/auth/google/callback.php';
+
+// Build callback base from the current request first, then fall back to config.
+if (isset($_SERVER['HTTP_HOST'], $_SERVER['REQUEST_URI'])) {
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $reqPath = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH) ?: '';
+    $basePath = preg_replace('#/auth/google/callback\.php$#', '', rtrim($reqPath, '/'));
+    if ($basePath === null) {
+        $basePath = '';
+    }
+    $backendBase = $protocol . '://' . $_SERVER['HTTP_HOST'] . $basePath;
+}
+
+$redirectUri  = rtrim($backendBase, '/') . '/auth/google/callback.php';
 
 $code = isset($_GET['code']) ? trim($_GET['code']) : '';
 $error = isset($_GET['error']) ? trim($_GET['error']) : '';
@@ -36,19 +48,65 @@ $tokenBody = [
     'grant_type'    => 'authorization_code',
 ];
 
+// Locate the CA bundle: honour php.ini curl.cainfo, fall back to common XAMPP paths.
+$caInfo = (string) ini_get('curl.cainfo');
+if ($caInfo === '' || !is_file($caInfo)) {
+    $candidates = [
+        'C:/xampp/apache/bin/curl-ca-bundle.crt',
+        'C:/xampp/php/extras/ssl/cacert.pem',
+        dirname(__DIR__, 3) . '/cacert.pem',
+    ];
+    foreach ($candidates as $c) {
+        if (is_file($c)) { $caInfo = $c; break; }
+    }
+}
+
 $ch = curl_init($tokenUrl);
-curl_setopt_array($ch, [
+$curlOpts = [
     CURLOPT_RETURNTRANSFER => true,
     CURLOPT_POST          => true,
     CURLOPT_POSTFIELDS    => http_build_query($tokenBody),
     CURLOPT_HTTPHEADER    => ['Content-Type: application/x-www-form-urlencoded'],
-]);
+    CURLOPT_TIMEOUT       => 15,
+];
+if ($caInfo !== '') {
+    $curlOpts[CURLOPT_CAINFO]          = $caInfo;
+    $curlOpts[CURLOPT_SSL_VERIFYPEER]  = true;
+    $curlOpts[CURLOPT_SSL_VERIFYHOST]  = 2;
+}
+curl_setopt_array($ch, $curlOpts);
 $tokenResponse = curl_exec($ch);
 $tokenHttpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+$tokenCurlErr  = curl_error($ch);
 curl_close($ch);
 
 if ($tokenHttpCode !== 200) {
-    header('Location: ' . $frontendBase . '/auth-login?error=token_exchange_failed');
+    // Bubble up Google token error details to make local setup issues obvious.
+    $tokenErr    = json_decode((string) $tokenResponse, true);
+    $reason      = is_array($tokenErr) && isset($tokenErr['error'])
+                    ? (string) $tokenErr['error']
+                    : 'token_exchange_failed';
+    $description = is_array($tokenErr) && isset($tokenErr['error_description'])
+                    ? (string) $tokenErr['error_description']
+                    : '';
+    if ($description === '' && $tokenCurlErr !== '') {
+        $description = $tokenCurlErr;
+    }
+    // Last-resort: include raw snippet (first 200 chars) so nothing is invisible.
+    if ($description === '' && $tokenResponse !== false && $tokenResponse !== '') {
+        $description = 'http_' . $tokenHttpCode . ': ' . substr(strip_tags((string) $tokenResponse), 0, 200);
+    }
+    if ($description === '' && $tokenHttpCode === 0) {
+        $description = 'curl could not connect (check CA bundle or network)';
+    }
+
+    error_log('Google token exchange failed: http=' . $tokenHttpCode . ' error=' . $reason . ' desc=' . $description . ' redirect_uri=' . $redirectUri);
+
+    $target = $frontendBase . '/auth-login?error=' . urlencode($reason);
+    if ($description !== '') {
+        $target .= '&error_description=' . urlencode($description);
+    }
+    header('Location: ' . $target);
     exit;
 }
 

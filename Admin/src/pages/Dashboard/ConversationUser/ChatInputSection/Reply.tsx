@@ -31,8 +31,9 @@ const Reply = ({ reply, onSetReplyData, chatUserDetails }: ReplyProps) => {
   const replyUserName = chatUserDetails.firstName
     ? `${chatUserDetails.firstName} ${chatUserDetails.lastName}`
     :reply && reply.meta.userData?.firstName;
+  const myId = userProfile?.id ?? userProfile?.uid;
   const isReplyFromMe =
-    reply && reply.meta.sender + "" === userProfile.uid + "";
+    reply && reply.meta.sender + "" === myId + "";
 
   return (
     <Collapse isOpen={isOpen} className="chat-input-collapse replyCollapse">

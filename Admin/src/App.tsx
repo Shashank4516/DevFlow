@@ -17,8 +17,11 @@ import fakeBackend from "./helpers/fakeBackend";
 import { changelayoutMode } from "./redux/actions";
 import { LAYOUT_MODES } from "./constants";
 
-// TODO
-fakeBackend();
+// Disable axios mock backend for real data sources.
+// If you still need it for other pages, gate it behind an env flag.
+if (import.meta.env.VITE_USE_FAKE_BACKEND === "true") {
+  fakeBackend();
+}
 
 // Init Firebase auth backend (compat layer for login/register)
 initFirebaseBackend(firebaseConfig);

@@ -14,7 +14,8 @@ interface RepliedMessageProps {
 function RepliedMessage({ isFromMe, message, fullName }: RepliedMessageProps) {
   const { userProfile } = useProfile();
 
-  const isReplyFromMe = message.meta.sender + "" === userProfile.uid + "";
+  const myId = userProfile?.id ?? userProfile?.uid;
+  const isReplyFromMe = message.meta.sender + "" === myId + "";
   return (
     <div className="">
       <div className="replymessage-block mb-2 d-flex align-items-start">

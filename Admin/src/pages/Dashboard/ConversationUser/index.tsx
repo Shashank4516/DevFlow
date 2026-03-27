@@ -1,45 +1,39 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 
-// hooks
 import { useRedux } from "../../../hooks/index";
 import { createSelector } from "reselect";
-// actions
 import {
   toggleUserDetailsTab,
-  getChatUserConversations,
-  onSendMessage,
-  receiveMessage,
-  readMessage,
-  receiveMessageFromUser,
   deleteMessage,
   deleteUserMessages,
   toggleArchiveContact,
+  setChatUserConversations,
 } from "../../../redux/actions";
 
-// hooks
 import { useProfile } from "../../../hooks";
 
-// components
 import UserHead from "./UserHead";
 import Conversation from "./Conversation";
 import ChatInputSection from "./ChatInputSection/index";
 
-// interface
 import { MessagesTypes } from "../../../data/messages";
-
-// dummy data
 import { pinnedTabs } from "../../../data/index";
+import { useState } from "react";
+import {
+  getChatUserConversations as getChatUserConversationsApi,
+  sendMessage as sendMessageApi,
+} from "../../../api/chats";
 
 interface IndexProps {
   isChannel: boolean;
 }
+
 const Index = ({ isChannel }: IndexProps) => {
-  // global store
   const { dispatch, useAppSelector } = useRedux();
 
   const errorData = createSelector(
-    (state : any) => state.Chats,
-    (state) => ({
+    (state: any) => state.Chats,
+    state => ({
       chatUserDetails: state.chatUserDetails,
       chatUserConversations: state.chatUserConversations,
       isUserMessageSent: state.isUserMessageSent,
@@ -47,24 +41,38 @@ const Index = ({ isChannel }: IndexProps) => {
       isMessageForwarded: state.isMessageForwarded,
       isUserMessagesDeleted: state.isUserMessagesDeleted,
       isImageDeleted: state.isImageDeleted,
-    })
+    }),
   );
-  // Inside your component
-  const {chatUserDetails,chatUserConversations,isUserMessageSent, isMessageDeleted,isMessageForwarded ,isUserMessagesDeleted,
-    isImageDeleted} = useAppSelector(errorData);
+
+  const { chatUserDetails, chatUserConversations } = useAppSelector(errorData);
 
   const onOpenUserDetails = () => {
     dispatch(toggleUserDetailsTab(true));
   };
 
-  /*
-  hooks
-  */
   const { userProfile } = useProfile();
 
-  /*
-  reply handeling
-  */
+  const pollRef = useRef<number | null>(null);
+  const [chatError, setChatError] = useState<string | null>(null);
+
+  // IMPORTANT: use stable MySQL numeric ids for Firestore conversation ids.
+  // Firebase auth uid can differ per login method and will cause each side
+  // to talk in a different room.
+  const myUid = useMemo(
+    () => String(userProfile?.id || userProfile?.uid || ""),
+    [userProfile?.id, userProfile?.uid],
+  );
+
+  const peerIdStr = useMemo(
+    () => String(chatUserDetails?.id || chatUserDetails?.uid || ""),
+    [chatUserDetails?.id, chatUserDetails?.uid],
+  );
+
+  const conversationId = useMemo(() => {
+    if (isChannel || !myUid || !peerIdStr) return null;
+    return `dm_${[myUid, peerIdStr].sort().join("__")}`;
+  }, [isChannel, myUid, peerIdStr]);
+
   const [replyData, setReplyData] = useState<
     null | MessagesTypes | undefined
   >();
@@ -72,61 +80,64 @@ const Index = ({ isChannel }: IndexProps) => {
     setReplyData(reply);
   };
 
-  /*
-  send message
-  */
   const onSend = (data: any) => {
-    let params: any = {
-      text: data.text && data.text,
-      time: new Date().toISOString(),
-      image: data.image && data.image,
-      newimage: data.newimage && data.newimage,
-      attachments: data.attachments && data.attachments,
-      meta: {
-        receiver: chatUserDetails.id,
-        sender: userProfile.uid,
-      },
-    };
+    if (!data?.text || !conversationId || !myUid || !peerIdStr) return;
+    const text = String(data.text).trim();
+    if (!text) return;
 
-    if (replyData && replyData !== null) {
-      params["replyOf"] = replyData;
-    }
-
-    dispatch(onSendMessage(params));
-    if (!isChannel) {
-      setTimeout(() => {
-        dispatch(receiveMessage(chatUserDetails.id));
-      }, 1000);
-      setTimeout(() => {
-        dispatch(readMessage(chatUserDetails.id));
-      }, 1500);
-      setTimeout(() => {
-        dispatch(receiveMessageFromUser(chatUserDetails.id));
-      }, 2000);
-    }
+    sendMessageApi({ to_user_id: peerIdStr, text }).catch((e: any) => {
+      const msg = e?.message || "Failed to send message";
+      setChatError(msg);
+      // Also surface immediately since users expect feedback on send.
+      // eslint-disable-next-line no-alert
+      alert(msg);
+    });
+    setChatError(null);
     setReplyData(null);
   };
 
-
-  useEffect(() => {
-    if (
-      isUserMessageSent ||
-      isMessageDeleted ||
-      isMessageForwarded ||
-      isUserMessagesDeleted ||
-      isImageDeleted
-    ) {
-      dispatch(getChatUserConversations(chatUserDetails.id));
+  const loadMessages = async () => {
+    if (!conversationId || !myUid || !peerIdStr) return;
+    try {
+      const data: any = await getChatUserConversationsApi(peerIdStr);
+      dispatch(
+        setChatUserConversations({
+          conversationId: data?.conversationId || conversationId,
+          userId: peerIdStr,
+          messages: Array.isArray(data?.messages) ? data.messages : [],
+        }),
+      );
+      setChatError(null);
+    } catch (e: any) {
+      setChatError(e?.message || String(e) || "Failed to load messages");
     }
-  }, [
-    dispatch,
-    isUserMessageSent,
-    chatUserDetails,
-    isMessageDeleted,
-    isMessageForwarded,
-    isUserMessagesDeleted,
-    isImageDeleted,
-  ]);
+  };
+
+  // Poll backend for conversation updates.
+  useEffect(() => {
+    if (!conversationId || !myUid || !peerIdStr) return;
+
+    if (pollRef.current) {
+      window.clearInterval(pollRef.current);
+      pollRef.current = null;
+    }
+    setChatError(null);
+    loadMessages();
+
+    pollRef.current = window.setInterval(() => {
+      if (document.visibilityState === "visible") {
+        loadMessages();
+      }
+    }, 2000);
+
+    return () => {
+      if (pollRef.current) {
+        window.clearInterval(pollRef.current);
+        pollRef.current = null;
+      }
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [conversationId, myUid, peerIdStr]);
 
   const onDeleteMessage = (messageId: string | number) => {
     dispatch(deleteMessage(chatUserDetails.id, messageId));
@@ -139,6 +150,7 @@ const Index = ({ isChannel }: IndexProps) => {
   const onToggleArchive = () => {
     dispatch(toggleArchiveContact(chatUserDetails.id));
   };
+
   return (
     <>
       <UserHead
@@ -161,6 +173,8 @@ const Index = ({ isChannel }: IndexProps) => {
         replyData={replyData}
         onSetReplyData={onSetReplyData}
         chatUserDetails={chatUserDetails}
+        disabled={!!chatError}
+        disabledReason={chatError || undefined}
       />
     </>
   );
