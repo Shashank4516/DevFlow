@@ -1,0 +1,7 @@
+# Never bake local secrets into the image (use Railway env vars).
+config.local.php
+
+.git
+.gitignore
+*.log
+README.md

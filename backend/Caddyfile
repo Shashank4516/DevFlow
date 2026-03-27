@@ -1,0 +1,13 @@
+{
+	skip_install_trust
+	frankenphp
+	order php_server before file_server
+}
+
+# Railway sets PORT. Fallback 8080 for local `docker run`.
+:{$PORT:8080} {
+	root * /app
+	encode zstd gzip
+	php_server
+	file_server
+}
