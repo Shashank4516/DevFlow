@@ -14,6 +14,8 @@ export interface LayoutState {
     | TABS.CALLS
     | TABS.CHAT
     | TABS.CONTACTS
+    | TABS.GITHUB
+    | TABS.NOTIFICATIONS
     | TABS.SETTINGS
     | TABS.USERS;
 }

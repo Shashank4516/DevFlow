@@ -8,6 +8,7 @@ import { changelayoutMode, setSettingsFromAuthUser, changeTab, setGithubStatus }
 
 // components
 import SideMenu from "./SideMenu";
+import { FriendRequestsProvider } from "../../contexts/FriendRequestsContext";
 import { useDispatch, useSelector } from "react-redux";
 import { TABS } from "../../constants";
 import { createSelector } from "reselect";
@@ -104,13 +105,15 @@ const Index = (props: IndexProps) => {
   };
 
   return (
-    <div className="layout-wrapper d-lg-flex">
-      {/* side menu */}
-      <SideMenu onChangeLayoutMode={onChangeLayoutMode} />
+    <FriendRequestsProvider>
+      <div className="layout-wrapper d-lg-flex">
+        {/* side menu */}
+        <SideMenu onChangeLayoutMode={onChangeLayoutMode} />
 
-      {props.children}
-      <ToastContainer autoClose={2000} />
-    </div>
+        {props.children}
+        <ToastContainer autoClose={2000} />
+      </div>
+    </FriendRequestsProvider>
   );
 };
 

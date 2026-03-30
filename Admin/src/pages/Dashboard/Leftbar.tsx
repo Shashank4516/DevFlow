@@ -14,6 +14,7 @@ import Chats from "./Chats/index";
 import Contacts from "./Contacts/index";
 import Calls from "./Calls/index";
 import Bookmark from "./Bookmark/index";
+import Notifications from "./Notifications/index";
 import Github from "./Github/index";
 import Settings from "./Settings/index";
 
@@ -67,6 +68,13 @@ const Leftbar = (props: LeftbarProps) => {
             role="tabpanel"
           >
             <Calls />
+          </TabPane>
+
+          <TabPane
+            tabId={TABS.NOTIFICATIONS}
+            role="tabpanel"
+          >
+            <Notifications />
           </TabPane>
 
           <TabPane

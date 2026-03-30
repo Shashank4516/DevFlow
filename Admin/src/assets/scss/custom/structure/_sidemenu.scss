@@ -96,6 +96,10 @@
                 object-fit: contain;
             }
 
+            .notification-sidebar-dot {
+                filter: drop-shadow(0 0 4px rgba(252, 115, 111, 0.95));
+            }
+
             &::before {
                 position: absolute;
                 content: "";

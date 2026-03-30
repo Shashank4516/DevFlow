@@ -70,7 +70,7 @@ const Index = (props: IndexProps) => {
       {getProfileLoading && !isProfileFetched && <Loader />}
       <MyProfile basicDetails={basicDetails} />
 
-      <AppSimpleBar className="p-4 profile-desc">
+      <AppSimpleBar className="px-3 py-3 profile-desc">
         <UserDescription basicDetails={basicDetails} />
         <hr className="my-4" />
 

@@ -13,6 +13,7 @@ export interface MenuItemType {
     | TABS.CHAT
     | TABS.CONTACTS
     | TABS.GITHUB
+    | TABS.NOTIFICATIONS
     | TABS.SETTINGS
     | TABS.USERS;
   /** Optional image src for icon (e.g. GitHub); same size as other nav icons */
@@ -52,20 +53,27 @@ const MENU_ITEMS: MenuItemType[] = [
   },
   {
     id: 5,
+    key: "pills-notifications-tab",
+    icon: "bx bx-bell",
+    tooltipTitle: "Notifications",
+    tabId: TABS.NOTIFICATIONS,
+  },
+  {
+    id: 6,
     key: "pills-bookmark-tab",
     icon: "bx bx-bookmarks",
     tooltipTitle: "Bookmark",
     tabId: TABS.BOOKMARK,
   },
   {
-    id: 6,
+    id: 7,
     key: "pills-github-tab",
     icon: "bx bxl-github",
     tooltipTitle: "GitHub",
     tabId: TABS.GITHUB,
   },
   {
-    id: 7,
+    id: 8,
     key: "pills-setting-tab",
     icon: "bx bx-cog",
     tooltipTitle: "Settings",

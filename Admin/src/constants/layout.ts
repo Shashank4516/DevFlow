@@ -13,6 +13,7 @@ export enum TABS {
   CHAT = "pills-chat",
   CONTACTS = "pills-contacts",
   CALLS = "pills-calls",
+  NOTIFICATIONS = "pills-notifications",
   BOOKMARK = "pills-bookmark",
   GITHUB = "pills-github",
   SETTINGS = "pills-setting",

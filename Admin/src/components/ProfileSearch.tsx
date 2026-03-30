@@ -14,6 +14,7 @@ import {
   showErrorNotification,
   showSuccessNotification,
 } from "../helpers/notifications";
+import { useFriendRequests } from "../contexts/FriendRequestsContext";
 
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
 const DEBOUNCE_MS = 300;
@@ -35,6 +36,7 @@ type RelationStatus =
 
 const ProfileSearch = () => {
   const { dispatch } = useRedux();
+  const { refresh: refreshPending, removeRequest } = useFriendRequests();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchProfile[]>([]);
   const [loading, setLoading] = useState(false);
@@ -43,9 +45,6 @@ const ProfileSearch = () => {
   const [relationByUser, setRelationByUser] = useState<
     Record<number, { status: RelationStatus; request_id: number | null }>
   >({});
-  const [pendingRequests, setPendingRequests] = useState<
-    Array<{ request_id: number; user_id: number; name: string; profile_image: string }>
-  >([]);
   const wrapperRef = useRef<HTMLDivElement>(null);
 
   const [lastAttemptedUrl, setLastAttemptedUrl] = useState<string | null>(null);
@@ -73,22 +72,6 @@ const ProfileSearch = () => {
       setRelationByUser(next);
     } catch {
       // keep UI usable even if status API fails
-    }
-  }, []);
-
-  const fetchPendingRequests = useCallback(async () => {
-    if (!BACKEND_URL) {
-      setPendingRequests([]);
-      return;
-    }
-    try {
-      const url = `${BACKEND_URL.replace(/\/$/, "")}/api/friends/pending.php`;
-      const res = await fetch(url, { credentials: "include" });
-      if (!res.ok) return;
-      const data = await res.json();
-      setPendingRequests(Array.isArray(data?.pending) ? data.pending : []);
-    } catch {
-      // no-op
     }
   }, []);
 
@@ -147,10 +130,6 @@ const ProfileSearch = () => {
   }, [results, fetchStatuses]);
 
   useEffect(() => {
-    fetchPendingRequests();
-  }, [fetchPendingRequests]);
-
-  useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (wrapperRef.current && !wrapperRef.current.contains(e.target as Node)) {
         setDropdownOpen(false);
@@ -201,7 +180,7 @@ const ProfileSearch = () => {
       } else {
         showSuccessNotification("Friend request sent.");
       }
-      fetchPendingRequests();
+      refreshPending();
     } catch {
       showErrorNotification("Network error while sending request");
     }
@@ -225,7 +204,7 @@ const ProfileSearch = () => {
         ...prev,
         [userId]: { status: nextStatus as RelationStatus, request_id: requestId },
       }));
-      setPendingRequests((prev) => prev.filter((p) => p.request_id !== requestId));
+      removeRequest(requestId);
       showSuccessNotification(action === "accept" ? "Request accepted. Chat enabled." : "Request rejected.");
     } catch {
       showErrorNotification("Network error while updating request");
@@ -342,12 +321,6 @@ const ProfileSearch = () => {
               );
             })
           )}
-        </div>
-      )}
-
-      {pendingRequests.length > 0 && (
-        <div className="mt-2 small text-muted">
-          {pendingRequests.length} request{pendingRequests.length > 1 ? "s" : ""} waiting for your response
         </div>
       )}
 
