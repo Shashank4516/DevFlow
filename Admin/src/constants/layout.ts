@@ -16,5 +16,6 @@ export enum TABS {
   NOTIFICATIONS = "pills-notifications",
   BOOKMARK = "pills-bookmark",
   GITHUB = "pills-github",
+  STACK = "pills-stack",
   SETTINGS = "pills-setting",
 }

@@ -4,15 +4,29 @@
 
 
 .chat-leftsidebar {
-    height: calc(100vh - 60px);;
+    height: calc(100vh - 60px);
     position: relative;
     background-color: var(--#{$prefix}sidebar-sub-bg);
     box-shadow: $box-shadow;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
 
     @media (min-width: 992px) {
         min-width: 300px;
         max-width: 300px;
         height: 100vh;
+    }
+
+    // Allow TabContent and TabPane to fill remaining height after ProfileSearch
+    .tab-content {
+        flex: 1;
+        min-height: 0;
+        overflow: hidden;
+
+        .tab-pane {
+            height: 100%;
+        }
     }
 
     .user-status-box {

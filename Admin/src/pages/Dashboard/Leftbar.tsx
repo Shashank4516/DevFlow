@@ -17,6 +17,7 @@ import Bookmark from "./Bookmark/index";
 import Notifications from "./Notifications/index";
 import Github from "./Github/index";
 import Settings from "./Settings/index";
+import Stack from "./Stack/index";
 
 interface LeftbarProps {}
 const Leftbar = (props: LeftbarProps) => {
@@ -89,6 +90,13 @@ const Leftbar = (props: LeftbarProps) => {
             role="tabpanel"
           >
             <Github />
+          </TabPane>
+
+          <TabPane
+            tabId={TABS.STACK}
+            role="tabpanel"
+          >
+            <Stack />
           </TabPane>
 
           <TabPane

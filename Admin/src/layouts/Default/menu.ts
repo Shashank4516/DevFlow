@@ -15,6 +15,7 @@ export interface MenuItemType {
     | TABS.GITHUB
     | TABS.NOTIFICATIONS
     | TABS.SETTINGS
+    | TABS.STACK
     | TABS.USERS;
   /** Optional image src for icon (e.g. GitHub); same size as other nav icons */
   iconImage?: string;
@@ -74,6 +75,13 @@ const MENU_ITEMS: MenuItemType[] = [
   },
   {
     id: 8,
+    key: "pills-stack-tab",
+    icon: "bx bx-layer",
+    tooltipTitle: "Stack",
+    tabId: TABS.STACK,
+  },
+  {
+    id: 9,
     key: "pills-setting-tab",
     icon: "bx bx-cog",
     tooltipTitle: "Settings",
