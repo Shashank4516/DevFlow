@@ -1,0 +1,1013 @@
+// ─────────────────────────────────────────────────────────
+//  Task Manager – Stack Tab  (Figma: DevFlow - Task Manager Dark)
+//  Design tokens from Figma spec
+// ─────────────────────────────────────────────────────────
+$tm-bg: #0b0c0f;
+$tm-sidebar-bg: #171a1f;
+$tm-card-bg: rgba(23, 26, 31, 0.5);
+$tm-border: #2a2e35;
+$tm-white: #ffffff;
+$tm-gray: #9e9e9e;
+$tm-dark-gray: #5c5c5c;
+$tm-primary: #594ded;
+$tm-input-bg: rgba(40, 42, 47, 0.4);
+$tm-font: "Plus Jakarta Sans", "Poppins", sans-serif;
+
+// ── Main wrapper (fills the user-chat area when Stack tab active) ──
+.tm-main-wrapper {
+  position: absolute;
+  inset: 0; // fills user-chat which is position:relative
+  display: flex;
+  background: $tm-bg;
+  overflow: hidden;
+  z-index: 1;
+}
+
+// ─────────────────────────────────────────────────────────
+//  LEFT SIDEBAR  (shown in chat-leftsidebar > TabPane)
+// ─────────────────────────────────────────────────────────
+.tm-sidebar {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  padding: 0;
+  height: 100%;
+  background: $tm-bg;
+  font-family: $tm-font;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: $tm-border transparent;
+  &::-webkit-scrollbar {
+    width: 4px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $tm-border;
+    border-radius: 3px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  &__workspace {
+    display: flex;
+    flex-direction: row;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    padding: 20px;
+    background: $tm-bg;
+  }
+
+  &__ws-text {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__ws-title {
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.14;
+    color: $tm-white;
+  }
+
+  &__ws-sub {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 1.33;
+    color: $tm-gray;
+  }
+
+  &__ws-icon {
+    flex-shrink: 0;
+    opacity: 0.8;
+    cursor: pointer;
+    &:hover {
+      opacity: 1;
+    }
+  }
+
+  &__divider {
+    height: 1px;
+    background: $tm-border;
+    margin: 0;
+    flex-shrink: 0;
+  }
+
+  &__section {
+    padding: 16px 20px 8px;
+  }
+
+  &__section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+  }
+
+  &__section-title {
+    font-size: 14px;
+    font-weight: 400;
+    color: $tm-dark-gray;
+    letter-spacing: -0.02em;
+  }
+
+  &__icon-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: $tm-gray;
+    display: flex;
+    align-items: center;
+    &:hover {
+      color: $tm-white;
+    }
+  }
+
+  // Projects list
+  &__list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+  }
+
+  &__list-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 4px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.15s;
+    color: $tm-gray;
+    &:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: $tm-white;
+    }
+    &.is-active {
+      color: $tm-white;
+    }
+  }
+
+  &__item-content {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__item-label {
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__chevron {
+    flex-shrink: 0;
+    color: $tm-gray;
+    display: flex;
+    align-items: center;
+    transition: transform 0.2s;
+    &.is-open {
+      transform: rotate(90deg);
+    }
+  }
+
+  // Sub-list — tree “lineings” (spine + rounded elbows per Figma-style explorer)
+  &__sub-list {
+    list-style: none;
+    padding: 4px 0 8px 20px;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    position: relative;
+
+    // Short vertical from parent row into first child connector
+    &::before {
+      content: "";
+      position: absolute;
+      left: 5px;
+      top: -6px;
+      width: 1px;
+      height: 10px;
+      background: $tm-border;
+      border-radius: 1px;
+      opacity: 0.85;
+    }
+  }
+
+  &__sub-item {
+    position: relative;
+    font-size: 14px;
+    font-weight: 500;
+    letter-spacing: -0.02em;
+    padding: 6px 12px;
+    border-radius: 6px;
+    color: $tm-gray;
+    cursor: pointer;
+    transition: background 0.15s;
+
+    // Rounded elbow: vertical (top half of row) + horizontal branch with smooth corner
+    &::before {
+      content: "";
+      position: absolute;
+      left: -15px;
+      top: 0;
+      width: 14px;
+      height: 50%;
+      border-left: 1px solid $tm-border;
+      border-bottom: 1px solid $tm-border;
+      border-bottom-left-radius: 7px;
+      box-sizing: border-box;
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    // Meet the parent stub (`sub-list::before`) for a continuous spine
+    &:first-child::before {
+      top: -6px;
+      height: calc(50% + 6px);
+    }
+
+    // Spine continues below midpoint for all but the last row
+    &:not(:last-child)::after {
+      content: "";
+      position: absolute;
+      left: -15px;
+      top: 50%;
+      bottom: 0;
+      width: 1px;
+      background: $tm-border;
+      pointer-events: none;
+      opacity: 0.85;
+    }
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.04);
+      color: $tm-white;
+    }
+    &.is-active {
+      background: rgba(255, 255, 255, 0.08);
+      color: $tm-white;
+      box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+    }
+  }
+
+  // Categories
+  &__cat-list {
+    list-style: none;
+    padding: 0 8px;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__cat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__cat-content {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+  }
+
+  &__cat-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  &__cat-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: $tm-gray;
+    letter-spacing: -0.02em;
+  }
+
+  &__cat-count {
+    font-size: 12px;
+    font-weight: 400;
+    color: $tm-gray;
+    letter-spacing: -0.02em;
+  }
+
+  // Messages
+  &__msg-list {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  &__msg-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  &__avatar {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: $tm-white;
+    flex-shrink: 0;
+    position: relative;
+    &::after {
+      content: "";
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #22bd73;
+      border: 2px solid $tm-bg;
+    }
+  }
+
+  &__msg-info {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  &__msg-name {
+    font-size: 14px;
+    font-weight: 500;
+    color: $tm-gray;
+    letter-spacing: -0.02em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  &__msg-role {
+    font-size: 12px;
+    font-weight: 400;
+    color: #5c5c5c;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+//  MAIN CONTENT AREA  (KanbanBoard)
+// ─────────────────────────────────────────────────────────
+.tm-main {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-width: 0;
+  min-height: 0;
+  background: $tm-bg;
+  font-family: $tm-font;
+  overflow: hidden;
+}
+
+// ── Top header bar ──────────────────────────────────────
+.tm-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid $tm-border;
+  flex-shrink: 0;
+
+  &__right {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+  }
+
+  &__icon-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    &:hover svg path {
+      stroke: $tm-white;
+    }
+  }
+
+  &__divider {
+    width: 0;
+    height: 32px;
+    border-left: 1px solid $tm-border;
+  }
+
+  &__profile {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+  }
+
+  &__avatar {
+    width: 38px;
+    height: 38px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 600;
+    color: $tm-white;
+    flex-shrink: 0;
+  }
+
+  &__profile-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__profile-name {
+    font-size: 14px;
+    font-weight: 600;
+    color: $tm-white;
+    letter-spacing: -0.02em;
+  }
+
+  &__profile-email {
+    font-size: 12px;
+    font-weight: 400;
+    color: $tm-gray;
+    letter-spacing: -0.02em;
+  }
+}
+
+// ── Breadcrumb ──────────────────────────────────────────
+.tm-breadcrumb {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+
+  &__item {
+    font-size: 14px;
+    font-weight: 500;
+    color: $tm-white;
+    letter-spacing: -0.02em;
+    &--muted {
+      color: $tm-gray;
+    }
+  }
+}
+
+// ── Sub-header ──────────────────────────────────────────
+.tm-subheader {
+  padding: 20px 20px 0;
+  border-bottom: 1px solid $tm-border;
+  flex-shrink: 0;
+
+  &__top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+  }
+
+  &__title {
+    font-size: 28px;
+    font-weight: 600;
+    color: $tm-white;
+    letter-spacing: -0.02em;
+    margin: 0;
+    line-height: 1.2;
+  }
+
+  &__actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__bottom {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-end;
+  }
+}
+
+// ── Avatar group ─────────────────────────────────────────
+.tm-avatar-group {
+  display: flex;
+  align-items: center;
+
+  &__item {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: $tm-white;
+    border: 1px solid $tm-sidebar-bg;
+    margin-left: -8px;
+    &:first-child {
+      margin-left: 0;
+    }
+    &--overflow {
+      font-size: 10px;
+    }
+  }
+}
+
+// ── Primary button ────────────────────────────────────────
+.tm-btn-primary {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: $tm-primary;
+  border: none;
+  border-radius: 8px;
+  font-family: $tm-font;
+  font-size: 14px;
+  font-weight: 500;
+  color: $tm-white;
+  cursor: pointer;
+  transition: background 0.15s;
+  &:hover {
+    background: darken(#594ded, 8%);
+  }
+}
+
+// ── Tabs ──────────────────────────────────────────────────
+.tm-tabs {
+  display: flex;
+  align-items: flex-end;
+  gap: 8px;
+  padding: 6px 0 0;
+
+  &__tab {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 0 8px;
+    height: 25px;
+    background: none;
+    border: none;
+    font-family: $tm-font;
+    font-size: 14px;
+    font-weight: 500;
+    color: $tm-gray;
+    cursor: pointer;
+    letter-spacing: -0.006em;
+    border-bottom: 2px solid transparent;
+    transition:
+      color 0.15s,
+      border-color 0.15s;
+    margin-bottom: -1px;
+
+    &.is-active {
+      color: $tm-white;
+      font-weight: 600;
+      border-bottom-color: $tm-primary;
+    }
+    &:hover:not(.is-active) {
+      color: $tm-white;
+    }
+  }
+}
+
+// ── Filters / search ──────────────────────────────────────
+.tm-filters {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.tm-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  width: 215px;
+  height: 34px;
+  background: $tm-input-bg;
+  border: 1px solid $tm-border;
+  border-radius: 8px;
+  color: $tm-gray;
+
+  &__placeholder {
+    font-family: $tm-font;
+    font-size: 14px;
+    font-weight: 400;
+    color: $tm-gray;
+  }
+}
+
+.tm-filter-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  background: $tm-input-bg;
+  border: 1px solid $tm-border;
+  border-radius: 8px;
+  font-family: $tm-font;
+  font-size: 14px;
+  font-weight: 500;
+  color: $tm-white;
+  cursor: pointer;
+  transition: background 0.15s;
+  &:hover {
+    background: rgba(255, 255, 255, 0.08);
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+//  KANBAN BOARD
+// ─────────────────────────────────────────────────────────
+.tm-board {
+  display: flex;
+  gap: 16px;
+  padding: 20px;
+  overflow-x: auto;
+  overflow-y: hidden; // columns handle their own vertical scroll
+  flex: 1;
+  min-height: 0;
+  align-items: stretch; // columns fill the full board height — no dead zone
+  scrollbar-width: thin;
+  scrollbar-color: $tm-border transparent;
+  &::-webkit-scrollbar {
+    height: 6px;
+  }
+  &::-webkit-scrollbar-thumb {
+    background: $tm-border;
+    border-radius: 3px;
+  }
+  &::-webkit-scrollbar-track {
+    background: transparent;
+  }
+}
+
+// ── Column ────────────────────────────────────────────────
+.tm-column {
+  display: flex;
+  flex-direction: column;
+  min-width: 260px;
+  // Allow columns to expand on wide screens (removes big empty right side),
+  // but still keep a minimum so the board can scroll on smaller screens.
+  flex: 1 0 260px;
+  min-height: 0; // allow shrinking in flex context
+
+  &__header {
+    background: $tm-card-bg;
+    border: 1px solid $tm-border;
+    border-radius: 8px;
+    padding: 8px 12px;
+    flex-shrink: 0; // header never scrolls away
+    margin-bottom: 12px;
+  }
+
+  &__title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  &__title-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  &__label {
+    font-size: 14px;
+    font-weight: 500;
+    color: $tm-white;
+    line-height: 1.26;
+  }
+
+  &__count {
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 4px;
+    padding: 4px 6px;
+    line-height: 1;
+  }
+
+  &__add-btn {
+    background: none;
+    border: none;
+    padding: 0;
+    cursor: pointer;
+    color: $tm-gray;
+    display: flex;
+    align-items: center;
+    &:hover {
+      color: $tm-white;
+    }
+  }
+
+  &__cards {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    flex: 1; // fills remaining column height
+    min-height: 0;
+    overflow-y: auto; // cards scroll inside column — no bottom dead zone
+    padding-bottom: 8px;
+    scrollbar-width: thin;
+    scrollbar-color: $tm-border transparent;
+    &::-webkit-scrollbar {
+      width: 4px;
+    }
+    &::-webkit-scrollbar-thumb {
+      background: $tm-border;
+      border-radius: 3px;
+    }
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+  }
+}
+
+// Hide scrollbar ONLY for the "To Do" column (still scrollable)
+.tm-column--todo {
+  .tm-column__cards {
+    -ms-overflow-style: none; // old Edge/IE
+    scrollbar-width: none; // Firefox
+    &::-webkit-scrollbar {
+      width: 0;
+      height: 0;
+    }
+  }
+}
+
+// ── Kanban drag & drop ────────────────────────────────────
+.tm-card-draggable {
+  cursor: grab;
+  touch-action: none;
+  &:active {
+    cursor: grabbing;
+  }
+}
+
+.tm-card--drop-placeholder {
+  min-height: 188px;
+  border: 2px dashed rgba(var(--bs-primary-rgb), 0.55);
+  border-radius: 8px;
+  background: rgba(var(--bs-body-bg-rgb), 0.35);
+  box-sizing: border-box;
+}
+
+.tm-drag-overlay-card {
+  cursor: grabbing;
+  transform: rotate(2.5deg);
+  filter: drop-shadow(0 12px 28px rgba(0, 0, 0, 0.35));
+  .tm-card {
+    pointer-events: none;
+  }
+}
+
+.tm-column__cards.is-over {
+  border-radius: 8px;
+  background: rgba(var(--bs-primary-rgb), 0.06);
+  box-shadow: inset 0 0 0 1px rgba(var(--bs-primary-rgb), 0.25);
+}
+
+// ── Card ──────────────────────────────────────────────────
+.tm-card {
+  background: $tm-card-bg;
+  border: 1px solid $tm-border;
+  border-radius: 8px;
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  transition: border-color 0.15s;
+  &:hover {
+    border-color: rgba(89, 77, 237, 0.4);
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+  }
+
+  &__badge {
+    font-size: 12px;
+    font-weight: 500;
+    line-height: 2em;
+    padding: 0 8px;
+    border-radius: 4px;
+    height: 24px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  &__menu-btn {
+    background: none;
+    border: none;
+    padding: 4px;
+    cursor: pointer;
+    color: $tm-gray;
+    border-radius: 6px;
+    display: flex;
+    align-items: center;
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+      color: $tm-white;
+    }
+  }
+
+  &__body {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  &__title {
+    font-size: 14px;
+    font-weight: 600;
+    color: $tm-white;
+    margin: 0;
+    line-height: 1.26;
+  }
+
+  &__desc {
+    font-size: 12px;
+    font-weight: 400;
+    color: $tm-gray;
+    margin: 0;
+    line-height: 1.5;
+  }
+
+  &__footer {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+  }
+
+  &__meta {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__avatars {
+    display: flex;
+    align-items: center;
+  }
+
+  &__avatar {
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 600;
+    color: $tm-white;
+    border: 1.5px solid $tm-bg;
+    margin-left: -6px;
+    &:first-child {
+      margin-left: 0;
+    }
+  }
+
+  &__tags {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  &__tag {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 1;
+    color: $tm-gray;
+
+    svg {
+      display: block;
+      flex-shrink: 0;
+    }
+  }
+}
+
+// ── Progress ──────────────────────────────────────────────
+.tm-progress {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  &__label,
+  &__count {
+    font-size: 12px;
+    font-weight: 500;
+    color: $tm-white;
+    line-height: 1;
+  }
+
+  // Segmented progress bar (matches Figma screenshot)
+  &__segments {
+    display: flex;
+    gap: 10px;
+    height: 4px;
+  }
+
+  &__segment {
+    flex: 1;
+    height: 100%;
+    border-radius: 999px;
+    background: rgba(255, 255, 255, 0.08);
+    position: relative;
+    overflow: hidden;
+
+    &.is-active {
+      background: var(--tm-progress-color, #594ded);
+    }
+
+    &.is-partial::before {
+      content: "";
+      position: absolute;
+      inset: 0;
+      width: var(--tm-progress-partial, 0%);
+      background: var(--tm-progress-color, #594ded);
+      border-radius: inherit;
+    }
+  }
+}
+
+// ─────────────────────────────────────────────────────────
+//  RESPONSIVE
+// ─────────────────────────────────────────────────────────
+@media (max-width: 991.98px) {
+  .tm-main-wrapper {
+    flex-direction: column;
+  }
+
+  .tm-sidebar {
+    max-height: 300px;
+  }
+
+  .tm-subheader__title {
+    font-size: 20px;
+  }
+
+  .tm-board {
+    padding: 12px;
+  }
+
+  .tm-column {
+    min-width: 240px;
+    flex-basis: 240px;
+  }
+}

@@ -72,6 +72,29 @@ Then:
 
 For `auth/me.php` to receive the session cookie from the React app on another port (e.g. 5173), the backend sends `Access-Control-Allow-Origin` for your `frontend_base_url` and `Access-Control-Allow-Credentials: true`. Use `credentials: 'include'` in `fetch` from the React app.
 
+## Docker (FrankenPHP + MySQLi) — recommended for Railway
+
+The default Railpack PHP image may not load **mysqli**, which causes `Call to undefined function mysqli_connect()` on `/auth/google/callback.php`. This repo includes a **Dockerfile** that enables **mysqli** and **pdo_mysql**.
+
+1. In Railway → your **backend** service → **Settings**:
+   - **Root Directory:** `backend` (this folder).
+   - **Builder:** **Dockerfile** (disable Nixpacks/Railpack if it was selected).
+2. Ensure **`PORT`** is available (Railway sets it automatically). The `Caddyfile` listens on `{$PORT}`.
+3. Set the same env vars as in the table below (especially `GOOGLE_*`, `DB_*`, `BACKEND_BASE_URL`, `FRONTEND_BASE_URL`).
+4. Redeploy.
+
+Local smoke test (from repo root):
+
+```bash
+docker build -t devflow-backend ./backend
+docker run --rm -p 8080:8080 -e PORT=8080 ^
+  -e GOOGLE_CLIENT_ID=... -e GOOGLE_CLIENT_SECRET=... ^
+  -e DB_HOST=... -e DB_USER=... -e DB_PASSWORD=... -e DB_NAME=... -e DB_PORT=3306 ^
+  devflow-backend
+```
+
+`config.local.php` is excluded from the image via `.dockerignore`; use env vars on Railway.
+
 ## Railway deployment
 
 Set these environment variables in your Railway backend service:
