@@ -6,7 +6,7 @@ import { createSelector } from "reselect";
 import { useRedux } from "../../../hooks/index";
 
 // actions
-import { getSettings, updateSettings } from "../../../redux/actions";
+import { getSettings, updateSettings, setSettingsFromAuthUser } from "../../../redux/actions";
 
 // constants
 import { SETTINGS_COLLAPSES } from "../../../constants";
@@ -153,6 +153,11 @@ const Index = (props: IndexProps) => {
   api calling
   */
   const onChangeData = (field: string, value: any) => {
+    // Persist basicDetails immediately in localStorage so refresh keeps changes,
+    // even if the legacy settings API isn't implemented on the PHP backend.
+    if (field === "basicDetails" && value && typeof value === "object") {
+      dispatch(setSettingsFromAuthUser(value));
+    }
     dispatch(updateSettings(field, value));
   };
 

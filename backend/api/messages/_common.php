@@ -108,6 +108,7 @@ function format_dm_message(array $row, int $me): array
     $sender = (string)($row['sender_id'] ?? '');
     $receiver = (string)($row['receiver_id'] ?? '');
     $isFromMe = $sender === (string)$me;
+    $isRead = ((int)($row['is_read'] ?? 0) === 1);
 
     return [
         'mId' => (string)($row['id'] ?? ''),
@@ -118,7 +119,8 @@ function format_dm_message(array $row, int $me): array
             'receiver' => $receiver,
             'sent' => true,
             'received' => true,
-            'read' => $isFromMe ? true : ((int)($row['is_read'] ?? 0) === 1),
+            // Only mark read when receiver has read it (is_read=1), even on sender side.
+            'read' => $isRead,
         ],
     ];
 }

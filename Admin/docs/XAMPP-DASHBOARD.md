@@ -14,7 +14,7 @@ Admin URL: `http://localhost/devflow-admin/`
 
 ## 1. Backend in htdocs
 
-1. Copy the repo folder **`backend`** to `C:\xampp\htdocs\devflow-backend\backend\` (so `auth/`, `api/`, `config.php` sit under `backend\`).
+1. Copy the repo folder **`backend`** to `C:\xampp\htdocs\devflow-backend\backend\` (so `auth/`, `api/`, `config.php` sit under `backend\`). From the repo root you can run: `powershell -ExecutionPolicy Bypass -File .\scripts\copy-backend-to-xampp.ps1`
 2. Configure `config.local.php` (see `backend/README.md`).
 3. Set **`frontend_base_url`** to your Admin URL, e.g. `http://localhost/devflow-admin` (no trailing slash is fine; match what you use in the browser).
 4. Ensure **`mod_rewrite`** is enabled in Apache if you use `.htaccess` rules elsewhere.

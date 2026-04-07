@@ -408,6 +408,18 @@ const UserHead = ({
             </li>
 
             <li className="list-inline-item d-none d-lg-inline-block me-2 ms-0">
+              <Button
+                type="button"
+                color="none"
+                className="btn nav-btn"
+                onClick={onOpenPinnedTab}
+                title="Pinned"
+              >
+                <i className="ri-pushpin-fill"></i>
+              </Button>
+            </li>
+
+            <li className="list-inline-item d-none d-lg-inline-block me-2 ms-0">
               <More
                 onOpenAudio={onOpenAudio}
                 onOpenVideo={onOpenVideo}
@@ -419,7 +431,6 @@ const UserHead = ({
           </ul>
         </Col>
       </Row>
-      <PinnedAlert onOpenPinnedTab={onOpenPinnedTab} />
       {isOpenAudioModal && (
         <AudioCallModal
           isOpen={isOpenAudioModal}

@@ -5,6 +5,7 @@ import "react-toastify/dist/ReactToastify.css";
 
 // actions
 import { changelayoutMode, setSettingsFromAuthUser, changeTab, setGithubStatus, getDirectMessages } from "../../redux/actions";
+import { pingPresence } from "../../api/presence";
 
 // components
 import SideMenu from "./SideMenu";
@@ -82,6 +83,17 @@ const Index = (props: IndexProps) => {
     }, 15000);
     return () => window.clearInterval(id);
   }, [dispatch]);
+
+  // Presence heartbeat for "online" green dot.
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      pingPresence().catch(() => {});
+    };
+    tick();
+    const id = window.setInterval(tick, 10000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!location.search.includes("github=connected")) return;

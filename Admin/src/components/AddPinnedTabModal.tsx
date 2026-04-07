@@ -94,6 +94,7 @@ const AddPinnedTabModal = ({
   onClose,
   pinnedTabs,
 }: AddPinnedTabModalProps) => {
+  const count = Array.isArray(pinnedTabs) ? pinnedTabs.length : 0;
   return (
     <Modal
       isOpen={isOpen}
@@ -114,7 +115,7 @@ const AddPinnedTabModal = ({
           <div className="d-flex align-items-center mb-3">
             <div className="flex-grow-1">
               <div>
-                <h5 className="font-size-16 mb-0">10 Pinned tabs</h5>
+                <h5 className="font-size-16 mb-0">{count} Pinned tabs</h5>
               </div>
             </div>
             <div className="flex-shrink-0">

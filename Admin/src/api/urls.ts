@@ -11,8 +11,8 @@ export const USER_CHANGE_PASSWORD = "/user-change-password";
 
 // profile & settings
 export const GET_PROFILE_DETAILS = "/profile-details";
-export const GET_USER_SETTINGS = "/user-settings";
-export const UPDATE_ETTINGS = "/update-user-settings";
+export const GET_USER_SETTINGS = "/user-settings.php";
+export const UPDATE_ETTINGS = "/update-user-settings.php";
 
 // contacts
 export const GET_CONTACTS = "/user-contacts";
@@ -67,3 +67,6 @@ export const POST_PROJECT_TASK_CREATE = "/api/projects/task_create.php";
 
 // Profile images (PHP backend)
 export const POST_PROFILE_UPDATE_IMAGES = "/api/profile/update.php";
+
+// Presence (PHP backend)
+export const POST_PRESENCE_PING = "/api/presence/ping.php";

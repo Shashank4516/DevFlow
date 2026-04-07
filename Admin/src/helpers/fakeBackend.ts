@@ -314,15 +314,16 @@ const fakeBackend = () => {
   /*
   settings
   */
-  mock.onGet(url.GET_USER_SETTINGS).reply(config => {
-    return new Promise((resolve, reject) => {
-      if (settings) {
-        resolve([200, settings]);
-      } else {
-        reject(["Some thing went wrong!"]);
-      }
-    });
+  const settingsReply = (config: any): Promise<any[]> => new Promise((resolve, reject) => {
+    if (settings) {
+      resolve([200, settings]);
+    } else {
+      reject(["Some thing went wrong!"]);
+    }
   });
+  mock.onGet(url.GET_USER_SETTINGS).reply(settingsReply);
+  // Also intercept the old path (without .php) if still referenced somewhere
+  mock.onGet("/user-settings").reply(settingsReply);
 
   /*
   chats
@@ -998,7 +999,7 @@ const fakeBackend = () => {
     });
   });
 
-  mock.onPut(new RegExp(`${url.UPDATE_ETTINGS}/*`)).reply(config => {
+  const updateSettingsReply = (config: any): Promise<any[]> => {
     const data = JSON.parse(config["data"]);
     const { field, value } = data;
     const modifiedS: any = { ...settings };
@@ -1018,7 +1019,10 @@ const fakeBackend = () => {
         reject(["Something went wrong!"]);
       }
     });
-  });
+  };
+  mock.onPut(new RegExp(`${url.UPDATE_ETTINGS}/*`)).reply(updateSettingsReply);
+  // Also intercept the old path (without .php) if still referenced somewhere
+  mock.onPut(new RegExp("/update-user-settings/*")).reply(updateSettingsReply);
 };
 
 export default fakeBackend;
