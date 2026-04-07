@@ -64,3 +64,6 @@ export const GET_PROJECT_MEMBERS = "/api/projects/members.php";
 export const POST_PROJECT_INVITE = "/api/projects/invite.php";
 export const POST_PROJECT_TASK_MOVE = "/api/projects/task_move.php";
 export const POST_PROJECT_TASK_CREATE = "/api/projects/task_create.php";
+
+// Profile images (PHP backend)
+export const POST_PROFILE_UPDATE_IMAGES = "/api/profile/update.php";

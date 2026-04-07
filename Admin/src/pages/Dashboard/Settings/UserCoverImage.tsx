@@ -3,11 +3,13 @@ import { Label, UncontrolledTooltip } from "reactstrap";
 
 // interface
 import { BasicDetailsTypes } from "../../../data/settings";
+import { updateProfileImages } from "../../../api/profile";
 
 interface UserCoverImageProps {
   basicDetails: BasicDetailsTypes;
+  onChangeData?: (field: string, value: any) => void;
 }
-const UserCoverImage = ({ basicDetails }: UserCoverImageProps) => {
+const UserCoverImage = ({ basicDetails, onChangeData }: UserCoverImageProps) => {
   const [image, setImage] = useState<string>(
     basicDetails && basicDetails.coverImage
   );
@@ -19,8 +21,20 @@ const UserCoverImage = ({ basicDetails }: UserCoverImageProps) => {
   const onChangeProfileCover = (e: any) => {
     const files = [...e.target.files];
     if (files[0]) {
-      const src = URL.createObjectURL(files[0]);
+      const file = files[0];
+      const src = URL.createObjectURL(file);
       setImage(src);
+
+      updateProfileImages({ cover: file })
+        .then((res: any) => {
+          const url = res?.cover_image;
+          if (url && onChangeData && basicDetails) {
+            onChangeData("basicDetails", { ...basicDetails, coverImage: url });
+          }
+        })
+        .catch(() => {
+          // Keep optimistic preview; the user can retry by selecting again.
+        });
     }
   };
   return (

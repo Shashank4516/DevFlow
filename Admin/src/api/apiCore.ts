@@ -79,13 +79,11 @@ class APIClient {
     for (const k in data) {
       formData.append(k, data[k]);
     }
-    // const config = {
-    //   headers: {
-    //     ...axios.defaults.headers,
-    //     "content-type": "multipart/form-data",
-    //   },
-    // };
-    // return axios.put(url, formData, config);
+    return axios.put(url, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
   };
 
   /*
@@ -96,13 +94,11 @@ class APIClient {
     for (const k in data) {
       formData.append(k, data[k]);
     }
-    // const config = {
-    //   headers: {
-    //     ...axios.defaults.headers,
-    //     "content-type": "multipart/form-data",
-    //   },
-    // };
-    return axios.post(url, formData);
+    return axios.post(url, formData, {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
+    });
   };
 };
 

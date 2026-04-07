@@ -17,4 +17,8 @@ const updateSettings = (field: string, value: any) => {
   });
 };
 
-export { getProfileDetails, getSettings, updateSettings };
+const updateProfileImages = (data: { avatar?: File; cover?: File }) => {
+  return api.createWithFile(url.POST_PROFILE_UPDATE_IMAGES, data);
+};
+
+export { getProfileDetails, getSettings, updateSettings, updateProfileImages };

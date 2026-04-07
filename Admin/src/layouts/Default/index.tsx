@@ -4,7 +4,7 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // actions
-import { changelayoutMode, setSettingsFromAuthUser, changeTab, setGithubStatus } from "../../redux/actions";
+import { changelayoutMode, setSettingsFromAuthUser, changeTab, setGithubStatus, getDirectMessages } from "../../redux/actions";
 
 // components
 import SideMenu from "./SideMenu";
@@ -74,6 +74,14 @@ const Index = (props: IndexProps) => {
   useEffect(() => {
     dispatch(changelayoutMode(layoutMode));
   }, [dispatch, layoutMode]);
+
+  // Refresh friends list periodically so updated avatars reflect "in real time".
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      dispatch(getDirectMessages());
+    }, 15000);
+    return () => window.clearInterval(id);
+  }, [dispatch]);
 
   useEffect(() => {
     if (!location.search.includes("github=connected")) return;

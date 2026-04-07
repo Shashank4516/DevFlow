@@ -11,6 +11,7 @@ import classnames from "classnames";
 // interface
 import { BasicDetailsTypes } from "../../../data/settings";
 import avatar1 from "../../../assets/images/users/avatar-1.jpg";
+import { updateProfileImages } from "../../../api/profile";
 
 // CONSTANTS
 import { STATUS_TYPES } from "../../../constants";
@@ -43,11 +44,20 @@ const UserProfile = ({ basicDetails, status, onChangeData }: UserProfileProps) =
       reader.onload = () => {
         const src = reader.result as string;
         setImage(src);
-        if (onChangeData && basicDetails) {
-          onChangeData("basicDetails", { ...basicDetails, profile: src });
-        }
       };
       reader.readAsDataURL(file);
+
+      // Persist to backend so it reflects everywhere (including friends' lists).
+      updateProfileImages({ avatar: file })
+        .then((res: any) => {
+          const url = res?.profile_image;
+          if (url && onChangeData && basicDetails) {
+            onChangeData("basicDetails", { ...basicDetails, profile: url });
+          }
+        })
+        .catch(() => {
+          // Keep optimistic preview; the user can retry by selecting again.
+        });
     }
   };
 
