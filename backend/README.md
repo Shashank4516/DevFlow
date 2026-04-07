@@ -59,6 +59,27 @@ Then:
 4. In Google Console, set redirect URI to `http://localhost/devflow-backend/backend/auth/google/callback.php`.
 5. In React app `.env`, set `VITE_BACKEND_URL=http://localhost/devflow-backend/backend`.
 
+### Stack dashboard (projects / Kanban)
+
+After copying the backend, these endpoints are available (session + MySQL; see `api/projects/`):
+
+- `GET /api/projects/list.php` — projects for the logged-in user  
+- `POST /api/projects/create.php` — create project  
+- `GET /api/projects/board.php?project_id=` — Kanban tasks  
+- `GET /api/projects/category_counts.php?project_id=` — sidebar counts  
+- `GET /api/projects/members.php?project_id=` — teammates  
+- `POST /api/projects/invite.php` — invite an accepted friend  
+- `POST /api/projects/task_move.php` / `task_create.php` — board updates  
+
+To serve the **Admin** app from XAMPP as well (e.g. `http://localhost/devflow-admin/`), build the React app and copy `Admin/build/` into `htdocs`, and set **`frontend_base_url`** in PHP config to that Admin URL. Step-by-step: **`Admin/docs/XAMPP-DASHBOARD.md`** and feature summary **`Admin/DASHBOARD-UPDATE.md`**.
+
+### Dashboard API discovery & health
+
+- **`GET /api/dashboard/index.php`** — JSON manifest of Stack/Kanban endpoints (no auth).
+- **`GET /api/dashboard/ping.php`** — `{ "ok": true }` connectivity test (no auth).
+
+CORS for the React app (including Vite on `http://localhost:3000` or `http://127.0.0.1:3000`) is handled by **`cors_helpers.php`**: it allows the configured **`frontend_base_url`** and any pairing of **localhost / 127.0.0.1 / ::1** so mixed loopback hosts do not cause **Network Error** in the browser.
+
 ## React app wiring
 
 1. **“Continue with Google”** should redirect the browser to:  

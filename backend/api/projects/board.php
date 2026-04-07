@@ -1,0 +1,91 @@
+<?php
+require __DIR__ . '/../friends/_common.php';
+cors_preflight_and_start('GET, OPTIONS');
+
+if ($_SERVER['REQUEST_METHOD'] !== 'GET') {
+    http_response_code(405);
+    json_ok(['error' => 'method_not_allowed']);
+}
+
+if (empty($_SESSION['logged_in']) || empty($_SESSION['user_id'])) {
+    http_response_code(401);
+    json_ok(['error' => 'not_authenticated']);
+}
+
+$me = (int) $_SESSION['user_id'];
+$projectId = isset($_GET['project_id']) ? (int) $_GET['project_id'] : 0;
+if ($projectId <= 0) {
+    http_response_code(400);
+    json_ok(['error' => 'project_id_required']);
+}
+
+require_once dirname(__DIR__, 2) . '/db.php';
+require_once __DIR__ . '/_bootstrap.php';
+
+projects_ensure_tables($conn);
+
+if (!project_user_has_access($conn, $me, $projectId)) {
+    http_response_code(403);
+    json_ok(['error' => 'forbidden']);
+}
+
+$stmt = mysqli_prepare($conn, 'SELECT id, name, owner_id FROM projects WHERE id = ? LIMIT 1');
+mysqli_stmt_bind_param($stmt, 'i', $projectId);
+mysqli_stmt_execute($stmt);
+$res = mysqli_stmt_get_result($stmt);
+$proj = mysqli_fetch_assoc($res);
+mysqli_stmt_close($stmt);
+
+if (!$proj) {
+    http_response_code(404);
+    json_ok(['error' => 'not_found']);
+}
+
+$stmt2 = mysqli_prepare($conn, '
+    SELECT id, title, description, column_key, sort_order, progress_done, progress_total,
+           files_count, comments_count, badges_json
+    FROM project_tasks
+    WHERE project_id = ?
+    ORDER BY column_key, sort_order, id
+');
+mysqli_stmt_bind_param($stmt2, 'i', $projectId);
+mysqli_stmt_execute($stmt2);
+$res2 = mysqli_stmt_get_result($stmt2);
+
+$tasks = [];
+while ($row = mysqli_fetch_assoc($res2)) {
+    $badges = [];
+    if (!empty($row['badges_json'])) {
+        $decoded = json_decode((string) $row['badges_json'], true);
+        if (is_array($decoded)) {
+            foreach ($decoded as $b) {
+                if (is_array($b) && isset($b['label'])) {
+                    $badges[] = ['label' => (string) $b['label']];
+                }
+            }
+        }
+    }
+    $tasks[] = [
+        'id'             => (string) $row['id'],
+        'title'          => $row['title'],
+        'description'    => (string) ($row['description'] ?? ''),
+        'column_key'     => $row['column_key'],
+        'progress'       => [
+            'done'  => (int) $row['progress_done'],
+            'total' => max(1, (int) $row['progress_total']),
+        ],
+        'files'          => (int) $row['files_count'],
+        'comments'       => (int) $row['comments_count'],
+        'badges'         => $badges,
+    ];
+}
+mysqli_stmt_close($stmt2);
+
+json_ok([
+    'project' => [
+        'id'       => (int) $proj['id'],
+        'name'     => $proj['name'],
+        'owner_id' => (int) $proj['owner_id'],
+    ],
+    'tasks'   => $tasks,
+]);

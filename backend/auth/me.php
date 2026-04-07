@@ -10,16 +10,8 @@ session_start();
 header('Content-Type: application/json');
 
 $config = require dirname(__DIR__) . '/config.php';
-$frontendBase = rtrim($config['frontend_base_url'], '/');
-$origin = isset($_SERVER['HTTP_ORIGIN']) ? $_SERVER['HTTP_ORIGIN'] : '';
-
-// Allow credentials for your React domain. If `FRONTEND_BASE_URL` is misconfigured on Railway,
-// fall back to echoing back the request origin (dev-safety).
-$defaultFrontend = 'http://localhost:5173';
-if ($origin !== '' && ($origin === $frontendBase || $frontendBase === $defaultFrontend)) {
-    header('Access-Control-Allow-Origin: ' . $origin);
-    header('Vary: Origin');
-}
+require_once dirname(__DIR__) . '/cors_helpers.php';
+devflow_cors_set_allow_origin($config);
 header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Methods: GET, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');

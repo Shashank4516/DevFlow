@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -12,6 +12,19 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+import { Button, Form, Input, Modal, ModalBody, ModalHeader } from "reactstrap";
+import { createSelector } from "reselect";
+
+import { useRedux, useProfile } from "../../../hooks";
+import {
+  createProjectTask,
+  getProjectBoard,
+  getProjectMembers,
+  moveProjectTask,
+  type StackBoardTask,
+  type StackMember,
+} from "../../../api";
+import { STACK_COUNTS_REFRESH } from "./stackEvents";
 
 /* ─── Types ───────────────────────────────────────────────── */
 interface Badge {
@@ -38,9 +51,13 @@ interface Column {
   cards: Card[];
 }
 
-/* ─── Kanban data (exact from Figma) ─────────────────────── */
-const INITIAL_COLUMNS: Column[] = [
-  {
+const COLUMN_ORDER = ["todo", "inprogress", "review", "complete"] as const;
+
+const COLUMN_STYLES: Record<
+  (typeof COLUMN_ORDER)[number],
+  Omit<Column, "cards">
+> = {
+  todo: {
     id: "todo",
     label: "To Do",
     dotColor: "#FC736F",
@@ -49,40 +66,8 @@ const INITIAL_COLUMNS: Column[] = [
     badgeBg: "rgba(252,115,111,0.2)",
     badgeText: "#FF9996",
     barColor: "#FC736F",
-    cards: [
-      {
-        id: "c1",
-        title: "Homepage UI Design Draft",
-        description:
-          "Building the first version of homepage layout focusing on usability and flow.",
-        badges: [{ label: "Design UI/UX" }, { label: "Frontend" }],
-        progress: { done: 0, total: 4 },
-        files: 3,
-        comments: 1,
-      },
-      {
-        id: "c2",
-        title: "Product Detail Wireframe",
-        description:
-          "Wireframing the product detail page with focus on images and description.",
-        badges: [{ label: "UX" }, { label: "Research" }],
-        progress: { done: 0, total: 4 },
-        files: 2,
-        comments: 3,
-      },
-      {
-        id: "c3",
-        title: "Shopping Cart Structure",
-        description:
-          "Planning the shopping cart page to ensure user-friendly checkout flow.",
-        badges: [{ label: "Backend" }, { label: "API" }],
-        progress: { done: 0, total: 4 },
-        files: 3,
-        comments: 5,
-      },
-    ],
   },
-  {
+  inprogress: {
     id: "inprogress",
     label: "In Progress",
     dotColor: "#3B78F5",
@@ -91,40 +76,8 @@ const INITIAL_COLUMNS: Column[] = [
     badgeBg: "rgba(59,120,245,0.2)",
     badgeText: "#8BB1FF",
     barColor: "#3B78F5",
-    cards: [
-      {
-        id: "c4",
-        title: "User Registration Flow",
-        description:
-          "Building user account creation system with secure authentication.",
-        badges: [{ label: "Frontend" }, { label: "Auth" }],
-        progress: { done: 1, total: 4 },
-        files: 3,
-        comments: 8,
-      },
-      {
-        id: "c5",
-        title: "Payment Gateway Setup",
-        description:
-          "Integrating payment gateway API to support multiple methods.",
-        badges: [{ label: "Backend" }, { label: "API" }],
-        progress: { done: 3, total: 4 },
-        files: 2,
-        comments: 9,
-      },
-      {
-        id: "c6",
-        title: "Product Catalog Layout",
-        description:
-          "Creating responsive product grid for better shopping experience.",
-        badges: [{ label: "Design UI/UX" }, { label: "Frontend" }],
-        progress: { done: 2, total: 4 },
-        files: 3,
-        comments: 11,
-      },
-    ],
   },
-  {
+  review: {
     id: "review",
     label: "Review",
     dotColor: "#F5BD4F",
@@ -133,40 +86,8 @@ const INITIAL_COLUMNS: Column[] = [
     badgeBg: "rgba(245,189,79,0.2)",
     badgeText: "#FCCB6B",
     barColor: "#F5BD4F",
-    cards: [
-      {
-        id: "c7",
-        title: "Homepage Responsive Check",
-        description:
-          "Testing homepage layout across devices to ensure responsiveness.",
-        badges: [{ label: "QA" }, { label: "Frontend" }],
-        progress: { done: 2, total: 4 },
-        files: 2,
-        comments: 18,
-      },
-      {
-        id: "c8",
-        title: "Product Image Optimization",
-        description:
-          "Checking optimized images for clarity and performance balance.",
-        badges: [{ label: "Media" }, { label: "Performance" }],
-        progress: { done: 3, total: 4 },
-        files: 3,
-        comments: 16,
-      },
-      {
-        id: "c9",
-        title: "Checkout Flow Testing",
-        description:
-          "Reviewing checkout process to ensure smooth user experience.",
-        badges: [{ label: "QA" }, { label: "Backend" }],
-        progress: { done: 3, total: 4 },
-        files: 2,
-        comments: 5,
-      },
-    ],
   },
-  {
+  complete: {
     id: "complete",
     label: "Complete",
     dotColor: "#22BD73",
@@ -175,30 +96,44 @@ const INITIAL_COLUMNS: Column[] = [
     badgeBg: "rgba(34,189,115,0.2)",
     badgeText: "#44D992",
     barColor: "#22BD73",
-    cards: [
-      {
-        id: "c10",
-        title: "Login Page Interface",
-        description:
-          "Finished building login interface including input validation.",
-        badges: [{ label: "Design UI/UX" }, { label: "Frontend" }],
-        progress: { done: 4, total: 4 },
-        files: 1,
-        comments: 8,
-      },
-      {
-        id: "c11",
-        title: "Database Schema Setup",
-        description:
-          "Delivered database setup with tables for users, orders, and items.",
-        badges: [{ label: "Backend" }, { label: "Database" }],
-        progress: { done: 4, total: 4 },
-        files: 3,
-        comments: 19,
-      },
-    ],
   },
-];
+};
+
+function taskToCard(t: StackBoardTask): Card {
+  const badges =
+    t.badges && t.badges.length > 0 ? t.badges : [{ label: "Task" }];
+  return {
+    id: t.id,
+    title: t.title,
+    description: t.description || "",
+    badges,
+    progress: {
+      done: t.progress?.done ?? 0,
+      total: Math.max(1, t.progress?.total ?? 4),
+    },
+    files: t.files ?? 0,
+    comments: t.comments ?? 0,
+  };
+}
+
+function buildColumnsFromTasks(tasks: StackBoardTask[]): Column[] {
+  const byCol: Record<string, Card[]> = {
+    todo: [],
+    inprogress: [],
+    review: [],
+    complete: [],
+  };
+  for (const t of tasks) {
+    const key = t.column_key as keyof typeof byCol;
+    if (byCol[key]) {
+      byCol[key].push(taskToCard(t));
+    }
+  }
+  return COLUMN_ORDER.map(id => ({
+    ...COLUMN_STYLES[id],
+    cards: byCol[id] || [],
+  }));
+}
 
 function findCardInColumns(
   columns: Column[],
@@ -211,9 +146,26 @@ function findCardInColumns(
   return null;
 }
 
-/* ─── Avatar initials ────────────────────────────────────── */
+/* ─── Avatar helpers ─────────────────────────────────────── */
 const AVATAR_COLORS = ["#594DED", "#3B78F5", "#22BD73", "#F5BD4F"];
-const AVATAR_INITIALS = ["MK", "SC", "DJ"];
+
+function userInitials(u: { firstName?: string; lastName?: string; displayName?: string; email?: string }): string {
+  const fn = (u.firstName || "").trim();
+  const ln = (u.lastName || "").trim();
+  if (fn || ln) {
+    return (fn.charAt(0) + ln.charAt(0)).toUpperCase() || fn.slice(0, 2).toUpperCase() || "?";
+  }
+  const dn = (u.displayName || "").trim();
+  if (dn) {
+    const parts = dn.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+    }
+    return dn.slice(0, 2).toUpperCase();
+  }
+  const em = (u.email || "").trim();
+  return em ? em.slice(0, 2).toUpperCase() : "?";
+}
 
 /* ─── Inline SVG atoms ───────────────────────────────────── */
 const PlusIcon = ({ size = 16 }: { size?: number }) => (
@@ -376,7 +328,15 @@ const ProgressBar = ({
 };
 
 /* ─── Kanban Card ─────────────────────────────────────────── */
-const KanbanCard = ({ card, col }: { card: Card; col: Column }) => (
+const KanbanCard = ({
+  card,
+  col,
+  memberInitials,
+}: {
+  card: Card;
+  col: Column;
+  memberInitials: string[];
+}) => (
   <div className="tm-card">
     <div className="tm-card__header">
       <div className="tm-card__badges">
@@ -411,11 +371,11 @@ const KanbanCard = ({ card, col }: { card: Card; col: Column }) => (
       />
       <div className="tm-card__meta">
         <div className="tm-card__avatars">
-          {AVATAR_INITIALS.slice(0, 2).map((ini, i) => (
+          {memberInitials.slice(0, 2).map((ini, i) => (
             <span
               key={i}
               className="tm-card__avatar"
-              style={{ background: AVATAR_COLORS[i], zIndex: 2 - i }}
+              style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length], zIndex: 2 - i }}
             >
               {ini}
             </span>
@@ -437,7 +397,15 @@ const KanbanCard = ({ card, col }: { card: Card; col: Column }) => (
 );
 
 /* ─── Draggable card ──────────────────────────────────────── */
-const DraggableKanbanCard = ({ card, col }: { card: Card; col: Column }) => {
+const DraggableKanbanCard = ({
+  card,
+  col,
+  memberInitials,
+}: {
+  card: Card;
+  col: Column;
+  memberInitials: string[];
+}) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: card.id,
     data: { columnId: col.id },
@@ -456,14 +424,20 @@ const DraggableKanbanCard = ({ card, col }: { card: Card; col: Column }) => {
       {isDragging ? (
         <div className="tm-card tm-card--drop-placeholder" aria-hidden />
       ) : (
-        <KanbanCard card={card} col={col} />
+        <KanbanCard card={card} col={col} memberInitials={memberInitials} />
       )}
     </div>
   );
 };
 
 /* ─── Kanban Column ───────────────────────────────────────── */
-const KanbanColumn = ({ col }: { col: Column }) => {
+const KanbanColumn = ({
+  col,
+  memberInitials,
+}: {
+  col: Column;
+  memberInitials: string[];
+}) => {
   const { setNodeRef, isOver } = useDroppable({ id: col.id });
   return (
     <div className={`tm-column tm-column--${col.id}`}>
@@ -496,7 +470,12 @@ const KanbanColumn = ({ col }: { col: Column }) => {
         className={`tm-column__cards${isOver ? " is-over" : ""}`}
       >
         {col.cards.map(card => (
-          <DraggableKanbanCard key={card.id} card={card} col={col} />
+          <DraggableKanbanCard
+            key={card.id}
+            card={card}
+            col={col}
+            memberInitials={memberInitials}
+          />
         ))}
       </div>
     </div>
@@ -505,11 +484,60 @@ const KanbanColumn = ({ col }: { col: Column }) => {
 
 /* ─── Main KanbanBoard ────────────────────────────────────── */
 const KanbanBoard = () => {
+  const { useAppSelector } = useRedux();
+  const { userProfile } = useProfile();
+
+  const layoutSel = createSelector(
+    (state: any) => state.Layout,
+    (l: any) => ({ stackProjectId: l.stackProjectId as number | null })
+  );
+  const { stackProjectId } = useAppSelector(layoutSel);
+
   const [activeTab, setActiveTab] = useState<"Dashboard">("Dashboard");
   const [columns, setColumns] = useState<Column[]>(() =>
-    INITIAL_COLUMNS.map(c => ({ ...c, cards: [...c.cards] }))
+    COLUMN_ORDER.map(id => ({ ...COLUMN_STYLES[id], cards: [] }))
   );
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState("");
+  const [boardLoading, setBoardLoading] = useState(false);
+  const [members, setMembers] = useState<StackMember[]>([]);
+  const [taskModal, setTaskModal] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDesc, setNewTaskDesc] = useState("");
+
+  const hasBackend = !!import.meta.env.VITE_BACKEND_URL;
+
+  const memberInitials = useMemo(
+    () => members.map(m => m.initials || "?").filter(Boolean),
+    [members]
+  );
+
+  const loadBoard = useCallback(async () => {
+    if (stackProjectId == null || !hasBackend) {
+      setColumns(COLUMN_ORDER.map(id => ({ ...COLUMN_STYLES[id], cards: [] })));
+      setProjectName("");
+      return;
+    }
+    setBoardLoading(true);
+    try {
+      const [board, mem] = await Promise.all([
+        getProjectBoard(stackProjectId),
+        getProjectMembers(stackProjectId),
+      ]);
+      setProjectName(board.project.name);
+      setColumns(buildColumnsFromTasks(board.tasks || []));
+      setMembers(mem.members || []);
+    } catch {
+      setColumns(COLUMN_ORDER.map(id => ({ ...COLUMN_STYLES[id], cards: [] })));
+      setProjectName("");
+    } finally {
+      setBoardLoading(false);
+    }
+  }, [stackProjectId, hasBackend]);
+
+  useEffect(() => {
+    loadBoard();
+  }, [loadBoard]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -526,10 +554,10 @@ const KanbanBoard = () => {
     setActiveDragId(String(event.active.id));
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragId(null);
-    if (!over) return;
+    if (!over || stackProjectId == null || !hasBackend) return;
     const cardId = String(active.id);
     const overId = String(over.id);
     const source = findCardInColumns(columns, cardId);
@@ -540,8 +568,9 @@ const KanbanBoard = () => {
     if (!targetCol) return;
     if (source.col.id === targetCol.id) return;
 
-    setColumns(prev =>
-      prev.map(col => {
+    const prev = columns;
+    setColumns(p =>
+      p.map(col => {
         if (col.id === source.col.id) {
           return { ...col, cards: col.cards.filter(c => c.id !== cardId) };
         }
@@ -551,75 +580,108 @@ const KanbanBoard = () => {
         return col;
       })
     );
+
+    try {
+      await moveProjectTask({
+        project_id: stackProjectId,
+        task_id: parseInt(cardId, 10),
+        column_key: targetCol.id,
+      });
+      window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
+    } catch {
+      setColumns(prev);
+    }
   };
 
   const handleDragCancel = () => {
     setActiveDragId(null);
   };
 
+
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stackProjectId || !newTaskTitle.trim() || !hasBackend) return;
+    try {
+      await createProjectTask({
+        project_id: stackProjectId,
+        title: newTaskTitle.trim(),
+        description: newTaskDesc.trim(),
+        column_key: "todo",
+      });
+      setNewTaskTitle("");
+      setNewTaskDesc("");
+      setTaskModal(false);
+      await loadBoard();
+      window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  if (!hasBackend) {
+    return (
+      <div className="tm-main d-flex align-items-center justify-content-center p-4">
+        <p className="text-muted text-center mb-0">
+          Configure <code>VITE_BACKEND_URL</code> in Admin/.env to use Stack with your projects.
+        </p>
+      </div>
+    );
+  }
+
+  if (stackProjectId == null) {
+    return (
+      <div className="tm-main d-flex align-items-center justify-content-center p-4">
+        <p className="text-muted text-center mb-0">
+          {boardLoading ? "Loading…" : "Create or select a project in the Stack sidebar."}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="tm-main">
-      {/* ── Top header row (breadcrumb + notifications + profile) ── */}
       <div className="tm-topbar">
         <nav className="tm-breadcrumb" aria-label="breadcrumb">
           <span className="tm-breadcrumb__item tm-breadcrumb__item--muted">
             Project
           </span>
           <ChevronRightSm />
-          <span className="tm-breadcrumb__item tm-breadcrumb__item--muted">
-            Website
-          </span>
-          <ChevronRightSm />
-          <span className="tm-breadcrumb__item">E-Commerce Website</span>
+          <span className="tm-breadcrumb__item">{projectName || "…"}</span>
         </nav>
         <div className="tm-topbar__right">
-          <button className="tm-topbar__icon-btn" aria-label="Notifications">
+          <button type="button" className="tm-topbar__icon-btn" aria-label="Notifications">
             <BellIcon />
           </button>
-          <div className="tm-topbar__divider" />
-          <div className="tm-topbar__profile">
-            <span
-              className="tm-topbar__avatar"
-              style={{ background: "#594DED" }}
-            >
-              S
-            </span>
-            <div className="tm-topbar__profile-info">
-              <span className="tm-topbar__profile-name">Shahsank</span>
-              <span className="tm-topbar__profile-email">
-                jeno.sonn@gmail.com
-              </span>
-            </div>
-            <ChevronRightSm />
-          </div>
         </div>
       </div>
 
-      {/* ── Secondary header (title + actions + tabs + search) ── */}
       <div className="tm-subheader">
         <div className="tm-subheader__top">
           <div className="tm-subheader__left">
-            <h1 className="tm-subheader__title">E-Commerce Website</h1>
+            <h1 className="tm-subheader__title">{projectName || "Project"}</h1>
           </div>
           <div className="tm-subheader__actions">
             <div className="tm-avatar-group">
-              {AVATAR_COLORS.slice(0, 3).map((c, i) => (
+              {members.slice(0, 3).map((m, i) => (
                 <span
-                  key={i}
+                  key={m.user_id}
                   className="tm-avatar-group__item"
-                  style={{ background: c, zIndex: 3 - i }}
+                  style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length], zIndex: 3 - i }}
+                  title={m.name}
                 >
-                  {AVATAR_INITIALS[i] || "+9"}
+                  {(m.initials || "?").slice(0, 2)}
                 </span>
               ))}
-              <span
-                className="tm-avatar-group__item tm-avatar-group__item--overflow"
-                style={{ background: "#2E2B3B" }}
-              >
-                +9
-              </span>
+              {members.length > 3 && (
+                <span
+                  className="tm-avatar-group__item tm-avatar-group__item--overflow"
+                  style={{ background: "#2E2B3B" }}
+                >
+                  +{members.length - 3}
+                </span>
+              )}
             </div>
-            <button className="tm-btn-primary">
+            <button type="button" className="tm-btn-primary" onClick={() => setTaskModal(true)}>
               <PlusIcon size={14} />
               <span>New Task</span>
             </button>
@@ -630,6 +692,7 @@ const KanbanBoard = () => {
             {(["Dashboard"] as const).map(t => (
               <button
                 key={t}
+                type="button"
                 className={`tm-tabs__tab ${activeTab === t ? "is-active" : ""}`}
                 onClick={() => setActiveTab(t)}
               >
@@ -641,9 +704,9 @@ const KanbanBoard = () => {
           <div className="tm-filters">
             <div className="tm-search">
               <SearchIcon />
-              <span className="tm-search__placeholder">Search...</span>
+              <span className="tm-search__placeholder">Search…</span>
             </div>
-            <button className="tm-filter-btn">
+            <button type="button" className="tm-filter-btn">
               <FilterIcon />
               <span>Filter</span>
             </button>
@@ -651,7 +714,10 @@ const KanbanBoard = () => {
         </div>
       </div>
 
-      {/* ── Kanban board ──────────────────────────────────── */}
+      {boardLoading && (
+        <p className="px-4 py-2 small text-muted mb-0">Loading board…</p>
+      )}
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -661,17 +727,47 @@ const KanbanBoard = () => {
       >
         <div className="tm-board">
           {columns.map(col => (
-            <KanbanColumn key={col.id} col={col} />
+            <KanbanColumn key={col.id} col={col} memberInitials={memberInitials} />
           ))}
         </div>
         <DragOverlay dropAnimation={null}>
           {activeDragPayload ? (
             <div className="tm-drag-overlay-card">
-              <KanbanCard card={activeDragPayload.card} col={activeDragPayload.col} />
+              <KanbanCard
+                card={activeDragPayload.card}
+                col={activeDragPayload.col}
+                memberInitials={memberInitials}
+              />
             </div>
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      <Modal isOpen={taskModal} toggle={() => setTaskModal(false)} centered>
+        <ModalHeader toggle={() => setTaskModal(false)}>New task</ModalHeader>
+        <ModalBody>
+          <Form onSubmit={handleCreateTask}>
+            <Input
+              className="mb-2"
+              placeholder="Title"
+              value={newTaskTitle}
+              onChange={e => setNewTaskTitle(e.target.value)}
+              autoFocus
+            />
+            <Input
+              type="textarea"
+              className="mb-3"
+              placeholder="Description (optional)"
+              value={newTaskDesc}
+              onChange={e => setNewTaskDesc(e.target.value)}
+              rows={3}
+            />
+            <Button color="primary" type="submit" disabled={!newTaskTitle.trim()}>
+              Add to To Do
+            </Button>
+          </Form>
+        </ModalBody>
+      </Modal>
     </div>
   );
 };

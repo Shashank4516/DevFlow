@@ -54,3 +54,13 @@ export const GET_CHANNEL_DETAILS = "/get-channel-details";
 export const GET_ACCEPTED_FRIENDS = "/api/friends/accepted.php";
 export const GET_DM_MESSAGES = "/api/messages/list.php";
 export const POST_DM_MESSAGE = "/api/messages/send.php";
+
+// Stack / projects (PHP backend)
+export const GET_PROJECTS_LIST = "/api/projects/list.php";
+export const POST_PROJECT_CREATE = "/api/projects/create.php";
+export const GET_PROJECT_BOARD = "/api/projects/board.php";
+export const GET_PROJECT_CATEGORY_COUNTS = "/api/projects/category_counts.php";
+export const GET_PROJECT_MEMBERS = "/api/projects/members.php";
+export const POST_PROJECT_INVITE = "/api/projects/invite.php";
+export const POST_PROJECT_TASK_MOVE = "/api/projects/task_move.php";
+export const POST_PROJECT_TASK_CREATE = "/api/projects/task_create.php";
