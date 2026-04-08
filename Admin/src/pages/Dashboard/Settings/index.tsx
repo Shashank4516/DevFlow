@@ -23,7 +23,16 @@ function getInitialSettings(reduxSettings: SettingsTypes): SettingsTypes {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && typeof parsed === "object") {
-        const basicDetails = { ...(reduxSettings?.basicDetails || {}), ...parsed };
+        const apiBd = reduxSettings?.basicDetails || {};
+        const basicDetails = { ...apiBd, ...parsed };
+        const p = apiBd.profile;
+        if (p != null && String(p).trim() !== "") {
+          basicDetails.profile = p;
+        }
+        const c = apiBd.coverImage;
+        if (c != null && String(c).trim() !== "") {
+          basicDetails.coverImage = c;
+        }
         if (authUser?.photoURL) {
           const isDefaultAvatar = !basicDetails.profile || /avatar-?1|avatar1\.(jpg|jpeg|png)/i.test(String(basicDetails.profile));
           if (isDefaultAvatar) basicDetails.profile = authUser.profileImage || authUser.photoURL;

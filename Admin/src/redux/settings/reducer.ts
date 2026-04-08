@@ -34,7 +34,10 @@ const Settings = (state = INIT_STATE, action: any) => {
                   const updated = { ...authUser };
                   if (value.firstName !== undefined) updated.firstName = value.firstName;
                   if (value.lastName !== undefined) updated.lastName = value.lastName;
-                  if (value.profile !== undefined) updated.profileImage = value.profile;
+                  if (value.profile !== undefined) {
+                    updated.profileImage = value.profile;
+                    updated.photoURL = value.profile;
+                  }
                   if (value.email !== undefined) updated.email = value.email;
                   if (value.fullName !== undefined) updated.displayName = value.fullName;
                   localStorage.setItem("authUser", JSON.stringify(updated));
@@ -87,6 +90,18 @@ const Settings = (state = INIT_STATE, action: any) => {
       };
       try {
         localStorage.setItem("devflow_profile_basicDetails", JSON.stringify(basicDetails));
+        if (action.payload?.profile !== undefined) {
+          const raw = localStorage.getItem("authUser");
+          if (raw) {
+            const authUser = JSON.parse(raw);
+            const updated = {
+              ...authUser,
+              profileImage: action.payload.profile,
+              photoURL: action.payload.profile,
+            };
+            localStorage.setItem("authUser", JSON.stringify(updated));
+          }
+        }
       } catch (_) {}
       return {
         ...state,

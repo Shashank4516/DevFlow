@@ -3,7 +3,7 @@ import { Label, UncontrolledTooltip } from "reactstrap";
 
 // interface
 import { BasicDetailsTypes } from "../../../data/settings";
-import { updateProfileImages } from "../../../api/profile";
+import { updateProfileImagesDataUrls } from "../../../api/profile";
 
 interface UserCoverImageProps {
   basicDetails: BasicDetailsTypes;
@@ -22,19 +22,22 @@ const UserCoverImage = ({ basicDetails, onChangeData }: UserCoverImageProps) => 
     const files = [...e.target.files];
     if (files[0]) {
       const file = files[0];
-      const src = URL.createObjectURL(file);
-      setImage(src);
-
-      updateProfileImages({ cover: file })
-        .then((res: any) => {
-          const url = res?.cover_image;
-          if (url && onChangeData && basicDetails) {
-            onChangeData("basicDetails", { ...basicDetails, coverImage: url });
-          }
-        })
-        .catch(() => {
-          // Keep optimistic preview; the user can retry by selecting again.
-        });
+      const reader = new FileReader();
+      reader.onload = () => {
+        const src = reader.result as string;
+        setImage(src);
+        updateProfileImagesDataUrls({ cover: src })
+          .then((res: any) => {
+            const saved = res?.cover_image;
+            if (saved && onChangeData && basicDetails) {
+              onChangeData("basicDetails", { ...basicDetails, coverImage: saved });
+            }
+          })
+          .catch(() => {
+            // Keep optimistic preview; the user can retry by selecting again.
+          });
+      };
+      reader.readAsDataURL(file);
     }
   };
   return (

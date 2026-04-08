@@ -1,10 +1,15 @@
 <?php
 /**
  * Update current user's profile images (avatar and/or cover).
+ * Images are stored in MySQL (users.profile_image / users.cover_image) as data URLs
+ * so they survive Railway's ephemeral filesystem.
  *
  * POST multipart/form-data:
- * - avatar: file (jpg/png/webp)
- * - cover:  file (jpg/png/webp)
+ *   - avatar: file (jpg/png/webp)
+ *   - cover:  file (jpg/png/webp)
+ *
+ * POST application/json:
+ *   - { "avatar": "data:image/jpeg;base64,...", "cover": "data:image/png;base64,..." }
  *
  * Response: { ok: true, profile_image: string|null, cover_image: string|null }
  */
@@ -30,73 +35,187 @@ if ($me <= 0) {
 }
 
 require_once dirname(__DIR__, 2) . '/db.php';
-$config = require dirname(__DIR__, 2) . '/config.php';
-$backendBase = rtrim((string)($config['backend_base_url'] ?? ''), '/');
 
-function ensure_cover_column(mysqli $conn): void {
-    $res = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'cover_image'");
-    $has = $res && mysqli_num_rows($res) > 0;
-    if ($res) mysqli_free_result($res);
-    if ($has) return;
-    // Best-effort: older schemas won't have this.
-    @mysqli_query($conn, "ALTER TABLE users ADD COLUMN cover_image TEXT NULL");
+/** Max decoded image size (bytes) after base64 decode. */
+const AVATAR_MAX_DECODED = 2097152;  // 2 MiB
+const COVER_MAX_DECODED  = 3145728;  // 3 MiB
+
+function column_needs_widen_to_longtext(string $type): bool
+{
+    $t = strtolower($type);
+    if (strpos($t, 'longtext') !== false) {
+        return false;
+    }
+    return strpos($t, 'varchar') !== false
+        || preg_match('/^char\(/', $t)
+        || strpos($t, 'text') !== false;
 }
 
-ensure_cover_column($conn);
+function ensure_profile_image_longtext(mysqli $conn): void
+{
+    $res = mysqli_query($conn, "SHOW COLUMNS FROM users WHERE Field = 'profile_image'");
+    if (!$res) {
+        return;
+    }
+    $row = mysqli_fetch_assoc($res);
+    mysqli_free_result($res);
+    if (!$row) {
+        return;
+    }
+    if (column_needs_widen_to_longtext((string) ($row['Type'] ?? ''))) {
+        @mysqli_query($conn, 'ALTER TABLE users MODIFY COLUMN profile_image LONGTEXT NULL');
+    }
+}
 
-function save_upload(array $file, string $subdir, string $prefix): array {
+function ensure_cover_image_longtext(mysqli $conn): void
+{
+    $res = mysqli_query($conn, "SHOW COLUMNS FROM users WHERE Field = 'cover_image'");
+    if (!$res) {
+        return;
+    }
+    $row = mysqli_fetch_assoc($res);
+    mysqli_free_result($res);
+    if (!$row) {
+        @mysqli_query($conn, 'ALTER TABLE users ADD COLUMN cover_image LONGTEXT NULL');
+        return;
+    }
+    if (column_needs_widen_to_longtext((string) ($row['Type'] ?? ''))) {
+        @mysqli_query($conn, 'ALTER TABLE users MODIFY COLUMN cover_image LONGTEXT NULL');
+    }
+}
+
+ensure_profile_image_longtext($conn);
+ensure_cover_image_longtext($conn);
+
+/**
+ * Validate and return normalized data URL, or [null, error].
+ * @return array{0: ?string, 1: ?string}
+ */
+function validate_image_data_url(string $url, int $maxDecodedBytes): array
+{
+    $url = trim($url);
+    if ($url === '') {
+        return [null, 'empty'];
+    }
+    if (!preg_match('/^data:image\/(jpeg|jpg|png|webp);base64,([A-Za-z0-9+\/=\r\n]+)$/i', $url, $m)) {
+        return [null, 'invalid_data_url'];
+    }
+    $mimeRaw = strtolower($m[1]);
+    $b64 = preg_replace('/\s+/', '', $m[2]);
+    $raw = base64_decode($b64, true);
+    if ($raw === false) {
+        return [null, 'invalid_base64'];
+    }
+    if (strlen($raw) > $maxDecodedBytes) {
+        return [null, 'too_large'];
+    }
+    $mime = $mimeRaw === 'jpg' ? 'jpeg' : $mimeRaw;
+    if (!in_array($mime, ['jpeg', 'png', 'webp'], true)) {
+        return [null, 'unsupported_type'];
+    }
+    $normalized = 'data:image/' . $mime . ';base64,' . base64_encode($raw);
+
+    return [$normalized, null];
+}
+
+/**
+ * Read uploaded image file into a data: URL.
+ * @return array{0: ?string, 1: ?string}
+ */
+function image_file_to_data_url(array $file, int $maxDecodedBytes): array
+{
     if (empty($file) || !isset($file['tmp_name'], $file['name'])) {
         return [null, 'missing_file'];
     }
     if (!empty($file['error'])) {
-        return [null, 'upload_error_' . (string)$file['error']];
+        return [null, 'upload_error_' . (string) $file['error']];
     }
-
-    $tmp = (string)$file['tmp_name'];
-    $orig = (string)$file['name'];
+    $tmp = (string) $file['tmp_name'];
+    $orig = (string) $file['name'];
     $ext = strtolower(pathinfo($orig, PATHINFO_EXTENSION));
-    if (!in_array($ext, ['jpg','jpeg','png','webp'], true)) {
+    if (!in_array($ext, ['jpg', 'jpeg', 'png', 'webp'], true)) {
         return [null, 'unsupported_type'];
     }
-
-    $baseDir = dirname(__DIR__, 2) . '/uploads/' . $subdir;
-    if (!is_dir($baseDir)) {
-        @mkdir($baseDir, 0775, true);
+    $size = @filesize($tmp);
+    if ($size === false || $size > $maxDecodedBytes) {
+        return [null, 'file_too_large'];
     }
-    if (!is_dir($baseDir) || !is_writable($baseDir)) {
-        return [null, 'upload_dir_not_writable'];
+    $allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    $mime = false;
+    if (class_exists('finfo')) {
+        $finfo = new finfo(FILEINFO_MIME_TYPE);
+        $mime = $finfo ? $finfo->file($tmp) : false;
+    }
+    if (!in_array($mime, $allowed, true)) {
+        switch ($ext) {
+            case 'jpg':
+            case 'jpeg':
+                $mime = 'image/jpeg';
+                break;
+            case 'png':
+                $mime = 'image/png';
+                break;
+            case 'webp':
+                $mime = 'image/webp';
+                break;
+            default:
+                $mime = false;
+        }
+    }
+    if (!in_array($mime, $allowed, true)) {
+        return [null, 'unsupported_type'];
+    }
+    $binary = @file_get_contents($tmp);
+    if ($binary === false || $binary === '') {
+        return [null, 'read_failed'];
     }
 
-    $safeExt = $ext === 'jpeg' ? 'jpg' : $ext;
-    $name = $prefix . '_' . date('Ymd_His') . '_' . bin2hex(random_bytes(6)) . '.' . $safeExt;
-    $dest = $baseDir . '/' . $name;
-    if (!move_uploaded_file($tmp, $dest)) {
-        return [null, 'move_failed'];
-    }
+    $mimeShort = $mime === 'image/jpeg' ? 'jpeg' : ($mime === 'image/png' ? 'png' : 'webp');
 
-    $publicPath = '/uploads/' . $subdir . '/' . $name;
-    return [$publicPath, null];
+    return ['data:image/' . $mimeShort . ';base64,' . base64_encode($binary), null];
 }
 
 $updatedProfile = null;
 $updatedCover = null;
 
-if (isset($_FILES['avatar'])) {
-    [$path, $err] = save_upload($_FILES['avatar'], 'profile', 'avatar');
-    if ($err) {
-        http_response_code(400);
-        json_ok(['ok' => false, 'error' => 'avatar_' . $err]);
-    }
-    $updatedProfile = $path;
-}
+$contentType = $_SERVER['CONTENT_TYPE'] ?? $_SERVER['HTTP_CONTENT_TYPE'] ?? '';
+$isJson = stripos($contentType, 'application/json') !== false;
 
-if (isset($_FILES['cover'])) {
-    [$path, $err] = save_upload($_FILES['cover'], 'profile', 'cover');
-    if ($err) {
-        http_response_code(400);
-        json_ok(['ok' => false, 'error' => 'cover_' . $err]);
+if ($isJson) {
+    $body = read_json_body();
+    if (isset($body['avatar']) && is_string($body['avatar'])) {
+        [$dataUrl, $err] = validate_image_data_url($body['avatar'], AVATAR_MAX_DECODED);
+        if ($err) {
+            http_response_code(400);
+            json_ok(['ok' => false, 'error' => 'avatar_' . $err]);
+        }
+        $updatedProfile = $dataUrl;
     }
-    $updatedCover = $path;
+    if (isset($body['cover']) && is_string($body['cover'])) {
+        [$dataUrl, $err] = validate_image_data_url($body['cover'], COVER_MAX_DECODED);
+        if ($err) {
+            http_response_code(400);
+            json_ok(['ok' => false, 'error' => 'cover_' . $err]);
+        }
+        $updatedCover = $dataUrl;
+    }
+} else {
+    if (isset($_FILES['avatar'])) {
+        [$dataUrl, $err] = image_file_to_data_url($_FILES['avatar'], AVATAR_MAX_DECODED);
+        if ($err) {
+            http_response_code(400);
+            json_ok(['ok' => false, 'error' => 'avatar_' . $err]);
+        }
+        $updatedProfile = $dataUrl;
+    }
+    if (isset($_FILES['cover'])) {
+        [$dataUrl, $err] = image_file_to_data_url($_FILES['cover'], COVER_MAX_DECODED);
+        if ($err) {
+            http_response_code(400);
+            json_ok(['ok' => false, 'error' => 'cover_' . $err]);
+        }
+        $updatedCover = $dataUrl;
+    }
 }
 
 if ($updatedProfile === null && $updatedCover === null) {
@@ -104,30 +223,29 @@ if ($updatedProfile === null && $updatedCover === null) {
     json_ok(['ok' => false, 'error' => 'no_files']);
 }
 
-// Update DB
 if ($updatedProfile !== null && $updatedCover !== null) {
-    $stmt = mysqli_prepare($conn, "UPDATE users SET profile_image = ?, cover_image = ? WHERE id = ?");
+    $stmt = mysqli_prepare($conn, 'UPDATE users SET profile_image = ?, cover_image = ? WHERE id = ?');
     mysqli_stmt_bind_param($stmt, 'ssi', $updatedProfile, $updatedCover, $me);
 } elseif ($updatedProfile !== null) {
-    $stmt = mysqli_prepare($conn, "UPDATE users SET profile_image = ? WHERE id = ?");
+    $stmt = mysqli_prepare($conn, 'UPDATE users SET profile_image = ? WHERE id = ?');
     mysqli_stmt_bind_param($stmt, 'si', $updatedProfile, $me);
 } else {
-    $stmt = mysqli_prepare($conn, "UPDATE users SET cover_image = ? WHERE id = ?");
+    $stmt = mysqli_prepare($conn, 'UPDATE users SET cover_image = ? WHERE id = ?');
     mysqli_stmt_bind_param($stmt, 'si', $updatedCover, $me);
 }
 
 if (!$stmt || !mysqli_stmt_execute($stmt)) {
-    if ($stmt) mysqli_stmt_close($stmt);
+    if ($stmt) {
+        mysqli_stmt_close($stmt);
+    }
     http_response_code(500);
     json_ok(['ok' => false, 'error' => 'database_error']);
 }
 mysqli_stmt_close($stmt);
 
-// Return absolute URLs for frontend convenience
-$profileUrl = $updatedProfile ? ($backendBase ? $backendBase . $updatedProfile : $updatedProfile) : null;
-$coverUrl   = $updatedCover ? ($backendBase ? $backendBase . $updatedCover : $updatedCover) : null;
+$profileUrl = $updatedProfile;
+$coverUrl   = $updatedCover;
 
-// Update session snapshot so /auth/me.php reflects instantly.
 if (!isset($_SESSION['basic_details']) || !is_array($_SESSION['basic_details'])) {
     $_SESSION['basic_details'] = [];
 }
@@ -147,4 +265,3 @@ json_ok([
     'profile_image' => $profileUrl,
     'cover_image' => $coverUrl,
 ]);
-

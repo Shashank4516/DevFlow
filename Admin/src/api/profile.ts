@@ -21,4 +21,15 @@ const updateProfileImages = (data: { avatar?: File; cover?: File }) => {
   return api.createWithFile(url.POST_PROFILE_UPDATE_IMAGES, data);
 };
 
-export { getProfileDetails, getSettings, updateSettings, updateProfileImages };
+/** Store avatar/cover in MySQL as data URLs (works on Railway; avoids flaky multipart proxies). */
+const updateProfileImagesDataUrls = (data: { avatar?: string; cover?: string }) => {
+  return api.create(url.POST_PROFILE_UPDATE_IMAGES, data);
+};
+
+export {
+  getProfileDetails,
+  getSettings,
+  updateSettings,
+  updateProfileImages,
+  updateProfileImagesDataUrls,
+};

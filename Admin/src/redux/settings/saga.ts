@@ -27,6 +27,15 @@ function* getSettings(): Generator<any, void, any> {
         const parsed = JSON.parse(saved);
         if (parsed && typeof parsed === "object") {
           basicDetails = { ...apiBasicDetails, ...parsed };
+          // Server/DB is source of truth for photos (avoids stale localStorage overriding uploads).
+          const p = apiBasicDetails.profile;
+          if (p != null && String(p).trim() !== "") {
+            basicDetails.profile = p;
+          }
+          const c = apiBasicDetails.coverImage;
+          if (c != null && String(c).trim() !== "") {
+            basicDetails.coverImage = c;
+          }
         }
       } else {
         if (authUser && (authUser.firstName != null || authUser.photoURL)) {
