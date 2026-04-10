@@ -68,6 +68,8 @@ const onChangeDirectMessages = (newData: Array<UserTypes>) => {
 export interface ChannelTypes {
   id: number | string;
   name: string;
+  memberAvatars?: string[];
+  memberCount?: number;
   meta?: {
     unRead: number;
   };
