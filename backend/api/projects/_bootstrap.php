@@ -37,6 +37,53 @@ function projects_ensure_tables(mysqli $conn): void
         badges_json TEXT,
         KEY idx_project_column (project_id, column_key, sort_order)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS project_task_todos (
+        id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+        task_id INT NOT NULL,
+        text VARCHAR(500) NOT NULL,
+        is_done TINYINT(1) NOT NULL DEFAULT 0,
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        KEY idx_task_sort (task_id, sort_order, id),
+        KEY idx_task_done (task_id, is_done)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/**
+ * Recompute and store progress counters from the todo checklist.
+ */
+function tasks_sync_progress_from_todos(mysqli $conn, int $projectId, int $taskId): void
+{
+    $stmt = mysqli_prepare($conn, "
+        SELECT
+            COUNT(*) AS total,
+            SUM(CASE WHEN is_done = 1 THEN 1 ELSE 0 END) AS done
+        FROM project_task_todos
+        WHERE task_id = ?
+    ");
+    mysqli_stmt_bind_param($stmt, 'i', $taskId);
+    mysqli_stmt_execute($stmt);
+    $res = mysqli_stmt_get_result($stmt);
+    $row = mysqli_fetch_assoc($res) ?: ['total' => 0, 'done' => 0];
+    mysqli_stmt_close($stmt);
+
+    $total = (int)($row['total'] ?? 0);
+    $done  = (int)($row['done'] ?? 0);
+
+    // Keep legacy defaults: if no todos exist, show 0/4.
+    $progressTotal = $total > 0 ? $total : 4;
+    $progressDone  = $total > 0 ? $done : 0;
+
+    $upd = mysqli_prepare($conn, "
+        UPDATE project_tasks
+        SET progress_done = ?, progress_total = ?
+        WHERE id = ? AND project_id = ?
+        LIMIT 1
+    ");
+    mysqli_stmt_bind_param($upd, 'iiii', $progressDone, $progressTotal, $taskId, $projectId);
+    mysqli_stmt_execute($upd);
+    mysqli_stmt_close($upd);
 }
 
 function project_user_has_access(mysqli $conn, int $userId, int $projectId): bool

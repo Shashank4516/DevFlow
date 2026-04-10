@@ -21,8 +21,12 @@ import {
   getProjectBoard,
   getProjectMembers,
   moveProjectTask,
+  getTaskTodos,
+  createTaskTodo,
+  toggleTaskTodo,
   type StackBoardTask,
   type StackMember,
+  type StackTaskTodo,
 } from "../../../api";
 import { STACK_COUNTS_REFRESH } from "./stackEvents";
 
@@ -327,15 +331,41 @@ const ProgressBar = ({
   );
 };
 
+const TodoCheckIcon = ({ checked }: { checked: boolean }) => (
+  <span
+    style={{
+      width: 18,
+      height: 18,
+      borderRadius: 5,
+      border: `1px solid ${checked ? "#22BD73" : "#5A5668"}`,
+      background: checked ? "rgba(34,189,115,0.25)" : "transparent",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 10,
+      flex: "0 0 auto",
+    }}
+    aria-hidden
+  >
+    {checked ? (
+      <span style={{ color: "#22BD73", fontSize: 12, fontWeight: 700 }}>
+        ✓
+      </span>
+    ) : null}
+  </span>
+);
+
 /* ─── Kanban Card ─────────────────────────────────────────── */
 const KanbanCard = ({
   card,
   col,
   memberInitials,
+  onOpenChecklist,
 }: {
   card: Card;
   col: Column;
   memberInitials: string[];
+  onOpenChecklist: (card: Card) => void;
 }) => (
   <div className="tm-card">
     <div className="tm-card__header">
@@ -353,8 +383,9 @@ const KanbanCard = ({
       <button
         type="button"
         className="tm-card__menu-btn"
-        aria-label="Card options"
+        aria-label="Open checklist"
         onPointerDown={e => e.stopPropagation()}
+        onClick={() => onOpenChecklist(card)}
       >
         <DotsIcon />
       </button>
@@ -401,10 +432,12 @@ const DraggableKanbanCard = ({
   card,
   col,
   memberInitials,
+  onOpenChecklist,
 }: {
   card: Card;
   col: Column;
   memberInitials: string[];
+  onOpenChecklist: (card: Card) => void;
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: card.id,
@@ -424,7 +457,12 @@ const DraggableKanbanCard = ({
       {isDragging ? (
         <div className="tm-card tm-card--drop-placeholder" aria-hidden />
       ) : (
-        <KanbanCard card={card} col={col} memberInitials={memberInitials} />
+        <KanbanCard
+          card={card}
+          col={col}
+          memberInitials={memberInitials}
+          onOpenChecklist={onOpenChecklist}
+        />
       )}
     </div>
   );
@@ -434,9 +472,11 @@ const DraggableKanbanCard = ({
 const KanbanColumn = ({
   col,
   memberInitials,
+  onOpenChecklist,
 }: {
   col: Column;
   memberInitials: string[];
+  onOpenChecklist: (card: Card) => void;
 }) => {
   const { setNodeRef, isOver } = useDroppable({ id: col.id });
   return (
@@ -475,6 +515,7 @@ const KanbanColumn = ({
             card={card}
             col={col}
             memberInitials={memberInitials}
+            onOpenChecklist={onOpenChecklist}
           />
         ))}
       </div>
@@ -504,6 +545,11 @@ const KanbanBoard = () => {
   const [taskModal, setTaskModal] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [checklistCard, setChecklistCard] = useState<Card | null>(null);
+  const [checklistLoading, setChecklistLoading] = useState(false);
+  const [todos, setTodos] = useState<StackTaskTodo[]>([]);
+  const [newTodoText, setNewTodoText] = useState("");
 
   const hasBackend = !!import.meta.env.VITE_BACKEND_URL;
 
@@ -596,6 +642,125 @@ const KanbanBoard = () => {
   const handleDragCancel = () => {
     setActiveDragId(null);
   };
+
+  const onOpenChecklist = useCallback(
+    async (card: Card) => {
+      if (!stackProjectId || !hasBackend) return;
+      setChecklistCard(card);
+      setChecklistOpen(true);
+      setChecklistLoading(true);
+      setTodos([]);
+      setNewTodoText("");
+      try {
+        const res = await getTaskTodos({
+          project_id: stackProjectId,
+          task_id: parseInt(card.id, 10),
+        });
+        setTodos(res.todos || []);
+        // Update the progress counters for the card in-place
+        setColumns(prev =>
+          prev.map(col => ({
+            ...col,
+            cards: col.cards.map(c =>
+              c.id === card.id
+                ? {
+                    ...c,
+                    progress: {
+                      done: res.progress?.done ?? c.progress.done,
+                      total: res.progress?.total ?? c.progress.total,
+                    },
+                  }
+                : c
+            ),
+          }))
+        );
+      } finally {
+        setChecklistLoading(false);
+      }
+    },
+    [stackProjectId, hasBackend]
+  );
+
+  const handleAddTodo = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!stackProjectId || !checklistCard) return;
+      const text = newTodoText.trim();
+      if (!text) return;
+      setChecklistLoading(true);
+      try {
+        const res = await createTaskTodo({
+          project_id: stackProjectId,
+          task_id: parseInt(checklistCard.id, 10),
+          text,
+        });
+        if (res.todo) {
+          setTodos(prev => [...prev, res.todo]);
+        }
+        setNewTodoText("");
+        setColumns(prev =>
+          prev.map(col => ({
+            ...col,
+            cards: col.cards.map(c =>
+              c.id === checklistCard.id
+                ? {
+                    ...c,
+                    progress: {
+                      done: res.progress?.done ?? c.progress.done,
+                      total: res.progress?.total ?? c.progress.total,
+                    },
+                  }
+                : c
+            ),
+          }))
+        );
+        window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
+      } finally {
+        setChecklistLoading(false);
+      }
+    },
+    [stackProjectId, checklistCard, newTodoText]
+  );
+
+  const handleToggleTodo = useCallback(
+    async (todo: StackTaskTodo) => {
+      if (!stackProjectId || !checklistCard) return;
+      const next = !todo.is_done;
+      setTodos(prev =>
+        prev.map(t => (t.id === todo.id ? { ...t, is_done: next } : t))
+      );
+      try {
+        const res = await toggleTaskTodo({
+          project_id: stackProjectId,
+          task_id: parseInt(checklistCard.id, 10),
+          todo_id: parseInt(todo.id, 10),
+          is_done: next,
+        });
+        setColumns(prev =>
+          prev.map(col => ({
+            ...col,
+            cards: col.cards.map(c =>
+              c.id === checklistCard.id
+                ? {
+                    ...c,
+                    progress: {
+                      done: res.progress?.done ?? c.progress.done,
+                      total: res.progress?.total ?? c.progress.total,
+                    },
+                  }
+                : c
+            ),
+          }))
+        );
+      } catch {
+        // revert on failure
+        setTodos(prev =>
+          prev.map(t => (t.id === todo.id ? { ...t, is_done: !next } : t))
+        );
+      }
+    },
+    [stackProjectId, checklistCard]
+  );
 
 
   const handleCreateTask = async (e: React.FormEvent) => {
@@ -727,7 +892,12 @@ const KanbanBoard = () => {
       >
         <div className="tm-board">
           {columns.map(col => (
-            <KanbanColumn key={col.id} col={col} memberInitials={memberInitials} />
+            <KanbanColumn
+              key={col.id}
+              col={col}
+              memberInitials={memberInitials}
+              onOpenChecklist={onOpenChecklist}
+            />
           ))}
         </div>
         <DragOverlay dropAnimation={null}>
@@ -737,6 +907,7 @@ const KanbanBoard = () => {
                 card={activeDragPayload.card}
                 col={activeDragPayload.col}
                 memberInitials={memberInitials}
+                onOpenChecklist={onOpenChecklist}
               />
             </div>
           ) : null}
@@ -764,6 +935,71 @@ const KanbanBoard = () => {
             />
             <Button color="primary" type="submit" disabled={!newTaskTitle.trim()}>
               Add to To Do
+            </Button>
+          </Form>
+        </ModalBody>
+      </Modal>
+
+      <Modal
+        isOpen={checklistOpen}
+        toggle={() => setChecklistOpen(false)}
+        centered
+      >
+        <ModalHeader toggle={() => setChecklistOpen(false)}>
+          Checklist{checklistCard ? ` — ${checklistCard.title}` : ""}
+        </ModalHeader>
+        <ModalBody>
+          {checklistLoading ? (
+            <p className="small text-muted mb-3">Loading…</p>
+          ) : null}
+
+          {todos.length === 0 && !checklistLoading ? (
+            <p className="small text-muted mb-3">No items yet. Add your first todo.</p>
+          ) : (
+            <div className="mb-3">
+              {todos.filter((t): t is StackTaskTodo => t != null).map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => handleToggleTodo(t)}
+                  className="w-100 text-start"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    padding: "8px 6px",
+                    display: "flex",
+                    alignItems: "center",
+                    color: "#EDEDED",
+                  }}
+                >
+                  <TodoCheckIcon checked={!!t.is_done} />
+                  <span
+                    style={{
+                      textDecoration: t.is_done ? "line-through" : "none",
+                      opacity: t.is_done ? 0.7 : 1,
+                    }}
+                  >
+                    {t.text}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <Form onSubmit={handleAddTodo}>
+            <Input
+              className="mb-2"
+              placeholder="Add a todo item…"
+              value={newTodoText}
+              onChange={e => setNewTodoText(e.target.value)}
+              disabled={!checklistCard}
+            />
+            <Button
+              color="primary"
+              type="submit"
+              disabled={!checklistCard || !newTodoText.trim()}
+            >
+              Add item
             </Button>
           </Form>
         </ModalBody>

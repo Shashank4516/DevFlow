@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createSelector } from "reselect";
 import { Button, Form, Input, UncontrolledTooltip } from "reactstrap";
 import { Link } from "react-router-dom";
@@ -157,6 +157,8 @@ const Index = (props: IndexProps) => {
   const onSelectChat = (id: string | number, isChannel?: boolean) => {
     if (isChannel) {
       dispatch(getChannelDetails(id));
+      dispatch(changeSelectedChat(id));
+      return;
     } else {
       // Prefer using the already-loaded user object so the header has profileImage immediately.
       const allUsers = [...(favourites || []), ...(directMessages || [])];
@@ -210,6 +212,19 @@ const Index = (props: IndexProps) => {
         }
       }
   };
+
+  const groupFriends = useMemo(() => {
+    const merged = [...(directMessages || []), ...(favourites || [])];
+    const friendsById = new Map<string, any>();
+    merged.forEach((friend: any) => {
+      if (!friend?.id) return;
+      const key = String(friend.id);
+      if (!friendsById.has(key)) {
+        friendsById.set(key, friend);
+      }
+    });
+    return Array.from(friendsById.values());
+  }, [directMessages, favourites]);
 
   return (
     <>
@@ -297,6 +312,7 @@ const Index = (props: IndexProps) => {
           isOpen={isOpenCreateChannel}
           onClose={closeCreateChannelModal}
           onCreateChannel={onCreateChannel}
+          friends={groupFriends}
         />
       )}
 

@@ -23,6 +23,12 @@ export type StackBoardTask = {
   badges: { label: string }[];
 };
 
+export type StackTaskTodo = {
+  id: string;
+  text: string;
+  is_done: boolean;
+};
+
 export const listProjects = (): Promise<{ projects: StackProject[] }> => {
   return asData(api.get(url.GET_PROJECTS_LIST));
 };
@@ -100,4 +106,32 @@ export const createProjectTask = (payload: {
   column_key?: string;
 }): Promise<{ task: StackBoardTask }> => {
   return asData(api.create(url.POST_PROJECT_TASK_CREATE, payload));
+};
+
+export const getTaskTodos = (payload: {
+  project_id: number;
+  task_id: number;
+}): Promise<{ todos: StackTaskTodo[]; progress: { done: number; total: number } }> => {
+  return asData(
+    api.get(url.GET_PROJECT_TASK_TODOS, {
+      params: { project_id: payload.project_id, task_id: payload.task_id },
+    })
+  );
+};
+
+export const createTaskTodo = (payload: {
+  project_id: number;
+  task_id: number;
+  text: string;
+}): Promise<{ todo: StackTaskTodo; progress: { done: number; total: number } }> => {
+  return asData(api.create(url.POST_PROJECT_TASK_TODO_CREATE, payload));
+};
+
+export const toggleTaskTodo = (payload: {
+  project_id: number;
+  task_id: number;
+  todo_id: number;
+  is_done: boolean;
+}): Promise<{ ok: boolean; progress: { done: number; total: number } }> => {
+  return asData(api.create(url.POST_PROJECT_TASK_TODO_TOGGLE, payload));
 };

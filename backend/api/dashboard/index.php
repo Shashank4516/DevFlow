@@ -37,6 +37,9 @@ $manifest = [
             'POST ' . $base . '/api/projects/invite.php' => 'Invite friend JSON {project_id, friend_user_id}',
             'POST ' . $base . '/api/projects/task_move.php' => 'Move task JSON {project_id, task_id, column_key}',
             'POST ' . $base . '/api/projects/task_create.php' => 'New task JSON {project_id, title, description?, column_key?}',
+            'GET ' . $base . '/api/projects/task_todos_list.php?project_id=&task_id=' => 'List checklist todos + recomputed progress',
+            'POST ' . $base . '/api/projects/task_todos_create.php' => 'Create checklist item JSON {project_id, task_id, text}',
+            'POST ' . $base . '/api/projects/task_todos_toggle.php' => 'Toggle checklist item JSON {project_id, task_id, todo_id, is_done}',
         ],
     ],
     'health' => [

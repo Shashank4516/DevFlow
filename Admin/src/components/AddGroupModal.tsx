@@ -1,5 +1,4 @@
-import React, { useState } from "react";
-import classnames from "classnames";
+import React, { useMemo, useState } from "react";
 
 import {
   Button,
@@ -9,17 +8,12 @@ import {
   ModalFooter,
   Label,
   Input,
-  Collapse,
   Form,
 } from "reactstrap";
 
-//utils
-import { DivideByKeyResultTypes } from "../utils";
-
-// interfaaces
-import { ContactTypes } from "../data/contacts";
-import { useContacts } from "../hooks";
+// interfaces
 import { CreateChannelPostData } from "../redux/actions";
+import { UserTypes } from "../data/chat";
 
 // components
 import AppSimpleBar from "./AppSimpleBar";
@@ -29,8 +23,13 @@ interface DataTypes {
   channelName: string;
   description: string;
 }
+interface GroupSelectableFriend {
+  id: string | number;
+  firstName: string;
+  lastName: string;
+}
 interface ContactItemProps {
-  contact: ContactTypes;
+  contact: GroupSelectableFriend;
   selected: boolean;
   onSelectContact: (id: string | number, selected: boolean) => void;
 }
@@ -51,8 +50,9 @@ const ContactItem = ({
           type="checkbox"
           className="form-check-input"
           id={`contact-${contact.id}`}
+          checked={selected}
           onChange={(e: any) => {
-            onCheck(e.target.checked)
+            onCheck(e.target.checked);
           }}
           value={fullName}
         />
@@ -63,71 +63,18 @@ const ContactItem = ({
     </li>
   );
 };
-
-interface CharacterItemProps {
-  letterContacts: DivideByKeyResultTypes;
-  index: number;
-  totalContacts: number;
-  selectedContacts: Array<number | string>;
-  onSelectContact: (id: string | number, selected: boolean) => void;
-}
-
-const CharacterItem = ({
-  letterContacts,
-  index,
-  totalContacts,
-  selectedContacts,
-  onSelectContact,
-}: CharacterItemProps) => {
-  return (
-    <div>
-      <div className="contact-list-title">{letterContacts.letter}</div>
-
-      <ul
-        className={classnames("list-unstyled", "contact-list", {
-          "mb-0": index + 1 === totalContacts,
-        })}
-      >
-        {(letterContacts.data || []).map((contact: any, key: number) => {
-          const selected: boolean = selectedContacts.includes(contact.id);
-          return (
-            <ContactItem
-              contact={contact}
-              key={key}
-              selected={selected}
-              onSelectContact={onSelectContact}
-            />
-          );
-        })}
-      </ul>
-    </div>
-  );
-};
 interface AddGroupModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateChannel: (params: CreateChannelPostData) => void;
+  friends: Array<UserTypes>;
 }
 const AddGroupModal = ({
   isOpen,
   onClose,
   onCreateChannel,
+  friends,
 }: AddGroupModalProps) => {
-  /*
-    collapse handeling
-    */
-  const [isOpenCollapse, setIsOpenCollapse] = useState(false);
-  const toggleCollapse = () => {
-    setIsOpenCollapse(!isOpenCollapse);
-  };
-
-  /*
-    contacts hook
-    */
-  const { categorizedContacts, totalContacts } = useContacts();
-  /*
-  select contacts
-  */
   const [selectedContacts, setSelectedContacts] = useState<
     Array<string | number>
   >([]);
@@ -141,42 +88,36 @@ const AddGroupModal = ({
     setSelectedContacts(modifiedList);
   };
 
-  /*
-    data
-    */
   const [data, setData] = useState<DataTypes>({
-    id : "",
+    id: "",
     channelName: "",
     description: "",
   });
-  const onDataChange = (field: "id" | "channelName" | "description", value: any) => {
+  const onDataChange = (
+    field: "id" | "channelName" | "description",
+    value: any
+  ) => {
     let modifiedData: DataTypes = { ...data };
     modifiedData[field] = value;
     setData(modifiedData);
   };
 
-  /*
-    disale button
-    */
-  // const [valid, setValid] = useState(false);
-  // useEffect(() => {
-  //   if (
-  //     selectedContacts.length === 0 &&
-  //     !data.description &&
-  //     data.description === ""
-  //   ) {
-  //     setValid(false);
-  //   } else {
-  //     setValid(true);
-  //   }
-  // }, [selectedContacts, data]);
+  const selectableFriends = useMemo<Array<GroupSelectableFriend>>(() => {
+    return (friends || [])
+      .map((friend) => ({
+        id: friend.id,
+        firstName: friend.firstName || "",
+        lastName: friend.lastName || "",
+      }))
+      .filter((friend) => friend.id !== undefined && friend.id !== null);
+  }, [friends]);
 
-  /*
-    submit data
-    */
+  const isValid = data.channelName.trim().length > 0 && selectedContacts.length > 0;
+
   const onSubmit = () => {
+    if (!isValid) return;
     const params = {
-      id : data.id,
+      id: data.id,
       name: data.channelName,
       members: selectedContacts,
       description: data.description,
@@ -194,17 +135,11 @@ const AddGroupModal = ({
       color="white"
       id="addgroup-exampleModal"
       role="dialog">
-      {/* <ModalHeader className="modal-title-custom bg-primary " toggle={onClose} >
-      Create New Group
-     </ModalHeader> */}
-     <ModalHeader toggle={onClose} className="bg-primary">
-      <div className="modal-title modal-title-custom text-white bg-primary font-size-16">
-      Create New Group
-      </div>
-     </ModalHeader>
-      {/* <div className="modal-title text-white font-size-16 bg-primary text-white">
-        creact new grop
-      </div> */}
+      <ModalHeader toggle={onClose} className="bg-primary">
+        <div className="modal-title modal-title-custom text-white bg-primary font-size-16">
+          Create New Group
+        </div>
+      </ModalHeader>
 
       <ModalBody className="p-4">
         <Form>
@@ -225,40 +160,38 @@ const AddGroupModal = ({
           </div>
           <div className="mb-4">
             <label className="form-label">Group Members</label>
-            <div className="mb-3">
-              <Button
-                color="light"
-                size="sm"
-                type="button"
-                onClick={toggleCollapse}
-              >
-                Select Members
-              </Button>
-            </div>
-
-            <Collapse isOpen={isOpenCollapse} id="groupmembercollapse">
-              <div className="card border">
-                <div className="card-header">
-                  <h5 className="font-size-15 mb-0">Contacts</h5>
-                </div>
-                <div className="card-body p-2">
-                  <AppSimpleBar style={{ maxHeight: "150px" }}>
-                    {(categorizedContacts || []).map(
-                      (letterContacts: DivideByKeyResultTypes, key: number) => (
-                        <CharacterItem
-                          letterContacts={letterContacts}
-                          key={key}
-                          index={key}
-                          totalContacts={totalContacts}
-                          selectedContacts={selectedContacts}
-                          onSelectContact={onSelectContact}
-                        />
-                      )
-                    )}
-                  </AppSimpleBar>
-                </div>
+            <div className="card border">
+              <div className="card-header">
+                <h5 className="font-size-15 mb-0">Friends</h5>
               </div>
-            </Collapse>
+              <div className="card-body p-2">
+                <AppSimpleBar style={{ maxHeight: "180px" }}>
+                  <ul className="list-unstyled contact-list mb-0">
+                    {(selectableFriends || []).map(
+                      (contact: GroupSelectableFriend, key: number) => {
+                        const selected = selectedContacts.includes(contact.id);
+                        return (
+                          <ContactItem
+                            contact={contact}
+                            key={key}
+                            selected={selected}
+                            onSelectContact={onSelectContact}
+                          />
+                        );
+                      }
+                    )}
+                  </ul>
+                  {selectableFriends.length === 0 && (
+                    <p className="text-muted px-2 py-1 mb-0">
+                      No friends available to add yet.
+                    </p>
+                  )}
+                </AppSimpleBar>
+              </div>
+            </div>
+            <small className="text-muted d-block mt-2">
+              Selected: {selectedContacts.length}
+            </small>
           </div>
           <div className="mb-3">
             <Label htmlFor="addgroupdescription-input" className="form-label">
@@ -285,9 +218,9 @@ const AddGroupModal = ({
           type="button"
           color="primary"
           onClick={onSubmit}
-          // disabled={!valid}
+          disabled={!isValid}
         >
-          Create Groups
+          Create Group
         </Button>
       </ModalFooter>
     </Modal>

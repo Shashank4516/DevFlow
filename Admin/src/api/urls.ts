@@ -29,9 +29,9 @@ export const UPDATE_BOOKMARK = "/bookmarks-update";
 // chats
 export const GET_FAVOURITES = "/get-favourites";
 export const GET_DIRECT_MESSAGES = "/get-direct-messages";
-export const GET_CHANNELS = "/get-channles";
+export const GET_CHANNELS = "/api/channels/list.php";
 export const ADD_CONTACTS = "/add-contact";
-export const CREATE_CHANNEL = "/create-channel";
+export const CREATE_CHANNEL = "/api/channels/create.php";
 export const GET_CHAT_USER_DETAILS = "/get-user-details";
 export const GET_CHAT_USER_CONVERSATIONS = "/get-user-conversations";
 export const SEND_MESSAGE = "/send-message";
@@ -48,7 +48,7 @@ export const READ_CONVERSATION = "/read-conversation";
 export const DELETE_IMAGE = "/user-delete-img";
 
 // groups
-export const GET_CHANNEL_DETAILS = "/get-channel-details";
+export const GET_CHANNEL_DETAILS = "/api/channels/details.php";
 
 // friends (real backend)
 export const GET_ACCEPTED_FRIENDS = "/api/friends/accepted.php";
@@ -64,6 +64,9 @@ export const GET_PROJECT_MEMBERS = "/api/projects/members.php";
 export const POST_PROJECT_INVITE = "/api/projects/invite.php";
 export const POST_PROJECT_TASK_MOVE = "/api/projects/task_move.php";
 export const POST_PROJECT_TASK_CREATE = "/api/projects/task_create.php";
+export const GET_PROJECT_TASK_TODOS = "/api/projects/task_todos_list.php";
+export const POST_PROJECT_TASK_TODO_CREATE = "/api/projects/task_todos_create.php";
+export const POST_PROJECT_TASK_TODO_TOGGLE = "/api/projects/task_todos_toggle.php";
 
 // Profile images (PHP backend)
 export const POST_PROFILE_UPDATE_IMAGES = "/api/profile/update.php";

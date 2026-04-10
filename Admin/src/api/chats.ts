@@ -68,7 +68,7 @@ const deleteUserMessages = (userId: number | string) => {
 };
 
 const getChannelDetails = (id: string | number) => {
-  return api.get(url.GET_CHANNEL_DETAILS + "/" + id, { params: { id } });
+  return api.get(url.GET_CHANNEL_DETAILS, { params: { id } });
 };
 
 const toggleFavouriteContact = (id: string | number) => {
