@@ -1,5 +1,5 @@
 <?php
-require dirname(__DIR__) . '/friends/_common.php';
+require_once dirname(__DIR__) . '/friends/_common.php';
 
 function ensure_chat_tables(mysqli $conn): void
 {
