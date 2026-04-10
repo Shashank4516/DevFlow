@@ -114,6 +114,11 @@ const AddGroupModal = ({
 
   const isValid = data.channelName.trim().length > 0 && selectedContacts.length > 0;
 
+  const resetForm = () => {
+    setData({ id: "", channelName: "", description: "" });
+    setSelectedContacts([]);
+  };
+
   const onSubmit = () => {
     if (!isValid) return;
     const params = {
@@ -123,6 +128,12 @@ const AddGroupModal = ({
       description: data.description,
     };
     onCreateChannel(params);
+    resetForm();
+  };
+
+  const handleFormSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    onSubmit();
   };
 
   return (
@@ -142,7 +153,7 @@ const AddGroupModal = ({
       </ModalHeader>
 
       <ModalBody className="p-4">
-        <Form>
+        <Form id="create-group-form" onSubmit={handleFormSubmit}>
           <div className="mb-4">
             <Label htmlFor="addgroupname-input" className="form-label">
               Group Name
@@ -215,9 +226,9 @@ const AddGroupModal = ({
           Close
         </Button>
         <Button
-          type="button"
+          type="submit"
+          form="create-group-form"
           color="primary"
-          onClick={onSubmit}
           disabled={!isValid}
         >
           Create Group

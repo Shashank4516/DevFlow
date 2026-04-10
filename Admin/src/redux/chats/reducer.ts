@@ -20,14 +20,14 @@ const Chats = (state = INIT_STATE, action: any) => {
         case ChatsActionTypes.GET_FAVOURITES:
           return {
             ...state,
-            favourites: action.payload.data,
+            favourites: Array.isArray(action.payload.data) ? action.payload.data : [],
             isFavouritesFetched: true,
             getFavouritesLoading: false,
           };
         case ChatsActionTypes.GET_DIRECT_MESSAGES:
           return {
             ...state,
-            directMessages: action.payload.data,
+            directMessages: Array.isArray(action.payload.data) ? action.payload.data : [],
             isDirectMessagesFetched: true,
             getDirectMessagesLoading: false,
             isContactsAdded: false,
@@ -35,7 +35,7 @@ const Chats = (state = INIT_STATE, action: any) => {
         case ChatsActionTypes.GET_CHANNELS:
           return {
             ...state,
-            channels: action.payload.data,
+            channels: Array.isArray(action.payload.data) ? action.payload.data : [],
             isChannelsFetched: true,
             getChannelsLoading: false,
             isChannelCreated: false,
@@ -116,7 +116,7 @@ const Chats = (state = INIT_STATE, action: any) => {
         case ChatsActionTypes.GET_ARCHIVE_CONTACT:
           return {
             ...state,
-            archiveContacts: action.payload.data,
+            archiveContacts: Array.isArray(action.payload.data) ? action.payload.data : [],
             isArchiveContactFetched: true,
             isContactArchiveToggled: false,
           };

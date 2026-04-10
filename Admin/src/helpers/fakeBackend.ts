@@ -331,35 +331,8 @@ const fakeBackend = () => {
   /*
    settings
    */
-  mock.onGet(url.GET_FAVOURITES).reply(config => {
-    return new Promise((resolve, reject) => {
-      if (favourites) {
-        resolve([200, favourites]);
-      } else {
-        reject(["Some thing went wrong!"]);
-      }
-    });
-  });
-
-  mock.onGet(url.GET_DIRECT_MESSAGES).reply(config => {
-    return new Promise((resolve, reject) => {
-      if (directMessages) {
-        resolve([200, directMessages]);
-      } else {
-        reject(["Some thing went wrong!"]);
-      }
-    });
-  });
-
-  mock.onGet(url.GET_CHANNELS).reply(config => {
-    return new Promise((resolve, reject) => {
-      if (channels) {
-        resolve([200, channels]);
-      } else {
-        reject(["Some thing went wrong!"]);
-      }
-    });
-  });
+  // GET_FAVOURITES, GET_DIRECT_MESSAGES, GET_CHANNELS and CREATE_CHANNEL are all handled
+  // by the real PHP backend — no mocks needed here.
 
   mock.onPost(url.ADD_CONTACTS).reply(config => {
     const data = JSON.parse(config["data"]);
@@ -378,25 +351,6 @@ const fakeBackend = () => {
         resolve([200, "Contacts Added!"]);
       } else {
         reject(["Some thing went wrong!"]);
-      }
-    });
-  });
-
-  mock.onPost(url.CREATE_CHANNEL).reply(config => {
-    const data = JSON.parse(config["data"]);
-    return new Promise((resolve, reject) => {
-      if (data) {
-        const newC = {
-          id:
-            channels[channels.length - 1].id + new Date().getTime().toString(),
-          name: data.name,
-          description: data.description,
-          members: data.members,
-        };
-        onChangeChannels([...channels, newC]);
-        resolve([200, "Channel Created!"]);
-      } else {
-        reject([400, "Some thing went wrong!"]);
       }
     });
   });
