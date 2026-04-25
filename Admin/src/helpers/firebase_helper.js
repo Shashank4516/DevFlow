@@ -21,6 +21,10 @@ class FirebaseAuthBackend {
               return null;
             }
           })();
+          if (stored && stored.id && user.isAnonymous) {
+            setLoggeedInUser(stored);
+            return;
+          }
           if (stored && stored.uid === user.uid && stored.firstName != null) {
             setLoggeedInUser(stored);
           } else {

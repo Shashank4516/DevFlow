@@ -297,6 +297,7 @@ const PinnedAlert = ({ onOpenPinnedTab }: PinnedAlertProps) => {
 };
 interface UserHeadProps {
   chatUserDetails: any;
+  currentUser: any;
   pinnedTabs: Array<PinTypes>;
   onOpenUserDetails: () => void;
   onDelete: () => void;
@@ -305,6 +306,7 @@ interface UserHeadProps {
 }
 const UserHead = ({
   chatUserDetails,
+  currentUser,
   pinnedTabs,
   onOpenUserDetails,
   onDelete,
@@ -443,6 +445,8 @@ const UserHead = ({
           isOpen={isOpenVideoModal}
           onClose={onCloseVideo}
           user={chatUserDetails}
+          currentUser={currentUser}
+          direction="outgoing"
         />
       )}
       {isOpenPinnedTabModal && (

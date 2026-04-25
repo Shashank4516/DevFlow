@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import classnames from "classnames";
 
 // hooks
@@ -14,11 +14,19 @@ import ConversationUser from "./ConversationUser/index";
 import UserProfileDetails from "./UserProfileDetails/index";
 import Welcome from "./ConversationUser/Welcome";
 import KanbanBoard from "./Stack/KanbanBoard";
+import VideoCallModal from "../../components/VideoCallModal";
+import { useProfile } from "../../hooks";
+import {
+  IncomingVideoCall,
+  subscribeToIncomingVideoCalls,
+} from "../../helpers/webrtc_video_call";
 
 interface IndexProps {}
 const Index = (props: IndexProps) => {
   // global store
   const { useAppSelector } = useRedux();
+  const { userProfile } = useProfile();
+  const [incomingCall, setIncomingCall] = useState<IncomingVideoCall | null>(null);
 
   // const { selectedChat } = useAppSelector(state => ({
   //   selectedChat: state.Chats.selectedChat,
@@ -41,6 +49,22 @@ const Index = (props: IndexProps) => {
 
 
   const { isChannel } = useConversationUserType();
+  const currentUserId = userProfile?.id || userProfile?.uid || "";
+
+  useEffect(() => {
+    if (!currentUserId) return;
+    const unsubscribe = subscribeToIncomingVideoCalls(
+      currentUserId,
+      call => {
+        setIncomingCall(prev => prev || call);
+      },
+      message => {
+        // eslint-disable-next-line no-console
+        console.error("[VideoCall] incoming listener error:", message);
+      },
+    );
+    return unsubscribe;
+  }, [currentUserId]);
 
   return (
     <>
@@ -68,6 +92,16 @@ const Index = (props: IndexProps) => {
           <Welcome />
         )}
       </div>
+      {incomingCall && (
+        <VideoCallModal
+          isOpen={!!incomingCall}
+          onClose={() => setIncomingCall(null)}
+          user={incomingCall.caller}
+          currentUser={userProfile}
+          direction="incoming"
+          incomingCall={incomingCall}
+        />
+      )}
     </>
   );
 };

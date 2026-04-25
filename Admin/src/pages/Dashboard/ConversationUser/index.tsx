@@ -155,6 +155,7 @@ const Index = ({ isChannel }: IndexProps) => {
     <>
       <UserHead
         chatUserDetails={chatUserDetails}
+        currentUser={userProfile}
         pinnedTabs={pinnedTabs}
         onOpenUserDetails={onOpenUserDetails}
         onDelete={onDeleteUserMessages}
