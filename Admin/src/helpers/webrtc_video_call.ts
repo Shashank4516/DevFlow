@@ -32,8 +32,26 @@ export type IncomingVideoCall = {
 type SessionRole = "caller" | "receiver";
 type Unsubscribe = () => void;
 
+function buildIceServers(): RTCIceServer[] {
+  const iceServers: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
+  const turnUrl = (import.meta.env.VITE_TURN_URL || "").trim();
+  const turnUsername = (import.meta.env.VITE_TURN_USERNAME || "").trim();
+  const turnCredential = (import.meta.env.VITE_TURN_CREDENTIAL || "").trim();
+
+  if (turnUrl && turnUsername && turnCredential) {
+    iceServers.push({
+      urls: turnUrl,
+      username: turnUsername,
+      credential: turnCredential,
+    });
+  }
+
+  return iceServers;
+}
+
 const RTC_CONFIG: RTCConfiguration = {
-  iceServers: [{ urls: "stun:stun.l.google.com:19302" }],
+  iceServers: buildIceServers(),
+  iceTransportPolicy: "all",
 };
 
 function normalizeId(id: string | number) {
