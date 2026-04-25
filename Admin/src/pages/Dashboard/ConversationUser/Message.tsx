@@ -237,43 +237,72 @@ interface AttachmentsProps {
 const Attachments = ({ attachments }: AttachmentsProps) => {
   return (
     <>
-      {(attachments || []).map((attachment: AttachmentTypes, key: number) => (
-        <div
-          key={key}
-          className={classnames("p-3", "border-primary", "border rounded-3", {
-            "mt-2": key !== 0,
-          })}
-        >
-          <div className="d-flex align-items-center attached-file">
-            <div className="flex-shrink-0 avatar-sm me-3 ms-0 attached-file-avatar">
-              <div className="avatar-title bg-primary-subtle text-primary rounded-circle font-size-20">
-                <i className="ri-attachment-2"></i>
+      {(attachments || []).map((attachment: AttachmentTypes, key: number) => {
+        const isVoice = attachment.type === "voice";
+        return (
+          <div
+            key={key}
+            className={classnames("p-3", "border-primary", "border rounded-3", {
+              "mt-2": key !== 0,
+            })}
+          >
+            {isVoice ? (
+              <div className="voice-message">
+                <div className="d-flex align-items-center mb-2">
+                  <div className="avatar-sm me-3 ms-0">
+                    <div className="avatar-title bg-primary-subtle text-primary rounded-circle font-size-20">
+                      <i className="bx bx-microphone"></i>
+                    </div>
+                  </div>
+                  <div>
+                    <h5 className="font-size-14 mb-0">Voice message</h5>
+                    <p className="text-muted font-size-12 mb-0">
+                      {attachment.duration ? `${Math.round(attachment.duration)}s` : attachment.desc}
+                    </p>
+                  </div>
+                </div>
+                <audio
+                  controls
+                  preload="metadata"
+                  src={attachment.downloadLink}
+                  style={{ width: "260px", maxWidth: "100%" }}
+                />
               </div>
-            </div>
-            <div className="flex-grow-1 overflow-hidden">
-              <div className="text-start">
-                <h5 className="font-size-14 mb-1">{attachment.name}</h5>
-                <p className="text-muted text-truncate font-size-13 mb-0">
-                  {attachment.desc}
-                </p>
-              </div>
-            </div>
-            <div className="flex-shrink-0 ms-4">
-              <div className="d-flex gap-2 font-size-20 d-flex align-items-start">
-                <div>
-                  <a
-                    href={attachment.downloadLink ? attachment.downloadLink : "#"}
-                    className="text-muted"
-                    download
-                  >
-                    <i className="bx bxs-download"></i>
-                  </a>
+            ) : (
+              <div className="d-flex align-items-center attached-file">
+                <div className="flex-shrink-0 avatar-sm me-3 ms-0 attached-file-avatar">
+                  <div className="avatar-title bg-primary-subtle text-primary rounded-circle font-size-20">
+                    <i className="ri-attachment-2"></i>
+                  </div>
+                </div>
+                <div className="flex-grow-1 overflow-hidden">
+                  <div className="text-start">
+                    <h5 className="font-size-14 mb-1">{attachment.name}</h5>
+                    <p className="text-muted text-truncate font-size-13 mb-0">
+                      {attachment.desc}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex-shrink-0 ms-4">
+                  <div className="d-flex gap-2 font-size-20 d-flex align-items-start">
+                    <div>
+                      <a
+                        href={attachment.downloadLink ? attachment.downloadLink : "#"}
+                        className="text-muted"
+                        download
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <i className="bx bxs-download"></i>
+                      </a>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </>
   );
 };

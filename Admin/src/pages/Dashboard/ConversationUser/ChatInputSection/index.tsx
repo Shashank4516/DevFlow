@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Alert, Form } from "reactstrap";
 
 // components
@@ -12,7 +12,7 @@ import Reply from "./Reply";
 import { MessagesTypes } from "../../../../data/messages";
 
 interface IndexProps {
-  onSend: (data: any) => void;
+  onSend: (data: any) => Promise<void> | void;
   replyData: null | MessagesTypes | undefined;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   chatUserDetails: any;
@@ -40,6 +40,7 @@ const Index = ({
   disable send button
   */
   const [sendDisabled, setSendDisabled] = useState<boolean>(true);
+  const [isSending, setIsSending] = useState<boolean>(false);
 
   /*
   input text
@@ -64,13 +65,25 @@ const Index = ({
   const onSelectFiles = (files: Array<any>) => {
     setFiles(files);
   };
+  const [voiceMessage, setVoiceMessage] = useState<{
+    blob: Blob;
+    duration: number;
+    url: string;
+  } | null>(null);
+  const [isRecording, setIsRecording] = useState(false);
+  const [recordingSeconds, setRecordingSeconds] = useState(0);
+  const recorderRef = useRef<MediaRecorder | null>(null);
+  const recordingStartedAtRef = useRef<number>(0);
+  const recordingChunksRef = useRef<BlobPart[]>([]);
+  const recordingTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (text || images || files) {
+    if (text || images || files || voiceMessage) {
       setSendDisabled(false);
     } else {
       setSendDisabled(true);
     }
-  }, [text, images, files]);
+  }, [text, images, files, voiceMessage]);
 
   // emoji picker 
   const [emojiArray, setemojiArray] = useState<any>("");
@@ -82,45 +95,120 @@ const Index = ({
 
 
   // Submit Message
-  const onSubmit = () => {
+  const stopRecordingTimer = () => {
+    if (recordingTimerRef.current) {
+      window.clearInterval(recordingTimerRef.current);
+      recordingTimerRef.current = null;
+    }
+  };
+
+  const stopRecording = () => {
+    if (recorderRef.current && recorderRef.current.state !== "inactive") {
+      recorderRef.current.stop();
+    }
+  };
+
+  const startRecording = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === "undefined") {
+      alert("Voice recording is not supported in this browser.");
+      return;
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      const recorder = new MediaRecorder(stream, { mimeType: "audio/webm" });
+      recordingChunksRef.current = [];
+      recordingStartedAtRef.current = Date.now();
+      setRecordingSeconds(0);
+      recorderRef.current = recorder;
+
+      recorder.ondataavailable = event => {
+        if (event.data.size > 0) {
+          recordingChunksRef.current.push(event.data);
+        }
+      };
+      recorder.onstop = () => {
+        stopRecordingTimer();
+        stream.getTracks().forEach(track => track.stop());
+        const duration = Math.max(
+          1,
+          Math.round((Date.now() - recordingStartedAtRef.current) / 1000),
+        );
+        const blob = new Blob(recordingChunksRef.current, { type: "audio/webm" });
+        setVoiceMessage({
+          blob,
+          duration,
+          url: URL.createObjectURL(blob),
+        });
+        setIsRecording(false);
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      recordingTimerRef.current = window.setInterval(() => {
+        setRecordingSeconds(Math.round((Date.now() - recordingStartedAtRef.current) / 1000));
+      }, 500);
+    } catch (e: any) {
+      setIsRecording(false);
+      alert(e?.message || "Could not start voice recording.");
+    }
+  };
+
+  const onToggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      stopRecordingTimer();
+      if (recorderRef.current && recorderRef.current.state !== "inactive") {
+        recorderRef.current.stop();
+      }
+      if (voiceMessage?.url) URL.revokeObjectURL(voiceMessage.url);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onSubmit = async () => {
+    if (sendDisabled || transportDisabled || isSending) return;
     let data: any = {};
     if (text) {
       data["text"] = text;
     }
     if (images && images.length) {
-      const imgs = (images || []).map((i: any, key: number) => {
-        const src = URL.createObjectURL(i);
-        return {
-          id: key + 1,
-          downloadLink: src,
-        };
-      });
-      data["image"] = imgs;
+      data["images"] = images;
     }
 
     if (files && files.length) {
-      const fs = (files || []).map((f: any, key: number) => {
-        const src = URL.createObjectURL(f);
-        return {
-          id: key + 1,
-          name: f.name,
-          downloadLink: src,
-          desc: f.size,
-        };
-      });
-      data["attachments"] = fs;
+      data["files"] = files;
     }
 
+    if (voiceMessage) {
+      data["voice"] = voiceMessage;
+    }
+
+    setIsSending(true);
+    try {
+      await onSend(data);
+    } finally {
+      setIsSending(false);
+    }
     setText("");
     setImages(null);
     setFiles(null);
+    if (voiceMessage?.url) URL.revokeObjectURL(voiceMessage.url);
+    setVoiceMessage(null);
     setemojiPicker(false);
-    onSend(data);
   };
 
   const onClearMedia = () => {
     setImages(null);
     setFiles(null);
+    if (voiceMessage?.url) URL.revokeObjectURL(voiceMessage.url);
+    setVoiceMessage(null);
   };
 
   return (
@@ -155,11 +243,22 @@ const Index = ({
             />
           </div>
           <div className="col-auto">
-            <EndButtons onSubmit={onSubmit} disabled={sendDisabled || !!transportDisabled} />
+            <EndButtons
+              onSubmit={onSubmit}
+              disabled={sendDisabled || !!transportDisabled || isSending}
+              onToggleRecording={onToggleRecording}
+              isRecording={isRecording}
+              recordingDisabled={!!transportDisabled || isSending}
+            />
           </div>
         </div>
       </Form>
-      {(images && images.length) || (files && files.length) ? (
+      {isRecording ? (
+        <Alert color="danger" className="py-2 px-3 mb-2">
+          Recording voice message... {recordingSeconds}s. Tap the mic again to stop.
+        </Alert>
+      ) : null}
+      {(images && images.length) || (files && files.length) || voiceMessage ? (
         <Alert
           isOpen={true}
           toggle={onClearMedia}
@@ -169,11 +268,10 @@ const Index = ({
           closeClassName="selected-media-close"
         >
           <p className="me-2 mb-0">
-            {images && !files && ` You have selected ${images.length} images`}
-            {files && !images && ` You have selected ${files.length} files`}
-            {files &&
-              images &&
-              ` You have selected ${files.length} files & ${images.length} images.`}
+            {images && images.length ? ` ${images.length} image(s)` : ""}
+            {files && files.length ? ` ${files.length} file(s)` : ""}
+            {voiceMessage ? ` Voice message (${voiceMessage.duration}s)` : ""}
+            {isSending ? " Uploading..." : ""}
           </p>
         </Alert>
       ) : null}

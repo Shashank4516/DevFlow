@@ -33,8 +33,27 @@ const getChatUserConversations = (id: string | number) => {
   });
 };
 
-const sendMessage = (data: { to_user_id: string | number; text: string }) => {
+const sendMessage = (data: {
+  to_user_id: string | number;
+  text?: string;
+  attachments?: Array<any>;
+}) => {
   return api.create(url.POST_DM_MESSAGE, data);
+};
+
+const uploadMessageAttachment = (data: {
+  file: File | Blob;
+  kind: "image" | "file" | "voice";
+  name?: string;
+  duration?: number;
+}) => {
+  const formData = new FormData();
+  formData.append("file", data.file, data.name || "attachment");
+  formData.append("kind", data.kind);
+  if (data.duration != null) {
+    formData.append("duration", String(data.duration));
+  }
+  return api.create(url.POST_DM_UPLOAD, formData);
 };
 
 const receiveMessage = (id: string | number) => {
@@ -111,6 +130,7 @@ export {
   getChatUserDetails,
   getChatUserConversations,
   sendMessage,
+  uploadMessageAttachment,
   receiveMessage,
   readMessage,
   receiveMessageFromUser,

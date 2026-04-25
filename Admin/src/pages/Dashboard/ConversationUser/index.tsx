@@ -22,6 +22,7 @@ import { useState } from "react";
 import {
   getChatUserConversations as getChatUserConversationsApi,
   sendMessage as sendMessageApi,
+  uploadMessageAttachment,
 } from "../../../api/chats";
 
 interface IndexProps {
@@ -80,20 +81,58 @@ const Index = ({ isChannel }: IndexProps) => {
     setReplyData(reply);
   };
 
-  const onSend = (data: any) => {
-    if (!data?.text || !conversationId || !myUid || !peerIdStr) return;
-    const text = String(data.text).trim();
-    if (!text) return;
+  const onSend = async (data: any) => {
+    if (!conversationId || !myUid || !peerIdStr) return;
+    const text = String(data?.text || "").trim();
+    const attachments: Array<any> = [];
 
-    sendMessageApi({ to_user_id: peerIdStr, text }).catch((e: any) => {
+    try {
+      for (const image of data?.images || []) {
+        const uploaded: any = await uploadMessageAttachment({
+          file: image,
+          kind: "image",
+          name: image.name,
+        });
+        if (uploaded?.attachment) attachments.push(uploaded.attachment);
+      }
+
+      for (const file of data?.files || []) {
+        const uploaded: any = await uploadMessageAttachment({
+          file,
+          kind: "file",
+          name: file.name,
+        });
+        if (uploaded?.attachment) attachments.push(uploaded.attachment);
+      }
+
+      if (data?.voice?.blob) {
+        const uploaded: any = await uploadMessageAttachment({
+          file: data.voice.blob,
+          kind: "voice",
+          name: `voice-message-${Date.now()}.webm`,
+          duration: data.voice.duration,
+        });
+        if (uploaded?.attachment) attachments.push(uploaded.attachment);
+      }
+
+      if (!text && attachments.length === 0) return;
+
+      await sendMessageApi({
+        to_user_id: peerIdStr,
+        text,
+        attachments,
+      });
+      setChatError(null);
+      setReplyData(null);
+      await loadMessages();
+    } catch (e: any) {
       const msg = e?.message || "Failed to send message";
       setChatError(msg);
       // Also surface immediately since users expect feedback on send.
       // eslint-disable-next-line no-alert
       alert(msg);
-    });
-    setChatError(null);
-    setReplyData(null);
+      throw e;
+    }
   };
 
   const loadMessages = async () => {

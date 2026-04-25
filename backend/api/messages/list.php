@@ -41,7 +41,7 @@ if ($conversationId <= 0) {
 }
 
 $stmt = mysqli_prepare($conn, "
-    SELECT id, sender_id, receiver_id, body, is_read, created_at
+    SELECT id, sender_id, receiver_id, body, attachments_json, is_read, created_at
     FROM messages
     WHERE conversation_id = ?
     ORDER BY id DESC

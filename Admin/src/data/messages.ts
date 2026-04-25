@@ -8,6 +8,9 @@ export interface AttachmentTypes {
   name: string;
   downloadLink: string;
   desc: string;
+  type?: "file" | "voice" | string;
+  mimeType?: string;
+  duration?: number | null;
 }
 
 export interface ImageTypes {
