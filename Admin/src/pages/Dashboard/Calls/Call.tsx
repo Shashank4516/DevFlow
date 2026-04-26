@@ -104,19 +104,27 @@ const ProfileImage = ({ call }: ProfileImageProps) => {
 
 interface CallProps {
   call: CallItem;
+  currentUser?: any | null;
 }
-const Call = ({ call }: CallProps) => {
+const Call = ({ call, currentUser }: CallProps) => {
   /*
    selected user
    */
-  const [user, setUser] = useState<null | CallItem>(null);
+  const [user, setUser] = useState<any | null>(null);
 
   /*
     video call modal
     */
   const [isOpenVideoModal, setIsOpenVideoModal] = useState<boolean>(false);
   const onOpenVideo = () => {
-    setUser(call);
+    if (!call.peerUserId) return;
+    setUser({
+      id: call.peerUserId,
+      firstName: call.firstName,
+      lastName: call.lastName,
+      displayName: [call.firstName, call.lastName].filter(Boolean).join(" ").trim() || "User",
+      profileImage: call.profileImage,
+    });
     setIsOpenVideoModal(true);
   };
   const onCloseVideo = () => {
@@ -129,7 +137,14 @@ const Call = ({ call }: CallProps) => {
     */
   const [isOpenAudioModal, setIsOpenAudioModal] = useState<boolean>(false);
   const onOpenAudio = () => {
-    setUser(call);
+    if (!call.peerUserId) return;
+    setUser({
+      id: call.peerUserId,
+      firstName: call.firstName,
+      lastName: call.lastName,
+      displayName: [call.firstName, call.lastName].filter(Boolean).join(" ").trim() || "User",
+      profileImage: call.profileImage,
+    });
     setIsOpenAudioModal(true);
   };
   const onCloseAudio = () => {
@@ -197,6 +212,8 @@ const Call = ({ call }: CallProps) => {
         isOpen={isOpenVideoModal}
         onClose={onCloseVideo}
         user={user}
+        currentUser={currentUser}
+        direction="outgoing"
       />
     </>
   );

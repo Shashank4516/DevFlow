@@ -2,6 +2,7 @@ import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
 import { firebaseConfig } from "../config/firebase";
+import type { CallItem } from "../data/calls";
 
 export type VideoCallStatus =
   | "idle"
@@ -198,6 +199,110 @@ export function subscribeToIncomingVideoCalls(
     );
 }
 
+function formatCallDuration(seconds: number | null | undefined): string {
+  if (seconds === null || seconds === undefined || !Number.isFinite(seconds) || seconds < 0) {
+    return "—";
+  }
+  const m = Math.floor(seconds / 60);
+  const s = Math.floor(seconds % 60);
+  return `${m}:${s.toString().padStart(2, "0")}`;
+}
+
+function splitDisplayName(displayName: string): { firstName: string; lastName: string } {
+  const parts = (displayName || "").trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return { firstName: "User", lastName: "" };
+  if (parts.length === 1) return { firstName: parts[0], lastName: "" };
+  return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
+}
+
+function firestoreDocToCallItem(docId: string, data: any, myUserId: string): CallItem | null {
+  if (!data) return null;
+  if (data.type && data.type !== "video") return null;
+  const callerId = normalizeId(data.callerId);
+  const receiverId = normalizeId(data.receiverId);
+  const isIncoming = receiverId === myUserId;
+  const peerId = isIncoming ? callerId : receiverId;
+  const peerRaw = isIncoming ? data.caller : data.receiver;
+  const peer = peerRaw && typeof peerRaw === "object" ? peerRaw : {};
+
+  let firstName = String((peer as any).firstName || "").trim();
+  let lastName = String((peer as any).lastName || "").trim();
+  const displayName = String((peer as any).displayName || "").trim();
+  if (!firstName && !lastName && displayName) {
+    const split = splitDisplayName(displayName);
+    firstName = split.firstName;
+    lastName = split.lastName;
+  }
+  if (!firstName && !lastName) {
+    firstName = "User";
+  }
+
+  const profileImage = String((peer as any).profileImage || (peer as any).photoURL || "").trim();
+  const updatedAt = data.updatedAt;
+  const createdAt = data.createdAt;
+  const ts =
+    updatedAt && typeof updatedAt.toDate === "function"
+      ? updatedAt.toDate()
+      : createdAt && typeof createdAt.toDate === "function"
+        ? createdAt.toDate()
+        : null;
+  const callDate = ts ? ts.toISOString() : new Date().toISOString();
+
+  const durationSeconds =
+    typeof data.durationSeconds === "number" && Number.isFinite(data.durationSeconds)
+      ? data.durationSeconds
+      : null;
+
+  return {
+    callId: docId,
+    firstName,
+    lastName,
+    profileImage: profileImage || undefined,
+    callDuration: formatCallDuration(durationSeconds),
+    isIncomming: isIncoming,
+    callDate,
+    isGrouped: false,
+    hasVideoCall: true,
+    peoplesAvailableOnCall: 2,
+    peerUserId: peerId,
+  };
+}
+
+/**
+ * Live list of past video calls for the Calls sidebar (Firestore webrtcCalls).
+ * Requires a composite index: participants (array-contains) + updatedAt (desc).
+ */
+export function subscribeVideoCallHistory(
+  myId: string | number,
+  onCalls: (calls: CallItem[]) => void,
+  onError?: (message: string) => void,
+): Unsubscribe {
+  const userId = normalizeId(myId);
+  if (!userId) return () => {};
+
+  ensureVideoCallAuth();
+
+  return callsCollection()
+    .where("participants", "array-contains", userId)
+    .orderBy("updatedAt", "desc")
+    .limit(50)
+    .onSnapshot(
+      snapshot => {
+        const items: CallItem[] = [];
+        snapshot.forEach(doc => {
+          const row = firestoreDocToCallItem(doc.id, doc.data(), userId);
+          if (row) items.push(row);
+        });
+        onCalls(items);
+      },
+      error => {
+        // eslint-disable-next-line no-console
+        console.error("[VideoCall] history listener failed", error);
+        onError?.(error.message || "Unable to load call history");
+      },
+    );
+}
+
 export async function declineVideoCall(callId: string, userId?: string | number) {
   if (!callId) return;
   await ensureVideoCallAuth();
@@ -226,6 +331,8 @@ export class WebRtcVideoCallSession {
   private unsubscribers: Unsubscribe[] = [];
   private pendingCandidates: RTCIceCandidateInit[] = [];
   private closed = false;
+  /** Wall-clock ms when WebRTC reached "connected" (for duration on hangup). */
+  private connectedAtMs: number | null = null;
 
   onStatusChange?: (status: VideoCallStatus) => void;
   onError?: (message: string) => void;
@@ -315,7 +422,19 @@ export class WebRtcVideoCallSession {
     };
 
     pc.onconnectionstatechange = () => {
-      if (pc.connectionState === "connected") this.setStatus("connected");
+      if (pc.connectionState === "connected") {
+        this.setStatus("connected");
+        if (this.connectedAtMs === null) {
+          this.connectedAtMs = Date.now();
+          void this.callRef.set(
+            {
+              connectedAt: firebase.firestore.FieldValue.serverTimestamp(),
+              updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+            },
+            { merge: true },
+          );
+        }
+      }
       if (pc.connectionState === "failed") {
         this.setError("WebRTC connection failed. A TURN server may be required for this network.");
       }
@@ -472,12 +591,17 @@ export class WebRtcVideoCallSession {
   }
 
   async end() {
+    const durationSeconds =
+      this.connectedAtMs !== null
+        ? Math.max(0, Math.floor((Date.now() - this.connectedAtMs) / 1000))
+        : undefined;
     await this.callRef
       .set(
         {
           status: "ended",
           endedBy: this.myId,
           updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          ...(durationSeconds !== undefined ? { durationSeconds } : {}),
         },
         { merge: true },
       )
