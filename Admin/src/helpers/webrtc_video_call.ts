@@ -58,8 +58,17 @@ async function fetchTwilioIceFromBackend(): Promise<RTCIceServer[]> {
       method: "GET",
       credentials: "include",
     });
-    if (!res.ok) return [];
-    const data = await res.json();
+    const data = (await res.json().catch(() => null)) as {
+      ice_servers?: RTCIceServer[];
+      error?: string;
+    } | null;
+    if (!res.ok) {
+      if (import.meta.env.DEV) {
+        // eslint-disable-next-line no-console
+        console.warn("[VideoCall] twilio-ice.php", res.status, data?.error ?? data);
+      }
+      return [];
+    }
     if (!data?.ice_servers || !Array.isArray(data.ice_servers) || data.ice_servers.length === 0) {
       return [];
     }
