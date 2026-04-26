@@ -13,4 +13,8 @@ return [
     // XAMPP (if backend is at htdocs/devflow-backend/backend): use below instead
     // 'backend_base_url'     => 'http://localhost/devflow-backend/backend',
     'frontend_base_url'    => 'http://localhost:5173',
+
+    // Twilio → Network Traversal / ICE (optional; enables TURN for strict NATs). Do not commit real tokens.
+    'twilio_account_sid' => '',
+    'twilio_auth_token'  => '',
 ];

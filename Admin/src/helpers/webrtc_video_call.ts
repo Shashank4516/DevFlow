@@ -32,7 +32,8 @@ export type IncomingVideoCall = {
 type SessionRole = "caller" | "receiver";
 type Unsubscribe = () => void;
 
-function buildIceServers(): RTCIceServer[] {
+/** Fallback when Twilio ICE API is unavailable (no session / no backend / misconfigured). */
+function buildFallbackIceServers(): RTCIceServer[] {
   const iceServers: RTCIceServer[] = [{ urls: "stun:stun.l.google.com:19302" }];
   const turnUrl = (import.meta.env.VITE_TURN_URL || "").trim();
   const turnUsername = (import.meta.env.VITE_TURN_USERNAME || "").trim();
@@ -49,10 +50,30 @@ function buildIceServers(): RTCIceServer[] {
   return iceServers;
 }
 
-const RTC_CONFIG: RTCConfiguration = {
-  iceServers: buildIceServers(),
-  iceTransportPolicy: "all",
-};
+async function fetchTwilioIceFromBackend(): Promise<RTCIceServer[]> {
+  const base = (import.meta.env.VITE_BACKEND_URL || "").trim().replace(/\/+$/, "");
+  if (!base) return [];
+  try {
+    const res = await fetch(`${base}/api/webrtc/twilio-ice.php`, {
+      method: "GET",
+      credentials: "include",
+    });
+    if (!res.ok) return [];
+    const data = await res.json();
+    if (!data?.ice_servers || !Array.isArray(data.ice_servers) || data.ice_servers.length === 0) {
+      return [];
+    }
+    return data.ice_servers as RTCIceServer[];
+  } catch {
+    return [];
+  }
+}
+
+async function resolveRtcConfiguration(): Promise<RTCConfiguration> {
+  const twilioServers = await fetchTwilioIceFromBackend();
+  const iceServers = twilioServers.length > 0 ? twilioServers : buildFallbackIceServers();
+  return { iceServers, iceTransportPolicy: "all" };
+}
 
 function normalizeId(id: string | number) {
   return String(id);
@@ -262,8 +283,9 @@ export class WebRtcVideoCallSession {
     return stream;
   }
 
-  private createPeerConnection() {
-    const pc = new RTCPeerConnection(RTC_CONFIG);
+  private async createPeerConnection() {
+    const rtcConfig = await resolveRtcConfiguration();
+    const pc = new RTCPeerConnection(rtcConfig);
     this.remoteStream = new MediaStream();
     this.remoteVideo.srcObject = this.remoteStream;
 
@@ -306,7 +328,7 @@ export class WebRtcVideoCallSession {
     await ensureVideoCallAuth();
     this.setStatus("connecting");
     const localStream = await this.createLocalStream();
-    const pc = this.createPeerConnection();
+    const pc = await this.createPeerConnection();
     localStream.getTracks().forEach(track => pc.addTrack(track, localStream));
     this.listenForPeerCandidates();
     this.listenForCallEnd();

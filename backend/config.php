@@ -24,6 +24,10 @@ $config = [
     'db_password' => getenv('DB_PASSWORD') ?: '',
     'db_name'     => getenv('DB_NAME')     ?: 'php_project',
     'db_port'     => getenv('DB_PORT')     ?: 3306,
+
+    // Twilio Network Traversal (STUN/TURN) — used by api/webrtc/twilio-ice.php only; never expose Auth Token to the browser.
+    'twilio_account_sid' => getenv('TWILIO_ACCOUNT_SID') ?: '',
+    'twilio_auth_token'  => getenv('TWILIO_AUTH_TOKEN') ?: '',
 ];
 
 // `config.local.php` should be a local-dev override only.
@@ -44,6 +48,8 @@ if (is_file(__DIR__ . '/config.local.php')) {
         'db_password'          => 'DB_PASSWORD',
         'db_name'              => 'DB_NAME',
         'db_port'              => 'DB_PORT',
+        'twilio_account_sid'   => 'TWILIO_ACCOUNT_SID',
+        'twilio_auth_token'    => 'TWILIO_AUTH_TOKEN',
     ];
 
     foreach ($local as $key => $value) {
