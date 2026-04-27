@@ -48,6 +48,43 @@ function projects_ensure_tables(mysqli $conn): void
         KEY idx_task_sort (task_id, sort_order, id),
         KEY idx_task_done (task_id, is_done)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    mysqli_query($conn, "CREATE TABLE IF NOT EXISTS project_repos (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        project_id INT NOT NULL,
+        repo_full_name VARCHAR(255) NOT NULL,
+        default_branch VARCHAR(128) NOT NULL DEFAULT 'main',
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY uniq_project_repo (project_id, repo_full_name),
+        KEY idx_project (project_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+}
+
+/**
+ * Project owners (DB owner_id) or members with role "owner" may edit repo links and settings.
+ */
+function project_user_can_manage_repos(mysqli $conn, int $userId, int $projectId): bool
+{
+    $stmt = mysqli_prepare($conn, '
+        SELECT p.owner_id, pm.role
+        FROM projects p
+        INNER JOIN project_members pm ON pm.project_id = p.id AND pm.user_id = ?
+        WHERE p.id = ?
+        LIMIT 1
+    ');
+    mysqli_stmt_bind_param($stmt, 'ii', $userId, $projectId);
+    mysqli_stmt_execute($stmt);
+    $res = mysqli_stmt_get_result($stmt);
+    $row = $res ? mysqli_fetch_assoc($res) : null;
+    mysqli_stmt_close($stmt);
+    if (!$row) {
+        return false;
+    }
+    if ((int) ($row['owner_id'] ?? 0) === $userId) {
+        return true;
+    }
+    return ($row['role'] ?? '') === 'owner';
 }
 
 /**

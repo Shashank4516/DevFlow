@@ -986,6 +986,309 @@ $tm-font: "Plus Jakarta Sans", "Poppins", sans-serif;
   }
 }
 
+// ── Work graph (project ↔ Git) ────────────────────────────
+.tm-workgraph {
+  margin: 0 0 16px;
+  padding: 12px 0 0;
+  border-top: 1px solid $tm-border;
+  font-family: $tm-font;
+
+  &__head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  &__head-left {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+
+  &__title {
+    font-size: 13px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+    color: $tm-gray;
+  }
+
+  &__hint {
+    font-size: 12px;
+    color: $tm-dark-gray;
+  }
+
+  &__head-actions {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  &__btn {
+    display: inline-flex;
+    align-items: center;
+    padding: 6px 10px;
+    background: $tm-input-bg;
+    border: 1px solid $tm-border;
+    border-radius: 8px;
+    font-size: 13px;
+    font-weight: 500;
+    color: $tm-white;
+    cursor: pointer;
+    transition: background 0.15s, border-color 0.15s;
+    &:hover {
+      background: rgba(255, 255, 255, 0.06);
+      border-color: rgba(255, 255, 255, 0.12);
+    }
+  }
+
+  &__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    padding: 0;
+    background: transparent;
+    border: 1px solid $tm-border;
+    border-radius: 8px;
+    color: $tm-gray;
+    cursor: pointer;
+    &:hover:not(:disabled) {
+      color: $tm-white;
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+    &:disabled {
+      opacity: 0.5;
+    }
+  }
+
+  &__err {
+    color: #f59e9a;
+  }
+
+  &__loading {
+    color: $tm-gray;
+  }
+
+  &__callout {
+    display: flex;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 10px 12px;
+    background: rgba(89, 77, 237, 0.08);
+    border: 1px solid rgba(89, 77, 237, 0.25);
+    border-radius: 8px;
+    color: $tm-gray;
+    font-size: 13px;
+    a {
+      color: #8b7dff;
+    }
+  }
+
+  &__a {
+    color: $tm-primary;
+    font-weight: 500;
+  }
+
+  &__empty {
+    color: $tm-gray;
+    font-size: 13px;
+  }
+
+  .tm-wg {
+    &__add {
+      color: #4ade80;
+    }
+    &__sub {
+      color: #f87171;
+    }
+  }
+}
+
+.tm-workgraph__track {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
+  scrollbar-color: $tm-border transparent;
+}
+
+.tm-wg-card {
+  flex: 0 0 min(100%, 300px);
+  min-width: 240px;
+  max-width: 320px;
+  background: $tm-input-bg;
+  border: 1px solid $tm-border;
+  border-radius: 10px;
+  padding: 10px 12px;
+
+  &__row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-bottom: 8px;
+  }
+
+  &__name {
+    font-size: 14px;
+    font-weight: 600;
+    color: $tm-white;
+    text-decoration: none;
+    word-break: break-all;
+    &:hover {
+      color: #b6b0ff;
+    }
+  }
+
+  &__branch {
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: rgba(255, 255, 255, 0.06);
+    color: $tm-gray;
+    font-weight: 500;
+  }
+
+  &__err {
+    color: #f59e9a;
+  }
+
+  &__meta {
+    color: $tm-dark-gray;
+    margin: 0 0 6px;
+  }
+
+  &__diff {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    font-size: 12px;
+    color: $tm-primary;
+    text-decoration: none;
+    margin-bottom: 8px;
+    padding: 6px 8px;
+    background: rgba(89, 77, 237, 0.08);
+    border-radius: 6px;
+    &:hover {
+      color: #8b7dff;
+    }
+  }
+
+  &__diff-stat {
+    color: $tm-gray;
+    font-size: 11px;
+  }
+
+  &__list {
+    list-style: none;
+    margin: 0 0 8px;
+    padding: 0;
+    li {
+      margin-bottom: 4px;
+    }
+  }
+
+  &__link {
+    display: flex;
+    gap: 6px;
+    align-items: baseline;
+    font-size: 12px;
+    color: $tm-gray;
+    text-decoration: none;
+    line-height: 1.3;
+    code {
+      color: $tm-white;
+      background: none;
+    }
+    span {
+      flex: 1;
+      min-width: 0;
+    }
+    &:hover {
+      color: $tm-white;
+    }
+  }
+
+  &__prs {
+    border-top: 1px solid $tm-border;
+    padding-top: 8px;
+  }
+
+  &__pr-head {
+    display: flex;
+    justify-content: space-between;
+    font-size: 11px;
+    color: $tm-gray;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    margin-bottom: 4px;
+  }
+
+  &__pr-count {
+    color: #f5bd4f;
+    font-weight: 600;
+  }
+
+  ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+  }
+
+  &__pr-link {
+    display: block;
+    font-size: 12px;
+    color: #8b7dff;
+    text-decoration: none;
+    line-height: 1.4;
+    margin-bottom: 4px;
+    word-break: break-word;
+    &:hover {
+      color: #b6b0ff;
+    }
+  }
+}
+
+.tm-wg-pill {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 3px 7px;
+  border-radius: 4px;
+  text-decoration: none;
+  border: 1px solid transparent;
+  margin-left: auto;
+  white-space: nowrap;
+  &.is-success {
+    color: #4ade80;
+    background: rgba(34, 189, 115, 0.12);
+    border-color: rgba(34, 189, 115, 0.35);
+  }
+  &.is-danger {
+    color: #f87171;
+    background: rgba(248, 113, 113, 0.1);
+    border-color: rgba(248, 113, 113, 0.35);
+  }
+  &.is-pending {
+    color: #fcd34d;
+    background: rgba(245, 189, 79, 0.12);
+    border-color: rgba(245, 189, 79, 0.35);
+  }
+  &.is-muted {
+    color: $tm-dark-gray;
+    background: rgba(255, 255, 255, 0.04);
+    border-color: $tm-border;
+  }
+}
+
 // ─────────────────────────────────────────────────────────
 //  RESPONSIVE
 // ─────────────────────────────────────────────────────────

@@ -183,6 +183,23 @@ $steps[] = run_step($conn, 'Create project_tasks table', "
 ");
 
 
+// ══════════════════════════════════════════════════════════════════════════════
+// TABLE: project_repos  (Work graph: project ↔ GitHub repos)
+// ══════════════════════════════════════════════════════════════════════════════
+$steps[] = run_step($conn, 'Create project_repos table', "
+    CREATE TABLE IF NOT EXISTS `project_repos` (
+        `id`             INT AUTO_INCREMENT PRIMARY KEY,
+        `project_id`     INT           NOT NULL,
+        `repo_full_name` VARCHAR(255)  NOT NULL,
+        `default_branch` VARCHAR(128)  NOT NULL DEFAULT 'main',
+        `sort_order`     INT           NOT NULL DEFAULT 0,
+        `created_at`     TIMESTAMP     NOT NULL DEFAULT CURRENT_TIMESTAMP,
+        UNIQUE KEY `uniq_project_repo` (`project_id`, `repo_full_name`),
+        KEY `idx_project` (`project_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
+");
+
+
 // ─────────────────────────────────────────────────────────────────────────────
 // Done
 // ─────────────────────────────────────────────────────────────────────────────

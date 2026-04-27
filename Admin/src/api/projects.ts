@@ -135,3 +135,86 @@ export const toggleTaskTodo = (payload: {
 }): Promise<{ ok: boolean; progress: { done: number; total: number } }> => {
   return asData(api.create(url.POST_PROJECT_TASK_TODO_TOGGLE, payload));
 };
+
+export type ProjectRepoLink = {
+  id: number;
+  repo_full_name: string;
+  default_branch: string;
+  sort_order?: number;
+};
+
+export const getProjectReposConfig = (
+  projectId: number
+): Promise<{ repos: ProjectRepoLink[]; can_edit: boolean }> => {
+  return asData(
+    api.get(url.GET_PROJECT_REPOS_CONFIG, { params: { project_id: projectId } })
+  );
+};
+
+export const saveProjectReposConfig = (payload: {
+  project_id: number;
+  repos: { repo_full_name: string; default_branch: string }[];
+}): Promise<{ ok: boolean; repos: ProjectRepoLink[] }> => {
+  return asData(api.create(url.GET_PROJECT_REPOS_CONFIG, payload));
+};
+
+export type WorkgraphCommit = {
+  sha: string;
+  short_sha: string;
+  title: string;
+  author_date: string;
+  github_login: string;
+  html_url: string;
+};
+
+export type WorkgraphPr = {
+  number: number;
+  title: string;
+  html_url: string;
+  draft: boolean;
+  user_login: string;
+  updated_at: string;
+};
+
+export type WorkgraphDiff = {
+  base?: string;
+  head?: string;
+  base_short?: string;
+  head_short?: string;
+  file_count: number;
+  additions: number;
+  deletions: number;
+  compare_url?: string;
+  message?: string;
+} | null;
+
+export type WorkgraphCi = {
+  name: string;
+  conclusion: string | null;
+  status: string;
+  html_url: string;
+  source?: string;
+} | null;
+
+export type WorkgraphRepoState = {
+  repo_full_name: string;
+  default_branch: string;
+  error: string | null;
+  commits: WorkgraphCommit[];
+  open_prs: WorkgraphPr[];
+  diff: WorkgraphDiff;
+  ci: WorkgraphCi;
+};
+
+export const getProjectWorkgraph = (
+  projectId: number
+): Promise<{
+  repos: { id: number; repo_full_name: string; default_branch: string }[];
+  github_connected: boolean;
+  by_repo: Record<string, WorkgraphRepoState>;
+  can_edit: boolean;
+}> => {
+  return asData(
+    api.get(url.GET_PROJECT_WORKGRAPH, { params: { project_id: projectId } })
+  );
+};

@@ -29,6 +29,7 @@ import {
   type StackTaskTodo,
 } from "../../../api";
 import { STACK_COUNTS_REFRESH } from "./stackEvents";
+import ProjectWorkGraph from "./ProjectWorkGraph";
 
 /* ─── Types ───────────────────────────────────────────────── */
 interface Badge {
@@ -852,6 +853,9 @@ const KanbanBoard = () => {
             </button>
           </div>
         </div>
+
+        <ProjectWorkGraph projectId={stackProjectId} />
+
         <div className="tm-subheader__bottom">
           <div className="tm-tabs">
             {(["Dashboard"] as const).map(t => (

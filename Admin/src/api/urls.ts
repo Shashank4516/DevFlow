@@ -68,6 +68,8 @@ export const POST_PROJECT_TASK_CREATE = "/api/projects/task_create.php";
 export const GET_PROJECT_TASK_TODOS = "/api/projects/task_todos_list.php";
 export const POST_PROJECT_TASK_TODO_CREATE = "/api/projects/task_todos_create.php";
 export const POST_PROJECT_TASK_TODO_TOGGLE = "/api/projects/task_todos_toggle.php";
+export const GET_PROJECT_REPOS_CONFIG = "/api/projects/repos_config.php";
+export const GET_PROJECT_WORKGRAPH = "/api/projects/workgraph.php";
 
 // Profile images (PHP backend)
 export const POST_PROFILE_UPDATE_IMAGES = "/api/profile/update.php";
