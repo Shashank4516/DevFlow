@@ -427,7 +427,7 @@ const Message = ({
             <div className="ctext-wrap">
               <div className="ctext-wrap-content">
                 <p className="mb-0 ctext-content">
-                  {renderTextWithRepoMentions(message.text)}
+                  {renderTextWithRepoMentions(message.text || "")}
                 </p>
               </div>
             </div>
@@ -475,7 +475,7 @@ const Message = ({
 
                   {hasText && (
                     <p className="mb-0 ctext-content">
-                      {renderTextWithRepoMentions(message.text)}
+                      {renderTextWithRepoMentions(message.text || "")}
                     </p>
                   )}
 
