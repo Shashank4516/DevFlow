@@ -64,6 +64,39 @@ interface CompareData {
   files: CompareFile[];
 }
 
+const renderDiff = (patch: string) => {
+  if (!patch) {
+    return "No patch preview available for this file type.";
+  }
+  const lines = patch.split("\n");
+  return (
+    <>
+      {lines.map((line, idx) => {
+        let background = "transparent";
+        let color = "#dbe7ff";
+        if (line.startsWith("+") && !line.startsWith("+++")) {
+          background = "rgba(46, 160, 67, 0.25)";
+          color = "#7ee787";
+        } else if (line.startsWith("-") && !line.startsWith("---")) {
+          background = "rgba(248, 81, 73, 0.22)";
+          color = "#ffb3ad";
+        } else if (line.startsWith("@@")) {
+          background = "rgba(56, 139, 253, 0.18)";
+          color = "#79c0ff";
+        }
+        return (
+          <div
+            key={`${idx}-${line.slice(0, 16)}`}
+            style={{ background, color, padding: "0 6px", borderRadius: 3 }}
+          >
+            {line || " "}
+          </div>
+        );
+      })}
+    </>
+  );
+};
+
 const Github = () => {
   const dispatch = useDispatch();
   const githubConnected = useSelector(
@@ -514,7 +547,7 @@ const Github = () => {
                           className="small border rounded p-2 mb-0"
                           style={{ maxHeight: 280, overflow: "auto", background: "#0b1220", color: "#dbe7ff" }}
                         >
-{selectedFile.patch || "No patch preview available for this file type."}
+{renderDiff(selectedFile.patch)}
                         </pre>
                       </div>
                     )}
@@ -599,7 +632,7 @@ const Github = () => {
                       lineHeight: 1.45,
                     }}
                   >
-{selectedFile.patch || "No patch preview available for this file type."}
+{renderDiff(selectedFile.patch)}
                   </pre>
                 </>
               ) : (
