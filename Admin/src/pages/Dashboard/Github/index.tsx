@@ -30,6 +30,40 @@ interface ContentItem {
   size: number;
 }
 
+interface CommitItem {
+  sha: string;
+  short_sha: string;
+  message: string;
+  title: string;
+  author_name: string;
+  author_email?: string;
+  author_date: string;
+  github_login: string;
+  html_url?: string;
+}
+
+interface CompareFile {
+  filename: string;
+  status: string;
+  additions: number;
+  deletions: number;
+  changes: number;
+  patch: string;
+  previous_filename: string;
+  blob_url: string;
+}
+
+interface CompareData {
+  base: string;
+  head: string;
+  status: string;
+  ahead_by: number;
+  behind_by: number;
+  total_commits: number;
+  commits: CommitItem[];
+  files: CompareFile[];
+}
+
 const Github = () => {
   const dispatch = useDispatch();
   const githubConnected = useSelector(
@@ -49,6 +83,15 @@ const Github = () => {
   const [currentBranch, setCurrentBranch] = useState<string>("");
   const [currentPath, setCurrentPath] = useState<string>("");
   const [syncedOnce, setSyncedOnce] = useState(false);
+  const [mode, setMode] = useState<"files" | "review">("files");
+  const [commits, setCommits] = useState<CommitItem[]>([]);
+  const [commitsLoading, setCommitsLoading] = useState(false);
+  const [baseSha, setBaseSha] = useState("");
+  const [headSha, setHeadSha] = useState("");
+  const [compareData, setCompareData] = useState<CompareData | null>(null);
+  const [compareLoading, setCompareLoading] = useState(false);
+  const [compareError, setCompareError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<CompareFile | null>(null);
 
   useEffect(() => {
     if (!BACKEND_URL || githubConnected || syncedOnce) return;
@@ -79,11 +122,72 @@ const Github = () => {
       .finally(() => setLoading(false));
   }, [githubConnected]);
 
+  const loadCommits = (repoFullName: string, branch: string) => {
+    if (!BACKEND_URL) return;
+    setCommitsLoading(true);
+    setCompareError(null);
+    setCompareData(null);
+    setSelectedFile(null);
+    fetch(
+      `${BACKEND_URL}/api/github/commits.php?repo=${encodeURIComponent(repoFullName)}&branch=${encodeURIComponent(branch)}&per_page=30`,
+      { credentials: "include" }
+    )
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load commits");
+        return res.json();
+      })
+      .then((data) => {
+        const list: CommitItem[] = data.commits || [];
+        setCommits(list);
+        const autoHead = list[0]?.sha || "";
+        const autoBase = list[1]?.sha || "";
+        setHeadSha(autoHead);
+        setBaseSha(autoBase);
+        if (autoHead && autoBase) {
+          loadCompare(repoFullName, autoBase, autoHead, branch);
+        }
+      })
+      .catch((e) => setCompareError(e.message))
+      .finally(() => setCommitsLoading(false));
+  };
+
+  const loadCompare = (
+    repoFullName: string,
+    base: string,
+    head: string,
+    branch: string
+  ) => {
+    if (!BACKEND_URL) return;
+    setCompareLoading(true);
+    setCompareError(null);
+    const query = base && head
+      ? `repo=${encodeURIComponent(repoFullName)}&base=${encodeURIComponent(base)}&head=${encodeURIComponent(head)}`
+      : `repo=${encodeURIComponent(repoFullName)}&branch=${encodeURIComponent(branch)}`;
+    fetch(`${BACKEND_URL}/api/github/compare.php?${query}`, { credentials: "include" })
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load compare diff");
+        return res.json();
+      })
+      .then((data) => {
+        setCompareData(data);
+        setSelectedFile(data.files?.[0] || null);
+      })
+      .catch((e) => setCompareError(e.message))
+      .finally(() => setCompareLoading(false));
+  };
+
   const loadBranches = (repo: Repo) => {
     setSelectedRepo(repo);
     setBranches([]);
     setContents([]);
     setCurrentPath("");
+    setMode("files");
+    setCommits([]);
+    setBaseSha("");
+    setHeadSha("");
+    setCompareData(null);
+    setSelectedFile(null);
+    setCompareError(null);
     if (!BACKEND_URL) return;
     setBranchLoading(true);
     fetch(
@@ -97,6 +201,7 @@ const Github = () => {
         if (def) {
           setCurrentBranch(def.name);
           loadContents(repo.full_name, def.name, "");
+          loadCommits(repo.full_name, def.name);
         }
       })
       .finally(() => setBranchLoading(false));
@@ -117,6 +222,12 @@ const Github = () => {
   const openFolder = (path: string) => {
     if (!selectedRepo) return;
     loadContents(selectedRepo.full_name, currentBranch || selectedRepo.default_branch, path);
+  };
+
+  const onBranchChange = (branch: string) => {
+    if (!selectedRepo) return;
+    loadContents(selectedRepo.full_name, branch, "");
+    loadCommits(selectedRepo.full_name, branch);
   };
 
   if (!BACKEND_URL) {
@@ -205,9 +316,7 @@ const Github = () => {
                 <select
                   className="form-select form-select-sm"
                   value={currentBranch}
-                  onChange={(e) =>
-                    loadContents(selectedRepo.full_name, e.target.value, currentPath)
-                  }
+                  onChange={(e) => onBranchChange(e.target.value)}
                 >
                   {branches.map((b) => (
                     <option key={b.name} value={b.name}>
@@ -217,44 +326,192 @@ const Github = () => {
                 </select>
               </div>
             )}
-            {contentsLoading && <Loader />}
-            {!contentsLoading && (
-              <ul className="list-unstyled contact-list px-3 pb-3">
-                {currentPath && (
-                  <li
-                    className="cursor-pointer"
-                    onClick={() =>
-                      openFolder(currentPath.split("/").slice(0, -1).join("/"))
-                    }
-                  >
-                    <div className="d-flex align-items-center py-2">
-                      <i className="bx bx-up-arrow-circle font-size-18 me-2" />
-                      <span className="font-size-14">..</span>
-                    </div>
-                  </li>
+            <div className="px-3 pb-2 d-flex gap-2">
+              <button
+                type="button"
+                className={`btn btn-sm ${mode === "files" ? "btn-primary" : "btn-soft-secondary"}`}
+                onClick={() => setMode("files")}
+              >
+                Files
+              </button>
+              <button
+                type="button"
+                className={`btn btn-sm ${mode === "review" ? "btn-primary" : "btn-soft-secondary"}`}
+                onClick={() => setMode("review")}
+              >
+                Review
+              </button>
+            </div>
+
+            {mode === "files" && (
+              <>
+                {contentsLoading && <Loader />}
+                {!contentsLoading && (
+                  <ul className="list-unstyled contact-list px-3 pb-3">
+                    {currentPath && (
+                      <li
+                        className="cursor-pointer"
+                        onClick={() =>
+                          openFolder(currentPath.split("/").slice(0, -1).join("/"))
+                        }
+                      >
+                        <div className="d-flex align-items-center py-2">
+                          <i className="bx bx-up-arrow-circle font-size-18 me-2" />
+                          <span className="font-size-14">..</span>
+                        </div>
+                      </li>
+                    )}
+                    {(contents || []).map((item) => (
+                      <li
+                        key={item.path}
+                        className="cursor-pointer"
+                        onClick={() =>
+                          item.type === "dir"
+                            ? openFolder(item.path)
+                            : window.open(
+                                `https://github.com/${selectedRepo!.full_name}/blob/${currentBranch || selectedRepo!.default_branch}/${item.path}`,
+                                "_blank"
+                              )
+                        }
+                      >
+                        <div className="d-flex align-items-center py-2">
+                          <i
+                            className={`font-size-18 me-2 ${item.type === "dir" ? "bx bx-folder" : "bx bx-file"}`}
+                          />
+                          <span className="font-size-14">{item.name}</span>
+                        </div>
+                      </li>
+                    ))}
+                  </ul>
                 )}
-                {(contents || []).map((item) => (
-                  <li
-                    key={item.path}
-                    className="cursor-pointer"
-                    onClick={() =>
-                      item.type === "dir"
-                        ? openFolder(item.path)
-                        : window.open(
-                            `https://github.com/${selectedRepo!.full_name}/blob/${currentBranch || selectedRepo!.default_branch}/${item.path}`,
-                            "_blank"
-                          )
-                    }
-                  >
-                    <div className="d-flex align-items-center py-2">
-                      <i
-                        className={`font-size-18 me-2 ${item.type === "dir" ? "bx bx-folder" : "bx bx-file"}`}
-                      />
-                      <span className="font-size-14">{item.name}</span>
+              </>
+            )}
+
+            {mode === "review" && (
+              <div className="px-3 pb-3">
+                {commitsLoading && <Loader />}
+                {compareError && (
+                  <p className="small text-danger mb-2">{compareError}</p>
+                )}
+                {!commitsLoading && commits.length > 0 && (
+                  <>
+                    <p className="font-size-12 text-muted mb-1">Compare Range</p>
+                    <div className="d-flex gap-2 mb-2">
+                      <select
+                        className="form-select form-select-sm"
+                        value={baseSha}
+                        onChange={(e) => setBaseSha(e.target.value)}
+                      >
+                        <option value="">Base commit</option>
+                        {commits.map((c) => (
+                          <option key={`base-${c.sha}`} value={c.sha}>
+                            {c.short_sha} - {c.title}
+                          </option>
+                        ))}
+                      </select>
+                      <select
+                        className="form-select form-select-sm"
+                        value={headSha}
+                        onChange={(e) => setHeadSha(e.target.value)}
+                      >
+                        <option value="">Head commit</option>
+                        {commits.map((c) => (
+                          <option key={`head-${c.sha}`} value={c.sha}>
+                            {c.short_sha} - {c.title}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                  </li>
-                ))}
-              </ul>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-primary mb-3"
+                      disabled={!baseSha || !headSha || compareLoading}
+                      onClick={() =>
+                        loadCompare(
+                          selectedRepo.full_name,
+                          baseSha,
+                          headSha,
+                          currentBranch || selectedRepo.default_branch
+                        )
+                      }
+                    >
+                      {compareLoading ? "Loading..." : "Load Diff"}
+                    </button>
+                  </>
+                )}
+
+                {compareData && (
+                  <>
+                    <div className="mb-3 p-2 border rounded small">
+                      <div>
+                        <strong>Status:</strong> {compareData.status || "N/A"}
+                      </div>
+                      <div>
+                        <strong>Commits:</strong> {compareData.total_commits} |{" "}
+                        <strong>Files:</strong> {compareData.files.length}
+                      </div>
+                      <div className="text-muted">
+                        {compareData.base.slice(0, 7)}...{compareData.head.slice(0, 7)}
+                      </div>
+                    </div>
+
+                    <p className="font-size-12 text-muted mb-1">Recent Commits</p>
+                    <ul className="list-unstyled mb-3">
+                      {compareData.commits.map((c) => (
+                        <li key={c.sha} className="mb-2">
+                          <div className="small fw-semibold">{c.title || c.message}</div>
+                          <div className="font-size-11 text-muted">
+                            {c.short_sha} by {c.github_login || c.author_name}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <p className="font-size-12 text-muted mb-1">Changed Files</p>
+                    <div className="border rounded mb-2" style={{ maxHeight: 180, overflowY: "auto" }}>
+                      <ul className="list-unstyled mb-0">
+                        {compareData.files.map((f) => (
+                          <li
+                            key={f.filename}
+                            className={`px-2 py-1 cursor-pointer ${selectedFile?.filename === f.filename ? "bg-light" : ""}`}
+                            onClick={() => setSelectedFile(f)}
+                          >
+                            <div className="small text-truncate">{f.filename}</div>
+                            <div className="font-size-11 text-muted">
+                              {f.status} | +{f.additions} -{f.deletions}
+                            </div>
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    {selectedFile && (
+                      <div>
+                        <div className="d-flex align-items-center justify-content-between mb-1">
+                          <p className="font-size-12 text-muted mb-0 text-truncate">
+                            {selectedFile.filename}
+                          </p>
+                          {selectedFile.blob_url && (
+                            <button
+                              type="button"
+                              className="btn btn-link btn-sm p-0 ms-2"
+                              onClick={() => window.open(selectedFile.blob_url, "_blank")}
+                            >
+                              Open
+                            </button>
+                          )}
+                        </div>
+                        <pre
+                          className="small border rounded p-2 mb-0"
+                          style={{ maxHeight: 280, overflow: "auto", background: "#0b1220", color: "#dbe7ff" }}
+                        >
+{selectedFile.patch || "No patch preview available for this file type."}
+                        </pre>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
             )}
           </>
         )}
