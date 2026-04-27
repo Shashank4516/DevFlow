@@ -182,6 +182,14 @@ $steps[] = run_step($conn, 'Create project_tasks table', "
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 
+if (table_exists($conn, 'project_tasks') && !column_exists($conn, 'project_tasks', 'assignee_user_id')) {
+    $steps[] = run_step($conn, 'Add project_tasks.assignee_user_id', "
+        ALTER TABLE `project_tasks`
+        ADD COLUMN `assignee_user_id` INT NULL DEFAULT NULL,
+        ADD KEY `idx_task_assignee` (`assignee_user_id`)
+    ");
+}
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // TABLE: project_repos  (Work graph: project ↔ GitHub repos)

@@ -20,13 +20,16 @@ import {
   createProjectTask,
   getProjectBoard,
   getProjectMembers,
+  getSuggestedAssignee,
   moveProjectTask,
+  updateProjectTask,
   getTaskTodos,
   createTaskTodo,
   toggleTaskTodo,
   type StackBoardTask,
   type StackMember,
   type StackTaskTodo,
+  type TaskAssignee,
 } from "../../../api";
 import { STACK_COUNTS_REFRESH } from "./stackEvents";
 import ProjectWorkGraph from "./ProjectWorkGraph";
@@ -43,6 +46,7 @@ interface Card {
   progress: { done: number; total: number };
   files: number;
   comments: number;
+  assignee: TaskAssignee | null;
 }
 interface Column {
   id: string;
@@ -118,17 +122,28 @@ function taskToCard(t: StackBoardTask): Card {
     },
     files: t.files ?? 0,
     comments: t.comments ?? 0,
+    assignee: t.assignee ?? null,
   };
 }
 
-function buildColumnsFromTasks(tasks: StackBoardTask[]): Column[] {
+function buildColumnsFromTasks(
+  tasks: StackBoardTask[],
+  filterByUserId: number | null
+): Column[] {
+  const list =
+    filterByUserId != null
+      ? tasks.filter(
+          t =>
+            t.assignee != null && Number(t.assignee.user_id) === filterByUserId
+        )
+      : tasks;
   const byCol: Record<string, Card[]> = {
     todo: [],
     inprogress: [],
     review: [],
     complete: [],
   };
-  for (const t of tasks) {
+  for (const t of list) {
     const key = t.column_key as keyof typeof byCol;
     if (byCol[key]) {
       byCol[key].push(taskToCard(t));
@@ -149,6 +164,18 @@ function findCardInColumns(
     if (card) return { card, col };
   }
   return null;
+}
+
+function patchTaskProgress(
+  tasks: StackBoardTask[],
+  taskId: string,
+  progress: { done: number; total: number }
+): StackBoardTask[] {
+  return tasks.map(t =>
+    t.id === taskId
+      ? { ...t, progress: { done: progress.done, total: progress.total } }
+      : t
+  );
 }
 
 /* ─── Avatar helpers ─────────────────────────────────────── */
@@ -213,17 +240,6 @@ const SearchIcon = () => (
     <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.4" />
     <path
       d="M10.5 10.5L14 14"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-    />
-  </svg>
-);
-
-const FilterIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-    <path
-      d="M2 4h12M4 8h8M6 12h4"
       stroke="currentColor"
       strokeWidth="1.4"
       strokeLinecap="round"
@@ -360,85 +376,115 @@ const TodoCheckIcon = ({ checked }: { checked: boolean }) => (
 const KanbanCard = ({
   card,
   col,
-  memberInitials,
   onOpenChecklist,
+  onOpenAssign,
 }: {
   card: Card;
   col: Column;
-  memberInitials: string[];
   onOpenChecklist: (card: Card) => void;
-}) => (
-  <div className="tm-card">
-    <div className="tm-card__header">
-      <div className="tm-card__badges">
-        {card.badges.map(b => (
-          <span
-            key={b.label}
-            className="tm-card__badge"
-            style={{ background: col.badgeBg, color: col.badgeText }}
-          >
-            {b.label}
-          </span>
-        ))}
-      </div>
-      <button
-        type="button"
-        className="tm-card__menu-btn"
-        aria-label="Open checklist"
-        onPointerDown={e => e.stopPropagation()}
-        onClick={() => onOpenChecklist(card)}
-      >
-        <DotsIcon />
-      </button>
-    </div>
-    <div className="tm-card__body">
-      <h4 className="tm-card__title">{card.title}</h4>
-      <p className="tm-card__desc">{card.description}</p>
-    </div>
-    <div className="tm-card__footer">
-      <ProgressBar
-        done={card.progress.done}
-        total={card.progress.total}
-        color={col.barColor}
-      />
-      <div className="tm-card__meta">
-        <div className="tm-card__avatars">
-          {memberInitials.slice(0, 2).map((ini, i) => (
+  onOpenAssign: (card: Card) => void;
+}) => {
+  const a = card.assignee;
+  return (
+    <div className="tm-card">
+      <div className="tm-card__header">
+        <div className="tm-card__badges">
+          {card.badges.map(b => (
             <span
-              key={i}
-              className="tm-card__avatar"
-              style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length], zIndex: 2 - i }}
+              key={b.label}
+              className="tm-card__badge"
+              style={{ background: col.badgeBg, color: col.badgeText }}
             >
-              {ini}
+              {b.label}
             </span>
           ))}
         </div>
-        <div className="tm-card__tags">
-          <span className="tm-card__tag">
-            <FolderSmIcon />
-            <span>{card.files}</span>
-          </span>
-          <span className="tm-card__tag">
-            <ChatBubbleIcon />
-            <span>{card.comments}</span>
-          </span>
+        <div className="tm-card__header-actions">
+          <button
+            type="button"
+            className="tm-card__menu-btn"
+            aria-label="Assign or reassign"
+            title="Assign"
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => {
+              e.stopPropagation();
+              onOpenAssign(card);
+            }}
+          >
+            <i className="bx bx-user-plus" style={{ fontSize: 16 }} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="tm-card__menu-btn"
+            aria-label="Open checklist"
+            onPointerDown={e => e.stopPropagation()}
+            onClick={() => onOpenChecklist(card)}
+          >
+            <DotsIcon />
+          </button>
+        </div>
+      </div>
+      <div className="tm-card__body">
+        <h4 className="tm-card__title">{card.title}</h4>
+        <p className="tm-card__desc">{card.description}</p>
+      </div>
+      <div className="tm-card__footer">
+        <ProgressBar
+          done={card.progress.done}
+          total={card.progress.total}
+          color={col.barColor}
+        />
+        <div className="tm-card__meta">
+          <div className="tm-card__avatars tm-card__avatars--assignee">
+            {a ? (
+              a.profileImage ? (
+                <img
+                  src={a.profileImage}
+                  alt=""
+                  className="tm-card__avatar tm-card__avatar--img"
+                />
+              ) : (
+                <span
+                  className="tm-card__avatar"
+                  style={{ background: AVATAR_COLORS[0] }}
+                  title={a.name}
+                >
+                  {(a.initials || "?").slice(0, 2)}
+                </span>
+              )
+            ) : (
+              <span className="tm-card__avatar tm-card__avatar--empty" title="Unassigned">
+                ?
+              </span>
+            )}
+          </div>
+          <div className="tm-card__tags">
+            <span className="tm-card__tag">
+              <FolderSmIcon />
+              <span>{card.files}</span>
+            </span>
+            <span className="tm-card__tag">
+              <ChatBubbleIcon />
+              <span>{card.comments}</span>
+            </span>
+          </div>
         </div>
       </div>
     </div>
-  </div>
-);
+  );
+};
 
 /* ─── Draggable card ──────────────────────────────────────── */
 const DraggableKanbanCard = ({
   card,
   col,
-  memberInitials,
   onOpenChecklist,
+  onOpenAssign,
 }: {
   card: Card;
   col: Column;
-  memberInitials: string[];
   onOpenChecklist: (card: Card) => void;
+  onOpenAssign: (card: Card) => void;
 }) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: card.id,
@@ -461,8 +507,8 @@ const DraggableKanbanCard = ({
         <KanbanCard
           card={card}
           col={col}
-          memberInitials={memberInitials}
           onOpenChecklist={onOpenChecklist}
+          onOpenAssign={onOpenAssign}
         />
       )}
     </div>
@@ -472,12 +518,12 @@ const DraggableKanbanCard = ({
 /* ─── Kanban Column ───────────────────────────────────────── */
 const KanbanColumn = ({
   col,
-  memberInitials,
   onOpenChecklist,
+  onOpenAssign,
 }: {
   col: Column;
-  memberInitials: string[];
   onOpenChecklist: (card: Card) => void;
+  onOpenAssign: (card: Card) => void;
 }) => {
   const { setNodeRef, isOver } = useDroppable({ id: col.id });
   return (
@@ -515,8 +561,8 @@ const KanbanColumn = ({
             key={card.id}
             card={card}
             col={col}
-            memberInitials={memberInitials}
             onOpenChecklist={onOpenChecklist}
+            onOpenAssign={onOpenAssign}
           />
         ))}
       </div>
@@ -536,9 +582,8 @@ const KanbanBoard = () => {
   const { stackProjectId } = useAppSelector(layoutSel);
 
   const [activeTab, setActiveTab] = useState<"Dashboard">("Dashboard");
-  const [columns, setColumns] = useState<Column[]>(() =>
-    COLUMN_ORDER.map(id => ({ ...COLUMN_STYLES[id], cards: [] }))
-  );
+  const [boardTasks, setBoardTasks] = useState<StackBoardTask[]>([]);
+  const [filterMyTasks, setFilterMyTasks] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
   const [projectName, setProjectName] = useState("");
   const [boardLoading, setBoardLoading] = useState(false);
@@ -546,6 +591,10 @@ const KanbanBoard = () => {
   const [taskModal, setTaskModal] = useState(false);
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [newTaskAssignee, setNewTaskAssignee] = useState<number | "">("");
+  const [assignModal, setAssignModal] = useState(false);
+  const [assignCard, setAssignCard] = useState<Card | null>(null);
+  const [assignSelect, setAssignSelect] = useState<number | "">("");
   const [checklistOpen, setChecklistOpen] = useState(false);
   const [checklistCard, setChecklistCard] = useState<Card | null>(null);
   const [checklistLoading, setChecklistLoading] = useState(false);
@@ -554,14 +603,25 @@ const KanbanBoard = () => {
 
   const hasBackend = !!import.meta.env.VITE_BACKEND_URL;
 
-  const memberInitials = useMemo(
-    () => members.map(m => m.initials || "?").filter(Boolean),
-    [members]
+  const myUserId = useMemo(() => {
+    const raw = userProfile?.id ?? (userProfile as { uid?: string | number })?.uid;
+    if (raw === undefined || raw === null || raw === "") return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }, [userProfile]);
+
+  const columns = useMemo(
+    () =>
+      buildColumnsFromTasks(
+        boardTasks,
+        filterMyTasks && myUserId != null ? myUserId : null
+      ),
+    [boardTasks, filterMyTasks, myUserId]
   );
 
   const loadBoard = useCallback(async () => {
     if (stackProjectId == null || !hasBackend) {
-      setColumns(COLUMN_ORDER.map(id => ({ ...COLUMN_STYLES[id], cards: [] })));
+      setBoardTasks([]);
       setProjectName("");
       return;
     }
@@ -572,10 +632,10 @@ const KanbanBoard = () => {
         getProjectMembers(stackProjectId),
       ]);
       setProjectName(board.project.name);
-      setColumns(buildColumnsFromTasks(board.tasks || []));
+      setBoardTasks(board.tasks || []);
       setMembers(mem.members || []);
     } catch {
-      setColumns(COLUMN_ORDER.map(id => ({ ...COLUMN_STYLES[id], cards: [] })));
+      setBoardTasks([]);
       setProjectName("");
     } finally {
       setBoardLoading(false);
@@ -615,17 +675,11 @@ const KanbanBoard = () => {
     if (!targetCol) return;
     if (source.col.id === targetCol.id) return;
 
-    const prev = columns;
-    setColumns(p =>
-      p.map(col => {
-        if (col.id === source.col.id) {
-          return { ...col, cards: col.cards.filter(c => c.id !== cardId) };
-        }
-        if (col.id === targetCol.id) {
-          return { ...col, cards: [...col.cards, source.card] };
-        }
-        return col;
-      })
+    const prevTasks = boardTasks;
+    setBoardTasks(p =>
+      p.map(t =>
+        t.id === cardId ? { ...t, column_key: targetCol.id } : t
+      )
     );
 
     try {
@@ -636,7 +690,7 @@ const KanbanBoard = () => {
       });
       window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
     } catch {
-      setColumns(prev);
+      setBoardTasks(prevTasks);
     }
   };
 
@@ -658,22 +712,11 @@ const KanbanBoard = () => {
           task_id: parseInt(card.id, 10),
         });
         setTodos(res.todos || []);
-        // Update the progress counters for the card in-place
-        setColumns(prev =>
-          prev.map(col => ({
-            ...col,
-            cards: col.cards.map(c =>
-              c.id === card.id
-                ? {
-                    ...c,
-                    progress: {
-                      done: res.progress?.done ?? c.progress.done,
-                      total: res.progress?.total ?? c.progress.total,
-                    },
-                  }
-                : c
-            ),
-          }))
+        setBoardTasks(prev =>
+          patchTaskProgress(prev, card.id, {
+            done: res.progress?.done ?? 0,
+            total: res.progress?.total ?? 1,
+          })
         );
       } finally {
         setChecklistLoading(false);
@@ -699,21 +742,11 @@ const KanbanBoard = () => {
           setTodos(prev => [...prev, res.todo]);
         }
         setNewTodoText("");
-        setColumns(prev =>
-          prev.map(col => ({
-            ...col,
-            cards: col.cards.map(c =>
-              c.id === checklistCard.id
-                ? {
-                    ...c,
-                    progress: {
-                      done: res.progress?.done ?? c.progress.done,
-                      total: res.progress?.total ?? c.progress.total,
-                    },
-                  }
-                : c
-            ),
-          }))
+        setBoardTasks(prev =>
+          patchTaskProgress(prev, checklistCard.id, {
+            done: res.progress?.done ?? 0,
+            total: res.progress?.total ?? 1,
+          })
         );
         window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
       } finally {
@@ -737,21 +770,11 @@ const KanbanBoard = () => {
           todo_id: parseInt(todo.id, 10),
           is_done: next,
         });
-        setColumns(prev =>
-          prev.map(col => ({
-            ...col,
-            cards: col.cards.map(c =>
-              c.id === checklistCard.id
-                ? {
-                    ...c,
-                    progress: {
-                      done: res.progress?.done ?? c.progress.done,
-                      total: res.progress?.total ?? c.progress.total,
-                    },
-                  }
-                : c
-            ),
-          }))
+        setBoardTasks(prev =>
+          patchTaskProgress(prev, checklistCard.id, {
+            done: res.progress?.done ?? 0,
+            total: res.progress?.total ?? 1,
+          })
         );
       } catch {
         // revert on failure
@@ -763,21 +786,74 @@ const KanbanBoard = () => {
     [stackProjectId, checklistCard]
   );
 
+  const onOpenAssign = useCallback(
+    (card: Card) => {
+      if (!stackProjectId) return;
+      setAssignCard(card);
+      setAssignSelect(
+        card.assignee ? card.assignee.user_id : ""
+      );
+      setAssignModal(true);
+    },
+    [stackProjectId]
+  );
+
+  const handleSaveAssign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stackProjectId || !assignCard) return;
+    const v = assignSelect === "" ? null : Number(assignSelect);
+    if (v !== null && (Number.isNaN(v) || v <= 0)) {
+      return;
+    }
+    try {
+      const res = await updateProjectTask({
+        project_id: stackProjectId,
+        task_id: parseInt(assignCard.id, 10),
+        assignee_user_id: v,
+      });
+      if (res.task) {
+        setBoardTasks(prev =>
+          prev.map(t => (t.id === assignCard.id ? res.task : t))
+        );
+      }
+      setAssignModal(false);
+      setAssignCard(null);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const applySuggestedAssignee = useCallback(async () => {
+    if (stackProjectId == null) return;
+    try {
+      const s = await getSuggestedAssignee(stackProjectId);
+      if (s.suggested_user_id != null) {
+        setNewTaskAssignee(s.suggested_user_id);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [stackProjectId]);
 
   const handleCreateTask = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!stackProjectId || !newTaskTitle.trim() || !hasBackend) return;
     try {
-      await createProjectTask({
+      const res = await createProjectTask({
         project_id: stackProjectId,
         title: newTaskTitle.trim(),
         description: newTaskDesc.trim(),
         column_key: "todo",
+        assignee_user_id:
+          newTaskAssignee === "" ? undefined : Number(newTaskAssignee),
       });
+      if (res.task) {
+        setBoardTasks(prev => [...prev, res.task]);
+      }
       setNewTaskTitle("");
       setNewTaskDesc("");
+      setNewTaskAssignee("");
       setTaskModal(false);
-      await loadBoard();
       window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
     } catch {
       /* ignore */
@@ -847,7 +923,14 @@ const KanbanBoard = () => {
                 </span>
               )}
             </div>
-            <button type="button" className="tm-btn-primary" onClick={() => setTaskModal(true)}>
+            <button
+              type="button"
+              className="tm-btn-primary"
+              onClick={() => {
+                setNewTaskAssignee("");
+                setTaskModal(true);
+              }}
+            >
               <PlusIcon size={14} />
               <span>New Task</span>
             </button>
@@ -875,9 +958,14 @@ const KanbanBoard = () => {
               <SearchIcon />
               <span className="tm-search__placeholder">Search…</span>
             </div>
-            <button type="button" className="tm-filter-btn">
-              <FilterIcon />
-              <span>Filter</span>
+            <button
+              type="button"
+              className={`tm-filter-btn${filterMyTasks ? " is-active" : ""}`}
+              onClick={() => setFilterMyTasks(f => !f)}
+              title="Show only tasks assigned to you"
+            >
+              <i className="bx bx-user-check" aria-hidden />
+              <span>My tasks</span>
             </button>
           </div>
         </div>
@@ -899,8 +987,8 @@ const KanbanBoard = () => {
             <KanbanColumn
               key={col.id}
               col={col}
-              memberInitials={memberInitials}
               onOpenChecklist={onOpenChecklist}
+              onOpenAssign={onOpenAssign}
             />
           ))}
         </div>
@@ -910,8 +998,8 @@ const KanbanBoard = () => {
               <KanbanCard
                 card={activeDragPayload.card}
                 col={activeDragPayload.col}
-                memberInitials={memberInitials}
                 onOpenChecklist={onOpenChecklist}
+                onOpenAssign={() => {}}
               />
             </div>
           ) : null}
@@ -931,14 +1019,73 @@ const KanbanBoard = () => {
             />
             <Input
               type="textarea"
-              className="mb-3"
+              className="mb-2"
               placeholder="Description (optional)"
               value={newTaskDesc}
               onChange={e => setNewTaskDesc(e.target.value)}
               rows={3}
             />
+            <div className="d-flex flex-wrap gap-2 align-items-end mb-3">
+              <div className="flex-grow-1" style={{ minWidth: 180 }}>
+                <div className="text-muted small mb-1">Assign to</div>
+                <Input
+                  type="select"
+                  value={newTaskAssignee === "" ? "" : String(newTaskAssignee)}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setNewTaskAssignee(v === "" ? "" : Number(v));
+                  }}
+                >
+                  <option value="">Unassigned</option>
+                  {members.map(m => (
+                    <option key={m.user_id} value={m.user_id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </Input>
+              </div>
+              <Button
+                type="button"
+                color="secondary"
+                outline
+                size="sm"
+                onClick={() => void applySuggestedAssignee()}
+              >
+                Suggest
+              </Button>
+            </div>
             <Button color="primary" type="submit" disabled={!newTaskTitle.trim()}>
               Add to To Do
+            </Button>
+          </Form>
+        </ModalBody>
+      </Modal>
+
+      <Modal isOpen={assignModal} toggle={() => setAssignModal(false)} centered>
+        <ModalHeader toggle={() => setAssignModal(false)}>Assign task</ModalHeader>
+        <ModalBody>
+          {assignCard && (
+            <p className="small text-muted mb-2">{assignCard.title}</p>
+          )}
+          <Form onSubmit={handleSaveAssign}>
+            <Input
+              type="select"
+              className="mb-3"
+              value={assignSelect === "" ? "" : String(assignSelect)}
+              onChange={e => {
+                const v = e.target.value;
+                setAssignSelect(v === "" ? "" : Number(v));
+              }}
+            >
+              <option value="">Unassigned</option>
+              {members.map(m => (
+                <option key={m.user_id} value={m.user_id}>
+                  {m.name}
+                </option>
+              ))}
+            </Input>
+            <Button color="primary" type="submit">
+              Save
             </Button>
           </Form>
         </ModalBody>

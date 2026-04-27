@@ -21,6 +21,7 @@ if ($projectId <= 0) {
 
 require_once dirname(__DIR__, 2) . '/db.php';
 require_once __DIR__ . '/_bootstrap.php';
+require_once __DIR__ . '/task_helpers.php';
 
 projects_ensure_tables($conn);
 
@@ -42,11 +43,13 @@ if (!$proj) {
 }
 
 $stmt2 = mysqli_prepare($conn, '
-    SELECT id, title, description, column_key, sort_order, progress_done, progress_total,
-           files_count, comments_count, badges_json
-    FROM project_tasks
-    WHERE project_id = ?
-    ORDER BY column_key, sort_order, id
+    SELECT t.id, t.title, t.description, t.column_key, t.sort_order, t.progress_done, t.progress_total,
+           t.files_count, t.comments_count, t.badges_json,
+           t.assignee_user_id, au.name AS assignee_name, au.profile_image AS assignee_profile_image
+    FROM project_tasks t
+    LEFT JOIN users au ON au.id = t.assignee_user_id
+    WHERE t.project_id = ?
+    ORDER BY t.column_key, t.sort_order, t.id
 ');
 mysqli_stmt_bind_param($stmt2, 'i', $projectId);
 mysqli_stmt_execute($stmt2);
@@ -77,6 +80,7 @@ while ($row = mysqli_fetch_assoc($res2)) {
         'files'          => (int) $row['files_count'],
         'comments'       => (int) $row['comments_count'],
         'badges'         => $badges,
+        'assignee'       => task_assignee_from_user_row($row),
     ];
 }
 mysqli_stmt_close($stmt2);

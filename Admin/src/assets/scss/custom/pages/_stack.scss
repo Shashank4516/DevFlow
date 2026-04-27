@@ -640,9 +640,14 @@ $tm-font: "Plus Jakarta Sans", "Poppins", sans-serif;
   font-weight: 500;
   color: $tm-white;
   cursor: pointer;
-  transition: background 0.15s;
+  transition: background 0.15s, border-color 0.15s, color 0.15s;
   &:hover {
     background: rgba(255, 255, 255, 0.08);
+  }
+  &.is-active {
+    border-color: rgba(89, 77, 237, 0.5);
+    background: rgba(89, 77, 237, 0.12);
+    color: #b6b0ff;
   }
 }
 
@@ -825,6 +830,12 @@ $tm-font: "Plus Jakarta Sans", "Poppins", sans-serif;
     align-items: center;
   }
 
+  &__header-actions {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+
   &__badges {
     display: flex;
     gap: 6px;
@@ -910,6 +921,23 @@ $tm-font: "Plus Jakarta Sans", "Poppins", sans-serif;
     border: 1.5px solid $tm-bg;
     margin-left: -6px;
     &:first-child {
+      margin-left: 0;
+    }
+  }
+
+  &__avatar--img {
+    object-fit: cover;
+  }
+
+  &__avatar--empty {
+    background: rgba(255, 255, 255, 0.08);
+    color: $tm-dark-gray;
+    font-size: 10px;
+    font-weight: 600;
+  }
+
+  &__avatars--assignee {
+    .tm-card__avatar {
       margin-left: 0;
     }
   }

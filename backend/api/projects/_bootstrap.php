@@ -59,6 +59,27 @@ function projects_ensure_tables(mysqli $conn): void
         UNIQUE KEY uniq_project_repo (project_id, repo_full_name),
         KEY idx_project (project_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+
+    projects_migrate_add_task_assignee($conn);
+}
+
+/**
+ * Add assignee column to project_tasks (existing deployments).
+ */
+function projects_migrate_add_task_assignee(mysqli $conn): void
+{
+    $r = mysqli_query($conn, "SHOW COLUMNS FROM project_tasks LIKE 'assignee_user_id'");
+    if ($r && mysqli_num_rows($r) > 0) {
+        if ($r instanceof mysqli_result) {
+            mysqli_free_result($r);
+        }
+        return;
+    }
+    if ($r instanceof mysqli_result) {
+        mysqli_free_result($r);
+    }
+    @mysqli_query($conn, "ALTER TABLE project_tasks ADD COLUMN assignee_user_id INT NULL DEFAULT NULL");
+    @mysqli_query($conn, "ALTER TABLE project_tasks ADD KEY idx_task_assignee (assignee_user_id)");
 }
 
 /**
@@ -136,6 +157,14 @@ function project_user_has_access(mysqli $conn, int $userId, int $projectId): boo
     $ok = $res && mysqli_fetch_assoc($res);
     mysqli_stmt_close($stmt);
     return (bool) $ok;
+}
+
+/**
+ * True if user_id is a project member (valid assignee target).
+ */
+function project_is_member(mysqli $conn, int $projectId, int $userId): bool
+{
+    return project_user_has_access($conn, $userId, $projectId);
 }
 
 /**

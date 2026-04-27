@@ -12,6 +12,15 @@ export type StackProject = {
   owner_id: number;
 };
 
+export type TaskAssignee = {
+  user_id: number;
+  name: string;
+  firstName: string;
+  lastName: string;
+  profileImage: string;
+  initials: string;
+};
+
 export type StackBoardTask = {
   id: string;
   title: string;
@@ -21,6 +30,8 @@ export type StackBoardTask = {
   files: number;
   comments: number;
   badges: { label: string }[];
+  /** Present when board API includes assignee (added with task assignee column). */
+  assignee?: TaskAssignee | null;
 };
 
 export type StackTaskTodo = {
@@ -104,8 +115,31 @@ export const createProjectTask = (payload: {
   title: string;
   description?: string;
   column_key?: string;
+  assignee_user_id?: number | null;
 }): Promise<{ task: StackBoardTask }> => {
   return asData(api.create(url.POST_PROJECT_TASK_CREATE, payload));
+};
+
+export const updateProjectTask = (payload: {
+  project_id: number;
+  task_id: number;
+  assignee_user_id?: number | null;
+  title?: string;
+  description?: string;
+}): Promise<{ ok: boolean; task: StackBoardTask }> => {
+  return asData(api.create(url.POST_PROJECT_TASK_UPDATE, payload));
+};
+
+export const getSuggestedAssignee = (
+  projectId: number
+): Promise<{
+  suggested_user_id: number | null;
+  open_counts: Record<string, number>;
+  reason: string;
+}> => {
+  return asData(
+    api.get(url.GET_PROJECT_SUGGEST_ASSIGNEE, { params: { project_id: projectId } })
+  );
 };
 
 export const getTaskTodos = (payload: {
