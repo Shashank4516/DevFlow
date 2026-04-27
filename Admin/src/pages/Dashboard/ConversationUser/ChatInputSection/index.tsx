@@ -11,6 +11,15 @@ import Reply from "./Reply";
 // interface
 import { MessagesTypes } from "../../../../data/messages";
 
+const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
+
+interface GithubRepoSuggestion {
+  id: number;
+  name: string;
+  full_name: string;
+  html_url: string;
+}
+
 interface IndexProps {
   onSend: (data: any) => Promise<void> | void;
   replyData: null | MessagesTypes | undefined;
@@ -76,6 +85,18 @@ const Index = ({
   const recordingStartedAtRef = useRef<number>(0);
   const recordingChunksRef = useRef<BlobPart[]>([]);
   const recordingTimerRef = useRef<number | null>(null);
+  const [githubRepos, setGithubRepos] = useState<GithubRepoSuggestion[]>([]);
+
+  useEffect(() => {
+    if (!BACKEND_URL) return;
+    fetch(`${BACKEND_URL}/api/github/repos.php`, { credentials: "include" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        const repos = Array.isArray(data?.repos) ? data.repos : [];
+        setGithubRepos(repos);
+      })
+      .catch(() => setGithubRepos([]));
+  }, []);
 
   useEffect(() => {
     if (text || images || files || voiceMessage) {
@@ -211,6 +232,30 @@ const Index = ({
     setVoiceMessage(null);
   };
 
+  const mentionMatch = (text || "").match(/(?:^|\s)@([a-zA-Z0-9_.-/]*)$/);
+  const mentionQuery = mentionMatch ? mentionMatch[1].toLowerCase() : null;
+  const showRepoMentions = mentionQuery !== null && githubRepos.length > 0;
+  const filteredRepos = showRepoMentions
+    ? githubRepos
+        .filter((repo) => {
+          if (!mentionQuery) return true;
+          return (
+            repo.full_name.toLowerCase().includes(mentionQuery) ||
+            repo.name.toLowerCase().includes(mentionQuery)
+          );
+        })
+        .slice(0, 8)
+    : [];
+
+  const onInsertRepoMention = (repo: GithubRepoSuggestion) => {
+    const current = text || "";
+    const updated = current.replace(
+      /(^|\s)@([a-zA-Z0-9_.-/]*)$/,
+      `$1@${repo.full_name} `
+    );
+    setText(updated);
+  };
+
   return (
     <div className="chat-input-section p-3 p-lg-4">
       {disabledReason ? (
@@ -234,13 +279,28 @@ const Index = ({
               emojiPicker={emojiPicker}
             />
           </div>
-          <div className="col">
+          <div className="col position-relative">
             <InputSection
               value={text}
               onChange={onChangeText}
               disabled={!!transportDisabled}
               placeholder="Type your message..."
             />
+            {showRepoMentions && filteredRepos.length > 0 ? (
+              <div className="repo-mention-menu shadow">
+                {filteredRepos.map((repo) => (
+                  <button
+                    key={repo.id}
+                    type="button"
+                    className="repo-mention-item"
+                    onClick={() => onInsertRepoMention(repo)}
+                  >
+                    <span className="repo-mention-name">@{repo.full_name}</span>
+                    <span className="repo-mention-meta">{repo.name}</span>
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
           <div className="col-auto">
             <EndButtons

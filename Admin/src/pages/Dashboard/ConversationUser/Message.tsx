@@ -319,6 +319,29 @@ const Typing = () => {
     </p>
   );
 };
+
+const renderTextWithRepoMentions = (text: string) => {
+  const mentionPattern = /(@[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)/g;
+  const parts = text.split(mentionPattern);
+  return parts.map((part, index) => {
+    const match = part.match(/^@([a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)$/);
+    if (!match) {
+      return <React.Fragment key={`text-${index}`}>{part}</React.Fragment>;
+    }
+    const repoFullName = match[1];
+    return (
+      <a
+        key={`repo-${repoFullName}-${index}`}
+        href={`https://github.com/${repoFullName}`}
+        target="_blank"
+        rel="noreferrer"
+        className="chat-repo-mention"
+      >
+        {part}
+      </a>
+    );
+  });
+};
 interface MessageProps {
   message: MessagesTypes;
   chatUserDetails: any;
@@ -403,7 +426,9 @@ const Message = ({
           {hasImages && message.text && (
             <div className="ctext-wrap">
               <div className="ctext-wrap-content">
-                <p className="mb-0 ctext-content">{message.text}</p>
+                <p className="mb-0 ctext-content">
+                  {renderTextWithRepoMentions(message.text)}
+                </p>
               </div>
             </div>
           )}
@@ -449,7 +474,9 @@ const Message = ({
                   )}
 
                   {hasText && (
-                    <p className="mb-0 ctext-content">{message.text}</p>
+                    <p className="mb-0 ctext-content">
+                      {renderTextWithRepoMentions(message.text)}
+                    </p>
                   )}
 
                   {/* typing start */}
