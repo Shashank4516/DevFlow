@@ -92,6 +92,7 @@ const Github = () => {
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<CompareFile | null>(null);
+  const [fullScreenReview, setFullScreenReview] = useState(false);
 
   useEffect(() => {
     if (!BACKEND_URL || githubConnected || syncedOnce) return;
@@ -454,6 +455,14 @@ const Github = () => {
                         {compareData.base.slice(0, 7)}...{compareData.head.slice(0, 7)}
                       </div>
                     </div>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-dark mb-3"
+                      onClick={() => setFullScreenReview(true)}
+                    >
+                      <i className="bx bx-expand-alt me-1" />
+                      Open Full Screen Review
+                    </button>
 
                     <p className="font-size-12 text-muted mb-1">Recent Commits</p>
                     <ul className="list-unstyled mb-3">
@@ -516,6 +525,92 @@ const Github = () => {
           </>
         )}
       </AppSimpleBar>
+      {fullScreenReview && compareData && (
+        <div
+          className="position-fixed top-0 start-0 w-100 h-100"
+          style={{ zIndex: 2000, background: "rgba(9, 14, 30, 0.94)" }}
+        >
+          <div className="d-flex align-items-center justify-content-between px-4 py-3 border-bottom border-secondary">
+            <div className="text-white">
+              <h5 className="mb-1 text-white">GitHub Code Review</h5>
+              <div className="small text-white-50">
+                {selectedRepo?.full_name} | {compareData.base.slice(0, 7)}...{compareData.head.slice(0, 7)}
+              </div>
+            </div>
+            <button
+              type="button"
+              className="btn btn-sm btn-light"
+              onClick={() => setFullScreenReview(false)}
+            >
+              <i className="bx bx-x me-1" />
+              Close
+            </button>
+          </div>
+          <div className="d-flex" style={{ height: "calc(100vh - 78px)" }}>
+            <div
+              className="border-end border-secondary p-3"
+              style={{ width: 360, overflowY: "auto", background: "rgba(13, 20, 40, 0.95)" }}
+            >
+              <p className="font-size-12 text-white-50 mb-2">Changed Files</p>
+              <ul className="list-unstyled mb-0">
+                {compareData.files.map((f) => (
+                  <li
+                    key={`full-${f.filename}`}
+                    className={`px-2 py-2 rounded cursor-pointer mb-1 ${
+                      selectedFile?.filename === f.filename ? "bg-primary bg-opacity-25" : ""
+                    }`}
+                    onClick={() => setSelectedFile(f)}
+                  >
+                    <div className="small text-white text-truncate">{f.filename}</div>
+                    <div className="font-size-11 text-white-50">
+                      {f.status} | +{f.additions} -{f.deletions}
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+
+            <div className="flex-grow-1 p-3 d-flex flex-column" style={{ minWidth: 0 }}>
+              {selectedFile ? (
+                <>
+                  <div className="d-flex align-items-center justify-content-between mb-2">
+                    <div className="small text-white text-truncate me-3">{selectedFile.filename}</div>
+                    <div className="d-flex align-items-center gap-2">
+                      <span className="small text-white-50">
+                        {selectedFile.status} | +{selectedFile.additions} -{selectedFile.deletions}
+                      </span>
+                      {selectedFile.blob_url && (
+                        <button
+                          type="button"
+                          className="btn btn-sm btn-outline-light"
+                          onClick={() => window.open(selectedFile.blob_url, "_blank")}
+                        >
+                          Open on GitHub
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                  <pre
+                    className="small border border-secondary rounded p-3 mb-0 flex-grow-1"
+                    style={{
+                      overflow: "auto",
+                      background: "#050a17",
+                      color: "#e6efff",
+                      lineHeight: 1.45,
+                    }}
+                  >
+{selectedFile.patch || "No patch preview available for this file type."}
+                  </pre>
+                </>
+              ) : (
+                <div className="h-100 d-flex align-items-center justify-content-center text-white-50">
+                  Select a changed file to preview diff
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 };
