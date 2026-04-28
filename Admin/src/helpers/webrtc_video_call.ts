@@ -30,6 +30,16 @@ export type IncomingVideoCall = {
   status: VideoCallStatus;
 };
 
+export type IncomingGroupVideoCall = {
+  id: string;
+  channelId: string;
+  channelName?: string;
+  callerId: string;
+  caller: VideoCallParticipant;
+  participants: string[];
+  status: VideoCallStatus;
+};
+
 type SessionRole = "caller" | "receiver";
 type Unsubscribe = () => void;
 
@@ -127,9 +137,19 @@ function callsCollection() {
   return firebase.firestore().collection("webrtcCalls");
 }
 
+function groupCallsCollection() {
+  ensureFirebaseApp();
+  return firebase.firestore().collection("webrtcGroupCalls");
+}
+
 export function makeVideoCallId(myId: string | number, peerId: string | number) {
   const pair = [normalizeId(myId), normalizeId(peerId)].sort().join("__");
   return `call_${pair}_${Date.now()}`;
+}
+
+export function makeGroupVideoCallId(channelId: string | number) {
+  const chan = normalizeId(channelId);
+  return `groupcall_${chan}_${Date.now()}`;
 }
 
 export async function createOutgoingVideoCall(opts: {
@@ -160,6 +180,63 @@ export async function createOutgoingVideoCall(opts: {
     });
 
   return { callId, caller, receiver };
+}
+
+export async function createOutgoingGroupVideoCall(opts: {
+  channelId: string | number;
+  channelName?: string;
+  caller: any;
+  participants: Array<any | string | number>;
+}) {
+  await ensureVideoCallAuth();
+  const caller = serializeParticipant(opts.caller);
+  const channelId = normalizeId(opts.channelId);
+  const callId = makeGroupVideoCallId(channelId);
+
+  if (!caller.id || !channelId) {
+    throw new Error("Missing caller id or channel id for group video call");
+  }
+
+  const participantIds = Array.from(
+    new Set(
+      (opts.participants || [])
+        .map((p: any) => (typeof p === "object" ? normalizeId(p?.id || p?.uid || "") : normalizeId(p)))
+        .filter(Boolean),
+    ),
+  );
+
+  if (!participantIds.includes(caller.id)) participantIds.push(caller.id);
+
+  await groupCallsCollection()
+    .doc(callId)
+    .set({
+      caller,
+      callerId: caller.id,
+      channelId,
+      channelName: String(opts.channelName || "").trim(),
+      participants: participantIds,
+      type: "video",
+      status: "ringing",
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+
+  // Mark caller as joined immediately.
+  await groupCallsCollection()
+    .doc(callId)
+    .collection("members")
+    .doc(caller.id)
+    .set(
+      {
+        state: "joined",
+        joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    )
+    .catch(() => {});
+
+  return { callId, caller, participants: participantIds, channelId };
 }
 
 export function subscribeToIncomingVideoCalls(
@@ -195,6 +272,45 @@ export function subscribeToIncomingVideoCalls(
         // eslint-disable-next-line no-console
         console.error("[VideoCall] incoming listener failed", error);
         onError?.(error.message || "Unable to listen for incoming calls");
+      },
+    );
+}
+
+export function subscribeToIncomingGroupVideoCalls(
+  myId: string | number,
+  onIncoming: (call: IncomingGroupVideoCall) => void,
+  onError?: (message: string) => void,
+): Unsubscribe {
+  const userId = normalizeId(myId);
+  if (!userId) return () => {};
+
+  ensureVideoCallAuth();
+
+  return groupCallsCollection()
+    .where("participants", "array-contains", userId)
+    .where("status", "==", "ringing")
+    .onSnapshot(
+      snapshot => {
+        snapshot.docChanges().forEach(change => {
+          if (change.type === "removed") return;
+          const data: any = change.doc.data();
+          if (!data || data.type !== "video") return;
+          if (normalizeId(data.callerId) === userId) return; // don't ring caller
+          onIncoming({
+            id: change.doc.id,
+            channelId: normalizeId(data.channelId),
+            channelName: String(data.channelName || "").trim() || undefined,
+            callerId: normalizeId(data.callerId),
+            caller: data.caller || { id: normalizeId(data.callerId) },
+            participants: Array.isArray(data.participants) ? data.participants.map(String) : [],
+            status: data.status,
+          });
+        });
+      },
+      error => {
+        // eslint-disable-next-line no-console
+        console.error("[GroupVideoCall] incoming listener failed", error);
+        onError?.(error.message || "Unable to listen for incoming group calls");
       },
     );
 }
@@ -316,6 +432,383 @@ export async function declineVideoCall(callId: string, userId?: string | number)
       },
       { merge: true },
     );
+}
+
+export async function declineGroupVideoCall(callId: string, userId?: string | number) {
+  const me = userId ? normalizeId(userId) : "";
+  if (!callId || !me) return;
+  await ensureVideoCallAuth();
+  await groupCallsCollection()
+    .doc(callId)
+    .collection("members")
+    .doc(me)
+    .set(
+      {
+        state: "declined",
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    )
+    .catch(() => {});
+}
+
+type GroupMemberState = "ringing" | "joined" | "declined" | "left";
+
+type RemoteStreamUpdate = {
+  peerId: string;
+  stream: MediaStream;
+};
+
+export class WebRtcGroupVideoCallSession {
+  private callId: string;
+  private myId: string;
+  private channelId: string;
+  private localVideo: HTMLVideoElement;
+  private pcs = new Map<string, RTCPeerConnection>();
+  private remoteStreams = new Map<string, MediaStream>();
+  private localStream: MediaStream | null = null;
+  private unsubscribers: Unsubscribe[] = [];
+  private pendingCandidates = new Map<string, RTCIceCandidateInit[]>();
+  private closed = false;
+  private isCaller = false;
+
+  onStatusChange?: (status: VideoCallStatus) => void;
+  onError?: (message: string) => void;
+  onRemoteStream?: (update: RemoteStreamUpdate) => void;
+
+  constructor(opts: {
+    callId: string;
+    myId: string | number;
+    channelId: string | number;
+    localVideo: HTMLVideoElement;
+    onStatusChange?: (status: VideoCallStatus) => void;
+    onError?: (message: string) => void;
+    onRemoteStream?: (update: RemoteStreamUpdate) => void;
+    isCaller?: boolean;
+  }) {
+    this.callId = opts.callId;
+    this.myId = normalizeId(opts.myId);
+    this.channelId = normalizeId(opts.channelId);
+    this.localVideo = opts.localVideo;
+    this.onStatusChange = opts.onStatusChange;
+    this.onError = opts.onError;
+    this.onRemoteStream = opts.onRemoteStream;
+    this.isCaller = !!opts.isCaller;
+  }
+
+  private get callRef() {
+    return groupCallsCollection().doc(this.callId);
+  }
+
+  private setStatus(status: VideoCallStatus) {
+    this.onStatusChange?.(status);
+  }
+
+  private setError(message: string) {
+    this.setStatus("failed");
+    this.onError?.(message);
+  }
+
+  private async createLocalStream() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      throw new Error("Camera and microphone are not available in this browser");
+    }
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: true,
+      video: {
+        facingMode: "user",
+        width: { ideal: 1280 },
+        height: { ideal: 720 },
+      },
+    });
+    this.localStream = stream;
+    this.localVideo.srcObject = stream;
+    this.localVideo.muted = true;
+    await this.localVideo.play().catch(() => {});
+    return stream;
+  }
+
+  private pairId(peerId: string) {
+    const a = [this.myId, peerId].sort()[0];
+    const b = [this.myId, peerId].sort()[1];
+    return `${a}__${b}`;
+  }
+
+  private roleForPeer(peerId: string): { a: string; b: string; iAmA: boolean } {
+    const [a, b] = [this.myId, peerId].sort();
+    return { a, b, iAmA: this.myId === a };
+  }
+
+  private async createPeerConnection(peerId: string) {
+    const rtcConfig = await resolveRtcConfiguration();
+    const pc = new RTCPeerConnection(rtcConfig);
+    const remoteStream = new MediaStream();
+    this.remoteStreams.set(peerId, remoteStream);
+    this.onRemoteStream?.({ peerId, stream: remoteStream });
+
+    pc.ontrack = event => {
+      event.streams[0]?.getTracks().forEach(track => {
+        remoteStream.addTrack(track);
+      });
+    };
+
+    pc.onicecandidate = event => {
+      if (!event.candidate) return;
+      const { iAmA } = this.roleForPeer(peerId);
+      const myCol = iAmA ? "aCandidates" : "bCandidates";
+      this.callRef
+        .collection("connections")
+        .doc(this.pairId(peerId))
+        .collection(myCol)
+        .add({
+          from: this.myId,
+          candidate: event.candidate.toJSON(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        })
+        .catch(() => {});
+    };
+
+    pc.onconnectionstatechange = () => {
+      if (pc.connectionState === "connected") {
+        this.setStatus("connected");
+      }
+      if (pc.connectionState === "failed") {
+        this.setError("WebRTC connection failed. A TURN server may be required for this network.");
+      }
+    };
+
+    if (this.localStream) {
+      this.localStream.getTracks().forEach(track => pc.addTrack(track, this.localStream!));
+    }
+
+    this.pcs.set(peerId, pc);
+    return pc;
+  }
+
+  private async flushPending(peerId: string) {
+    const pc = this.pcs.get(peerId);
+    if (!pc?.remoteDescription) return;
+    const queued = this.pendingCandidates.get(peerId) || [];
+    this.pendingCandidates.set(peerId, []);
+    for (const candidate of queued) {
+      try {
+        await pc.addIceCandidate(new RTCIceCandidate(candidate));
+      } catch (e) {
+        // eslint-disable-next-line no-console
+        console.warn("[GroupVideoCall] failed to add queued ICE candidate", e);
+      }
+    }
+  }
+
+  private listenForPeerCandidates(peerId: string) {
+    const { iAmA } = this.roleForPeer(peerId);
+    const peerCol = iAmA ? "bCandidates" : "aCandidates";
+    const unsubscribe = this.callRef
+      .collection("connections")
+      .doc(this.pairId(peerId))
+      .collection(peerCol)
+      .onSnapshot(snapshot => {
+        snapshot.docChanges().forEach(async change => {
+          if (change.type !== "added") return;
+          const data: any = change.doc.data();
+          if (!data?.candidate || data.from === this.myId) return;
+          const pc = this.pcs.get(peerId);
+          if (!pc) return;
+          if (!pc.remoteDescription) {
+            const existing = this.pendingCandidates.get(peerId) || [];
+            existing.push(data.candidate);
+            this.pendingCandidates.set(peerId, existing);
+            return;
+          }
+          try {
+            await pc.addIceCandidate(new RTCIceCandidate(data.candidate));
+          } catch (e) {
+            // eslint-disable-next-line no-console
+            console.warn("[GroupVideoCall] failed to add ICE candidate", e);
+          }
+        });
+      });
+    this.unsubscribers.push(unsubscribe);
+  }
+
+  private listenForOfferAnswer(peerId: string) {
+    const pairId = this.pairId(peerId);
+    const connRef = this.callRef.collection("connections").doc(pairId);
+    const { iAmA, a, b } = this.roleForPeer(peerId);
+    const isInitiator = iAmA; // "a" initiates to prevent glare
+
+    const unsubscribe = connRef.onSnapshot(async snap => {
+      const data: any = snap.data();
+      const pc = this.pcs.get(peerId);
+      if (!pc) return;
+
+      // Non-initiator waits for offer
+      if (!isInitiator && data?.offer && !pc.currentRemoteDescription) {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.offer));
+        await this.flushPending(peerId);
+        const answer = await pc.createAnswer();
+        await pc.setLocalDescription(answer);
+        await connRef.set(
+          {
+            a,
+            b,
+            answer: { type: answer.type, sdp: answer.sdp },
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+      }
+
+      // Initiator waits for answer after sending offer
+      if (isInitiator && data?.answer && !pc.currentRemoteDescription) {
+        await pc.setRemoteDescription(new RTCSessionDescription(data.answer));
+        await this.flushPending(peerId);
+      }
+    });
+    this.unsubscribers.push(unsubscribe);
+  }
+
+  private async ensureConnection(peerId: string) {
+    if (peerId === this.myId) return;
+    if (this.pcs.has(peerId)) return;
+    if (!this.localStream) await this.createLocalStream();
+    const pc = await this.createPeerConnection(peerId);
+    this.listenForPeerCandidates(peerId);
+    this.listenForOfferAnswer(peerId);
+
+    const connRef = this.callRef.collection("connections").doc(this.pairId(peerId));
+    const { iAmA, a, b } = this.roleForPeer(peerId);
+    const isInitiator = iAmA;
+
+    if (isInitiator) {
+      const snap = await connRef.get();
+      const data: any = snap.data();
+      if (!data?.offer) {
+        const offer = await pc.createOffer();
+        await pc.setLocalDescription(offer);
+        await connRef.set(
+          {
+            a,
+            b,
+            offer: { type: offer.type, sdp: offer.sdp },
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          },
+          { merge: true },
+        );
+      }
+    }
+  }
+
+  private listenForMembers() {
+    const unsubscribe = this.callRef.collection("members").onSnapshot(snapshot => {
+      snapshot.forEach(doc => {
+        const peerId = doc.id;
+        const data: any = doc.data();
+        if (!data || data.state !== "joined") return;
+        if (peerId === this.myId) return;
+        void this.ensureConnection(peerId);
+      });
+    });
+    this.unsubscribers.push(unsubscribe);
+  }
+
+  private listenForCallEnd() {
+    const unsubscribe = this.callRef.onSnapshot(snapshot => {
+      const data: any = snapshot.data();
+      if (!data) return;
+      if (data.status === "ended" && !this.closed) {
+        this.cleanup(false);
+        this.setStatus("ended");
+      }
+    });
+    this.unsubscribers.push(unsubscribe);
+  }
+
+  async join() {
+    await ensureVideoCallAuth();
+    if (!this.myId || !this.callId || !this.channelId) {
+      throw new Error("Missing call metadata for group call");
+    }
+    this.setStatus("connecting");
+
+    await this.callRef.collection("members").doc(this.myId).set(
+      {
+        state: "joined" as GroupMemberState,
+        joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      },
+      { merge: true },
+    );
+
+    await this.callRef.set(
+      { status: "active", updatedAt: firebase.firestore.FieldValue.serverTimestamp() },
+      { merge: true },
+    );
+
+    await this.createLocalStream();
+    this.listenForMembers();
+    this.listenForCallEnd();
+  }
+
+  setMicrophoneEnabled(enabled: boolean) {
+    this.localStream?.getAudioTracks().forEach(track => (track.enabled = enabled));
+  }
+
+  setCameraEnabled(enabled: boolean) {
+    this.localStream?.getVideoTracks().forEach(track => (track.enabled = enabled));
+  }
+
+  async end() {
+    await ensureVideoCallAuth();
+    if (this.isCaller) {
+      await this.callRef
+        .set(
+          { status: "ended", endedBy: this.myId, updatedAt: firebase.firestore.FieldValue.serverTimestamp() },
+          { merge: true },
+        )
+        .catch(() => {});
+    }
+    await this.callRef
+      .collection("members")
+      .doc(this.myId)
+      .set(
+        {
+          state: "left",
+          leftAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+        },
+        { merge: true },
+      )
+      .catch(() => {});
+    this.cleanup(true);
+  }
+
+  cleanup(updateStatus: boolean) {
+    this.closed = true;
+    this.unsubscribers.forEach(unsub => {
+      try {
+        unsub();
+      } catch {
+        // ignore
+      }
+    });
+    this.unsubscribers = [];
+    this.pendingCandidates.clear();
+    this.pcs.forEach(pc => {
+      try {
+        pc.close();
+      } catch {
+        // ignore
+      }
+    });
+    this.pcs.clear();
+    this.remoteStreams.forEach(stream => stream.getTracks().forEach(t => t.stop()));
+    this.remoteStreams.clear();
+    this.localStream?.getTracks().forEach(t => t.stop());
+    this.localStream = null;
+    this.localVideo.srcObject = null;
+    if (updateStatus) this.setStatus("ended");
+  }
 }
 
 export class WebRtcVideoCallSession {

@@ -20,6 +20,7 @@ import { useRedux } from "../../../hooks/index";
 // components
 import AudioCallModal from "../../../components/AudioCallModal";
 import VideoCallModal from "../../../components/VideoCallModal";
+import GroupVideoCallModal from "../../../components/GroupVideoCallModal";
 import AddPinnedTabModal from "../../../components/AddPinnedTabModal";
 
 // interface
@@ -326,6 +327,10 @@ const UserHead = ({
     setIsOpenVideoModal(false);
   };
 
+  const [isOpenGroupVideoModal, setIsOpenGroupVideoModal] = useState<boolean>(false);
+  const onOpenGroupVideo = () => setIsOpenGroupVideoModal(true);
+  const onCloseGroupVideo = () => setIsOpenGroupVideoModal(false);
+
   /*
         audio call modal
     */
@@ -399,6 +404,20 @@ const UserHead = ({
               </>
             )}
 
+            {isChannel && (
+              <li className="list-inline-item d-none d-lg-inline-block me-2 ms-0">
+                <Button
+                  type="button"
+                  color="none"
+                  className="btn nav-btn"
+                  onClick={onOpenGroupVideo}
+                  title="Group video call"
+                >
+                  <i className="bx bx-video"></i>
+                </Button>
+              </li>
+            )}
+
             <li className="list-inline-item d-none d-lg-inline-block me-2 ms-0">
               <button
                 onClick={onOpenUserDetails}
@@ -445,6 +464,15 @@ const UserHead = ({
           isOpen={isOpenVideoModal}
           onClose={onCloseVideo}
           user={chatUserDetails}
+          currentUser={currentUser}
+          direction="outgoing"
+        />
+      )}
+      {isOpenGroupVideoModal && (
+        <GroupVideoCallModal
+          isOpen={isOpenGroupVideoModal}
+          onClose={onCloseGroupVideo}
+          channel={chatUserDetails}
           currentUser={currentUser}
           direction="outgoing"
         />

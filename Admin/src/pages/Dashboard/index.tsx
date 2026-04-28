@@ -15,10 +15,13 @@ import UserProfileDetails from "./UserProfileDetails/index";
 import Welcome from "./ConversationUser/Welcome";
 import KanbanBoard from "./Stack/KanbanBoard";
 import VideoCallModal from "../../components/VideoCallModal";
+import GroupVideoCallModal from "../../components/GroupVideoCallModal";
 import { useProfile } from "../../hooks";
 import {
   IncomingVideoCall,
+  IncomingGroupVideoCall,
   subscribeToIncomingVideoCalls,
+  subscribeToIncomingGroupVideoCalls,
 } from "../../helpers/webrtc_video_call";
 
 interface IndexProps {}
@@ -27,6 +30,7 @@ const Index = (props: IndexProps) => {
   const { useAppSelector } = useRedux();
   const { userProfile } = useProfile();
   const [incomingCall, setIncomingCall] = useState<IncomingVideoCall | null>(null);
+  const [incomingGroupCall, setIncomingGroupCall] = useState<IncomingGroupVideoCall | null>(null);
 
   // const { selectedChat } = useAppSelector(state => ({
   //   selectedChat: state.Chats.selectedChat,
@@ -66,6 +70,21 @@ const Index = (props: IndexProps) => {
     return unsubscribe;
   }, [currentUserId]);
 
+  useEffect(() => {
+    if (!currentUserId) return;
+    const unsubscribe = subscribeToIncomingGroupVideoCalls(
+      currentUserId,
+      call => {
+        setIncomingGroupCall(prev => prev || call);
+      },
+      message => {
+        // eslint-disable-next-line no-console
+        console.error("[GroupVideoCall] incoming listener error:", message);
+      },
+    );
+    return unsubscribe;
+  }, [currentUserId]);
+
   return (
     <>
       <Leftbar />
@@ -100,6 +119,16 @@ const Index = (props: IndexProps) => {
           currentUser={userProfile}
           direction="incoming"
           incomingCall={incomingCall}
+        />
+      )}
+      {incomingGroupCall && (
+        <GroupVideoCallModal
+          isOpen={!!incomingGroupCall}
+          onClose={() => setIncomingGroupCall(null)}
+          channel={null}
+          currentUser={userProfile}
+          direction="incoming"
+          incomingCall={incomingGroupCall}
         />
       )}
     </>
