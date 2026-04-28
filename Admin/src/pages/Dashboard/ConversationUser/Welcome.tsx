@@ -14,10 +14,10 @@ const Welcome = () => {
                 </div>
               </div>
               <h4>Welcome to DevFlow Chat App</h4>
-              <p className="text-muted mb-4">
+              {/* <p className="text-muted mb-4">
                 Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean
                 commodo ligula eget dolor. cum sociis natoque penatibus et
-              </p>
+              </p> */}
               <Button type="button" className="btn btn-primary w-lg">
                 Get Started
               </Button>
