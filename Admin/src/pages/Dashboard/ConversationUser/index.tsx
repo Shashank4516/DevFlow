@@ -201,6 +201,30 @@ const Index = ({ isChannel }: IndexProps) => {
 
   const onTogglePinMessage = async (messageId: string | number) => {
     if (!peerIdStr) return;
+    const existingMessages = Array.isArray(chatUserConversations?.messages)
+      ? chatUserConversations.messages
+      : [];
+    const previous = existingMessages.find(
+      (message: MessagesTypes) => String(message.mId) === String(messageId),
+    );
+    const nextPinned = !previous?.isPinned;
+
+    // Optimistically reflect pin state so user sees it instantly.
+    dispatch(
+      setChatUserConversations({
+        ...chatUserConversations,
+        messages: existingMessages.map((message: MessagesTypes) =>
+          String(message.mId) === String(messageId)
+            ? {
+                ...message,
+                isPinned: nextPinned,
+                pinnedAt: nextPinned ? new Date().toISOString() : null,
+              }
+            : message,
+        ),
+      }),
+    );
+
     try {
       if (isChannel) {
         await toggleChannelMessagePinApi({
@@ -215,6 +239,13 @@ const Index = ({ isChannel }: IndexProps) => {
       }
       await loadMessages();
     } catch (e: any) {
+      // Roll back optimistic update if server rejects toggle.
+      dispatch(
+        setChatUserConversations({
+          ...chatUserConversations,
+          messages: existingMessages,
+        }),
+      );
       const msg = e?.message || "Failed to toggle pin";
       setChatError(msg);
       // eslint-disable-next-line no-alert
