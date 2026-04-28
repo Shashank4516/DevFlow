@@ -31,6 +31,8 @@ function ensure_channel_message_tables(mysqli $conn): void
         sender_id BIGINT UNSIGNED NOT NULL,
         body TEXT NOT NULL,
         attachments_json LONGTEXT NULL,
+        is_pinned TINYINT(1) NOT NULL DEFAULT 0,
+        pinned_at TIMESTAMP NULL DEFAULT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         KEY idx_channel_created (channel_id, created_at),
         KEY idx_sender_created (sender_id, created_at)
@@ -41,6 +43,20 @@ function ensure_channel_message_tables(mysqli $conn): void
     if ($colRes) mysqli_free_result($colRes);
     if (!$hasAttachmentsJson) {
         @mysqli_query($conn, "ALTER TABLE chat_channel_messages ADD COLUMN attachments_json LONGTEXT NULL AFTER body");
+    }
+
+    $colPinned = mysqli_query($conn, "SHOW COLUMNS FROM chat_channel_messages LIKE 'is_pinned'");
+    $hasPinned = $colPinned && mysqli_num_rows($colPinned) > 0;
+    if ($colPinned) mysqli_free_result($colPinned);
+    if (!$hasPinned) {
+        @mysqli_query($conn, "ALTER TABLE chat_channel_messages ADD COLUMN is_pinned TINYINT(1) NOT NULL DEFAULT 0 AFTER attachments_json");
+    }
+
+    $colPinnedAt = mysqli_query($conn, "SHOW COLUMNS FROM chat_channel_messages LIKE 'pinned_at'");
+    $hasPinnedAt = $colPinnedAt && mysqli_num_rows($colPinnedAt) > 0;
+    if ($colPinnedAt) mysqli_free_result($colPinnedAt);
+    if (!$hasPinnedAt) {
+        @mysqli_query($conn, "ALTER TABLE chat_channel_messages ADD COLUMN pinned_at TIMESTAMP NULL DEFAULT NULL AFTER is_pinned");
     }
 }
 
@@ -71,6 +87,8 @@ function format_channel_message(mysqli $conn, array $row, int $me): array
             'received' => true,
             'read' => true,
         ],
+        'isPinned' => ((int)($row['is_pinned'] ?? 0) === 1),
+        'pinnedAt' => !empty($row['pinned_at']) ? gmdate('c', strtotime((string)$row['pinned_at'])) : null,
     ];
 
     $senderName = (string)($row['sender_name'] ?? '');

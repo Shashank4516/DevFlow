@@ -78,7 +78,7 @@ $messageId = (int)mysqli_insert_id($conn);
 mysqli_stmt_close($ins);
 
 $rowStmt = mysqli_prepare($conn, "
-    SELECT id, sender_id, receiver_id, body, attachments_json, is_read, created_at
+    SELECT id, sender_id, receiver_id, body, attachments_json, is_read, is_pinned, pinned_at, created_at
     FROM messages
     WHERE id = ?
     LIMIT 1

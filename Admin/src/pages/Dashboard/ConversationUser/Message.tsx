@@ -32,9 +32,11 @@ interface MenuProps {
   onDelete: () => any;
   onReply: () => any;
   onForward: () => void;
+  onTogglePin: () => void;
+  isPinned: boolean;
 }
 
-const Menu = ({ onDelete, onReply, onForward }: MenuProps) => {
+const Menu = ({ onDelete, onReply, onForward, onTogglePin, isPinned }: MenuProps) => {
   return (
     <UncontrolledDropdown className="align-self-start message-box-drop">
       <DropdownToggle className="btn btn-toggle" role="button" tag={"a"}>
@@ -64,8 +66,10 @@ const Menu = ({ onDelete, onReply, onForward }: MenuProps) => {
         <DropdownItem
           className="d-flex align-items-center justify-content-between"
           to="#"
+          onClick={onTogglePin}
         >
-          Bookmark <i className="bx bx-bookmarks text-muted ms-2"></i>
+          {isPinned ? "Unpin" : "Pin"}{" "}
+          <i className={classnames("text-muted", "ms-2", isPinned ? "ri-pushpin-fill" : "ri-pushpin-line")}></i>
         </DropdownItem>
         <DropdownItem
           className="d-flex align-items-center justify-content-between"
@@ -87,8 +91,10 @@ interface ImageMoreMenuProps {
   imagelink: any,
   onReply: () => any;
   onDelete: () => void;
+  onTogglePin: () => void;
+  isPinned: boolean;
 }
-const ImageMoreMenu = ({ imagelink,onReply, onDelete }: ImageMoreMenuProps) => {
+const ImageMoreMenu = ({ imagelink,onReply, onDelete, onTogglePin, isPinned }: ImageMoreMenuProps) => {
   return (
     <div className="message-img-link">
       <ul className="list-inline mb-0">
@@ -129,8 +135,10 @@ const ImageMoreMenu = ({ imagelink,onReply, onDelete }: ImageMoreMenuProps) => {
               tag="a"
               className=" d-flex align-items-center justify-content-between"
               href="#"
+              onClick={onTogglePin}
             >
-              Bookmark <i className="bx bx-bookmarks text-muted ms-2"></i>
+              {isPinned ? "Unpin" : "Pin"}{" "}
+              <i className={classnames("text-muted", "ms-2", isPinned ? "ri-pushpin-fill" : "ri-pushpin-line")}></i>
             </DropdownItem>
             <DropdownItem
               tag="a"
@@ -154,8 +162,9 @@ interface ImageProps {
   index: number;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   onDeleteImg: (imageId: string | number) => void;
+  onTogglePin: (messageId: string | number) => void;
 }
-const Image = ({ message ,image, onImageClick, index,onSetReplyData, onDeleteImg }: ImageProps) => {
+const Image = ({ message ,image, onImageClick, index,onSetReplyData, onDeleteImg, onTogglePin }: ImageProps) => {
   const onDelete = () => {
     onDeleteImg(image.id);
   };
@@ -170,6 +179,9 @@ const Image = ({ message ,image, onImageClick, index,onSetReplyData, onDeleteImg
     onSetReplyData(message);
 
   };
+  const onTogglePinMessage = () => {
+    onTogglePin(message.mId);
+  };
   return (
     <React.Fragment>
       <div className="message-img-list">
@@ -182,7 +194,13 @@ const Image = ({ message ,image, onImageClick, index,onSetReplyData, onDeleteImg
             <img src={image.downloadLink} alt="" className="rounded border" />
           </Link>
         </div>
-        <ImageMoreMenu imagelink={image.downloadLink} onReply={onClickReply} onDelete={onDelete} />
+        <ImageMoreMenu
+          imagelink={image.downloadLink}
+          onReply={onClickReply}
+          onDelete={onDelete}
+          onTogglePin={onTogglePinMessage}
+          isPinned={!!message.isPinned}
+        />
       </div>
     </React.Fragment>
   );
@@ -192,8 +210,9 @@ interface ImagesProps {
   images: ImageTypes[];
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   onDeleteImg: (imageId: string | number) => void;
+  onTogglePin: (messageId: string | number) => void;
 }
-const Images = ({ message,images,onSetReplyData, onDeleteImg }: ImagesProps) => {
+const Images = ({ message,images,onSetReplyData, onDeleteImg, onTogglePin }: ImagesProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selected, setSelected] = useState(0);
   const onImageClick = (id: number) => {
@@ -216,6 +235,7 @@ const Images = ({ message,images,onSetReplyData, onDeleteImg }: ImagesProps) => 
               onImageClick={onImageClick}
               onSetReplyData={onSetReplyData}
               onDeleteImg={onDeleteImg}
+              onTogglePin={onTogglePin}
             />
         ))}
       </div>
@@ -346,6 +366,7 @@ interface MessageProps {
   message: MessagesTypes;
   chatUserDetails: any;
   onDelete: (messageId: string | number) => any;
+  onTogglePin: (messageId: string | number) => void;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   isFromMe: boolean;
   onOpenForward: (message: MessagesTypes) => void;
@@ -357,6 +378,7 @@ const Message = ({
   message,
   chatUserDetails,
   onDelete,
+  onTogglePin,
   onSetReplyData,
   isFromMe,
   onOpenForward,
@@ -389,6 +411,7 @@ const Message = ({
   const isReceived = message.meta.received;
   const isRead = message.meta.read;
   const isForwarded = message.meta.isForwarded;
+  const isPinned = !!message.isPinned;
   const channdelSenderFullname = message.meta.userData
     ? `${message.meta.userData.firstName} ${message.meta.userData.lastName}`
     : "-";
@@ -408,6 +431,9 @@ const Message = ({
 
   const onDeleteImg = (imageId: number | string) => {
     onDeleteImage(message.mId, imageId);
+  };
+  const onTogglePinMessage = () => {
+    onTogglePin(message.mId);
   };
   return (
     <li
@@ -453,6 +479,22 @@ const Message = ({
               Forwarded
             </span>
           )}
+          {isPinned && (
+            <span
+              className={classnames(
+                "badge",
+                "bg-light",
+                "text-body",
+                "border",
+                "mb-2",
+                "d-inline-flex",
+                "align-items-center",
+              )}
+            >
+              <i className="ri-pushpin-fill me-1"></i>
+              Pinned
+            </span>
+          )}
 
           <div className="ctext-wrap">
             {/* text message end */}
@@ -460,7 +502,13 @@ const Message = ({
             {/* image message start */}
             {hasImages ? (
               <>
-                <Images images={message.image!} message={message} onSetReplyData={onSetReplyData} onDeleteImg={onDeleteImg} />
+                <Images
+                  images={message.image!}
+                  message={message}
+                  onSetReplyData={onSetReplyData}
+                  onDeleteImg={onDeleteImg}
+                  onTogglePin={onTogglePin}
+                />
               </>
             ) : (
               <>
@@ -493,6 +541,8 @@ const Message = ({
                   onForward={onForwardMessage}
                   onDelete={onDeleteMessage}
                   onReply={onClickReply}
+                  onTogglePin={onTogglePinMessage}
+                  isPinned={isPinned}
                 />
               </>
             )}

@@ -104,6 +104,20 @@ const sendChannelMessage = (data: {
   return api.create(url.POST_CHANNEL_MESSAGE, data);
 };
 
+const toggleMessagePin = (data: {
+  with_user_id: string | number;
+  message_id: string | number;
+}) => {
+  return api.create(url.POST_DM_TOGGLE_PIN, data);
+};
+
+const toggleChannelMessagePin = (data: {
+  channel_id: string | number;
+  message_id: string | number;
+}) => {
+  return api.create(url.POST_CHANNEL_TOGGLE_PIN, data);
+};
+
 const toggleFavouriteContact = (id: string | number) => {
   return api.update(url.TOGGLE_FAVOURITE_CONTACT + "/" + id, {
     params: { id },
@@ -154,6 +168,8 @@ export {
   getChannelDetails,
   getChannelMessages,
   sendChannelMessage,
+  toggleMessagePin,
+  toggleChannelMessagePin,
   toggleFavouriteContact,
   getArchiveContact,
   toggleArchiveContact,

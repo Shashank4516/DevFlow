@@ -123,7 +123,10 @@ $steps[] = run_step($conn, 'Create messages table', "
         `sender_id`       BIGINT UNSIGNED NOT NULL,
         `receiver_id`     BIGINT UNSIGNED NOT NULL,
         `body`            TEXT            NOT NULL,
+        `attachments_json` LONGTEXT       NULL,
         `is_read`         TINYINT(1)      NOT NULL DEFAULT 0,
+        `is_pinned`       TINYINT(1)      NOT NULL DEFAULT 0,
+        `pinned_at`       TIMESTAMP       NULL DEFAULT NULL,
         `created_at`      TIMESTAMP       NOT NULL DEFAULT CURRENT_TIMESTAMP,
         KEY `idx_conv_created`     (`conversation_id`, `created_at`),
         KEY `idx_receiver_created` (`receiver_id`, `created_at`),
@@ -131,6 +134,18 @@ $steps[] = run_step($conn, 'Create messages table', "
             FOREIGN KEY (`conversation_id`) REFERENCES `conversations`(`id`) ON DELETE CASCADE
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
+
+if (table_exists($conn, 'messages')) {
+    if (!column_exists($conn, 'messages', 'attachments_json')) {
+        $steps[] = run_step($conn, 'Add messages.attachments_json', "ALTER TABLE `messages` ADD COLUMN `attachments_json` LONGTEXT NULL AFTER `body`");
+    }
+    if (!column_exists($conn, 'messages', 'is_pinned')) {
+        $steps[] = run_step($conn, 'Add messages.is_pinned', "ALTER TABLE `messages` ADD COLUMN `is_pinned` TINYINT(1) NOT NULL DEFAULT 0 AFTER `is_read`");
+    }
+    if (!column_exists($conn, 'messages', 'pinned_at')) {
+        $steps[] = run_step($conn, 'Add messages.pinned_at', "ALTER TABLE `messages` ADD COLUMN `pinned_at` TIMESTAMP NULL DEFAULT NULL AFTER `is_pinned`");
+    }
+}
 
 
 // ══════════════════════════════════════════════════════════════════════════════

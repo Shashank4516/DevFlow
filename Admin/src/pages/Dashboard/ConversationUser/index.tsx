@@ -25,6 +25,8 @@ import {
   uploadMessageAttachment,
   getChannelMessages as getChannelMessagesApi,
   sendChannelMessage as sendChannelMessageApi,
+  toggleMessagePin as toggleMessagePinApi,
+  toggleChannelMessagePin as toggleChannelMessagePinApi,
 } from "../../../api/chats";
 
 interface IndexProps {
@@ -197,6 +199,29 @@ const Index = ({ isChannel }: IndexProps) => {
     dispatch(deleteMessage(chatUserDetails.id, messageId));
   };
 
+  const onTogglePinMessage = async (messageId: string | number) => {
+    if (!peerIdStr) return;
+    try {
+      if (isChannel) {
+        await toggleChannelMessagePinApi({
+          channel_id: peerIdStr,
+          message_id: messageId,
+        });
+      } else {
+        await toggleMessagePinApi({
+          with_user_id: peerIdStr,
+          message_id: messageId,
+        });
+      }
+      await loadMessages();
+    } catch (e: any) {
+      const msg = e?.message || "Failed to toggle pin";
+      setChatError(msg);
+      // eslint-disable-next-line no-alert
+      alert(msg);
+    }
+  };
+
   const onDeleteUserMessages = () => {
     dispatch(deleteUserMessages(chatUserDetails.id));
   };
@@ -220,6 +245,7 @@ const Index = ({ isChannel }: IndexProps) => {
         chatUserConversations={chatUserConversations}
         chatUserDetails={chatUserDetails}
         onDelete={onDeleteMessage}
+        onTogglePin={onTogglePinMessage}
         onSetReplyData={onSetReplyData}
         isChannel={isChannel}
       />

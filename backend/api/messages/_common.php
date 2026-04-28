@@ -22,6 +22,8 @@ function ensure_chat_tables(mysqli $conn): void
         body TEXT NOT NULL,
         attachments_json LONGTEXT NULL,
         is_read TINYINT(1) NOT NULL DEFAULT 0,
+        is_pinned TINYINT(1) NOT NULL DEFAULT 0,
+        pinned_at TIMESTAMP NULL DEFAULT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         KEY idx_conv_created (conversation_id, created_at),
         KEY idx_receiver_created (receiver_id, created_at),
@@ -34,6 +36,20 @@ function ensure_chat_tables(mysqli $conn): void
     if ($colRes) mysqli_free_result($colRes);
     if (!$hasAttachmentsJson) {
         @mysqli_query($conn, "ALTER TABLE messages ADD COLUMN attachments_json LONGTEXT NULL AFTER body");
+    }
+
+    $colPinned = mysqli_query($conn, "SHOW COLUMNS FROM messages LIKE 'is_pinned'");
+    $hasPinned = $colPinned && mysqli_num_rows($colPinned) > 0;
+    if ($colPinned) mysqli_free_result($colPinned);
+    if (!$hasPinned) {
+        @mysqli_query($conn, "ALTER TABLE messages ADD COLUMN is_pinned TINYINT(1) NOT NULL DEFAULT 0 AFTER is_read");
+    }
+
+    $colPinnedAt = mysqli_query($conn, "SHOW COLUMNS FROM messages LIKE 'pinned_at'");
+    $hasPinnedAt = $colPinnedAt && mysqli_num_rows($colPinnedAt) > 0;
+    if ($colPinnedAt) mysqli_free_result($colPinnedAt);
+    if (!$hasPinnedAt) {
+        @mysqli_query($conn, "ALTER TABLE messages ADD COLUMN pinned_at TIMESTAMP NULL DEFAULT NULL AFTER is_pinned");
     }
 
     // Friendship table is shared with the friends APIs.
@@ -130,6 +146,8 @@ function format_dm_message(array $row, int $me): array
             // Only mark read when receiver has read it (is_read=1), even on sender side.
             'read' => $isRead,
         ],
+        'isPinned' => ((int)($row['is_pinned'] ?? 0) === 1),
+        'pinnedAt' => !empty($row['pinned_at']) ? gmdate('c', strtotime((string)$row['pinned_at'])) : null,
     ];
 
     $attachmentsRaw = (string)($row['attachments_json'] ?? '');

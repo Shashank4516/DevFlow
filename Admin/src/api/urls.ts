@@ -57,6 +57,8 @@ export const GET_ACCEPTED_FRIENDS = "/api/friends/accepted.php";
 export const GET_DM_MESSAGES = "/api/messages/list.php";
 export const POST_DM_MESSAGE = "/api/messages/send.php";
 export const POST_DM_UPLOAD = "/api/messages/upload.php";
+export const POST_DM_TOGGLE_PIN = "/api/messages/pin_toggle.php";
+export const POST_CHANNEL_TOGGLE_PIN = "/api/channels/messages_pin_toggle.php";
 
 // Stack / projects (PHP backend)
 export const GET_PROJECTS_LIST = "/api/projects/list.php";

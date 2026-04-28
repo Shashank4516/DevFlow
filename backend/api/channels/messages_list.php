@@ -44,7 +44,7 @@ if (!$isMember) {
 }
 
 $stmt = mysqli_prepare($conn, "
-    SELECT m.id, m.channel_id, m.sender_id, m.body, m.attachments_json, m.created_at,
+    SELECT m.id, m.channel_id, m.sender_id, m.body, m.attachments_json, m.is_pinned, m.pinned_at, m.created_at,
            u.name as sender_name, u.profile_image as sender_profile_image
     FROM chat_channel_messages m
     INNER JOIN users u ON u.id = m.sender_id
