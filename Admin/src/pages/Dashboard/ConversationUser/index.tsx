@@ -23,6 +23,8 @@ import {
   getChatUserConversations as getChatUserConversationsApi,
   sendMessage as sendMessageApi,
   uploadMessageAttachment,
+  getChannelMessages as getChannelMessagesApi,
+  sendChannelMessage as sendChannelMessageApi,
 } from "../../../api/chats";
 
 interface IndexProps {
@@ -70,7 +72,11 @@ const Index = ({ isChannel }: IndexProps) => {
   );
 
   const conversationId = useMemo(() => {
-    if (isChannel || !myUid || !peerIdStr) return null;
+    if (isChannel) {
+      if (!peerIdStr) return null;
+      return `channel_${peerIdStr}`;
+    }
+    if (!myUid || !peerIdStr) return null;
     return `dm_${[myUid, peerIdStr].sort().join("__")}`;
   }, [isChannel, myUid, peerIdStr]);
 
@@ -116,12 +122,19 @@ const Index = ({ isChannel }: IndexProps) => {
       }
 
       if (!text && attachments.length === 0) return;
-
-      await sendMessageApi({
-        to_user_id: peerIdStr,
-        text,
-        attachments,
-      });
+      if (isChannel) {
+        await sendChannelMessageApi({
+          channel_id: peerIdStr,
+          text,
+          attachments,
+        });
+      } else {
+        await sendMessageApi({
+          to_user_id: peerIdStr,
+          text,
+          attachments,
+        });
+      }
       setChatError(null);
       setReplyData(null);
       await loadMessages();
@@ -138,7 +151,9 @@ const Index = ({ isChannel }: IndexProps) => {
   const loadMessages = async () => {
     if (!conversationId || !myUid || !peerIdStr) return;
     try {
-      const data: any = await getChatUserConversationsApi(peerIdStr);
+      const data: any = isChannel
+        ? await getChannelMessagesApi(peerIdStr)
+        : await getChatUserConversationsApi(peerIdStr);
       dispatch(
         setChatUserConversations({
           conversationId: data?.conversationId || conversationId,
@@ -176,7 +191,7 @@ const Index = ({ isChannel }: IndexProps) => {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, myUid, peerIdStr]);
+  }, [conversationId, myUid, peerIdStr, isChannel]);
 
   const onDeleteMessage = (messageId: string | number) => {
     dispatch(deleteMessage(chatUserDetails.id, messageId));

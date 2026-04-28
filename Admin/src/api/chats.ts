@@ -90,6 +90,20 @@ const getChannelDetails = (id: string | number) => {
   return api.get(url.GET_CHANNEL_DETAILS, { params: { id } });
 };
 
+const getChannelMessages = (channelId: string | number, limit: number = 200) => {
+  return api.get(url.GET_CHANNEL_MESSAGES, {
+    params: { channel_id: channelId, limit },
+  });
+};
+
+const sendChannelMessage = (data: {
+  channel_id: string | number;
+  text?: string;
+  attachments?: Array<any>;
+}) => {
+  return api.create(url.POST_CHANNEL_MESSAGE, data);
+};
+
 const toggleFavouriteContact = (id: string | number) => {
   return api.update(url.TOGGLE_FAVOURITE_CONTACT + "/" + id, {
     params: { id },
@@ -138,6 +152,8 @@ export {
   forwardMessage,
   deleteUserMessages,
   getChannelDetails,
+  getChannelMessages,
+  sendChannelMessage,
   toggleFavouriteContact,
   getArchiveContact,
   toggleArchiveContact,
