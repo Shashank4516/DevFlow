@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   DropdownToggle,
   DropdownMenu,
@@ -253,8 +253,113 @@ const Images = ({ message,images,onSetReplyData, onDeleteImg, onTogglePin }: Ima
 
 interface AttachmentsProps {
   attachments: AttachmentTypes[] | undefined;
+  isFromMe: boolean;
+  avatar: string;
+  messageTime: string;
+  isRead: boolean;
 }
-const Attachments = ({ attachments }: AttachmentsProps) => {
+const formatVoiceTime = (seconds: number) => {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
+
+interface VoiceMessageProps {
+  attachment: AttachmentTypes;
+  avatar: string;
+  isFromMe: boolean;
+  messageTime: string;
+  isRead: boolean;
+}
+
+const VoiceMessage = ({
+  attachment,
+  avatar,
+  isFromMe,
+  messageTime,
+  isRead,
+}: VoiceMessageProps) => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState<number>(attachment.duration || 0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  const bars = Array.from({ length: 34 }, (_, i) => {
+    const h = 6 + ((i * 7) % 18);
+    return h;
+  });
+
+  const onTogglePlay = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+      return;
+    }
+    try {
+      await audio.play();
+      setIsPlaying(true);
+    } catch {
+      setIsPlaying(false);
+    }
+  };
+
+  return (
+    <div className={classnames("voice-note", { "voice-note--me": isFromMe })}>
+      <img src={avatar} alt="" className="voice-note__avatar" />
+      <button
+        type="button"
+        className="voice-note__play"
+        onClick={onTogglePlay}
+        aria-label={isPlaying ? "Pause voice message" : "Play voice message"}
+      >
+        <i className={isPlaying ? "ri-pause-fill" : "ri-play-fill"} />
+      </button>
+      <div className="voice-note__center">
+        <div className="voice-note__wave">
+          {bars.map((height, idx) => (
+            <span key={`${idx}-${height}`} style={{ height }} />
+          ))}
+        </div>
+        <div className="voice-note__meta">
+          <span className="voice-note__duration">
+            {formatVoiceTime(isPlaying ? currentTime : duration || currentTime)}
+          </span>
+          <span className="voice-note__stamp">
+            {messageTime}
+            {isFromMe && (
+              <i className={classnames("bx", "ms-1", { "bx-check-double": isRead }, { "bx-check": !isRead })}></i>
+            )}
+          </span>
+        </div>
+      </div>
+      <audio
+        ref={audioRef}
+        preload="metadata"
+        src={attachment.downloadLink}
+        onEnded={() => {
+          setIsPlaying(false);
+          setCurrentTime(0);
+        }}
+        onLoadedMetadata={e => {
+          const next = e.currentTarget.duration || attachment.duration || 0;
+          setDuration(next);
+        }}
+        onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime || 0)}
+      />
+    </div>
+  );
+};
+
+const Attachments = ({
+  attachments,
+  isFromMe,
+  avatar,
+  messageTime,
+  isRead,
+}: AttachmentsProps) => {
   return (
     <>
       {(attachments || []).map((attachment: AttachmentTypes, key: number) => {
@@ -262,32 +367,26 @@ const Attachments = ({ attachments }: AttachmentsProps) => {
         return (
           <div
             key={key}
-            className={classnames("p-3", "border-primary", "border rounded-3", {
+            className={classnames(
+              {
+                "voice-message-wrap": isVoice,
+              },
+              {
+                "p-3 border-primary border rounded-3": !isVoice,
+              },
+              {
               "mt-2": key !== 0,
-            })}
+              }
+            )}
           >
             {isVoice ? (
-              <div className="voice-message">
-                <div className="d-flex align-items-center mb-2">
-                  <div className="avatar-sm me-3 ms-0">
-                    <div className="avatar-title bg-primary-subtle text-primary rounded-circle font-size-20">
-                      <i className="bx bx-microphone"></i>
-                    </div>
-                  </div>
-                  <div>
-                    <h5 className="font-size-14 mb-0">Voice message</h5>
-                    <p className="text-muted font-size-12 mb-0">
-                      {attachment.duration ? `${Math.round(attachment.duration)}s` : attachment.desc}
-                    </p>
-                  </div>
-                </div>
-                <audio
-                  controls
-                  preload="metadata"
-                  src={attachment.downloadLink}
-                  style={{ width: "260px", maxWidth: "100%" }}
-                />
-              </div>
+              <VoiceMessage
+                attachment={attachment}
+                avatar={avatar}
+                isFromMe={isFromMe}
+                messageTime={messageTime}
+                isRead={isRead}
+              />
             ) : (
               <div className="d-flex align-items-center attached-file">
                 <div className="flex-shrink-0 avatar-sm me-3 ms-0 attached-file-avatar">
@@ -533,7 +632,13 @@ const Message = ({
                   {/* typing end */}
                   {/* files message start */}
                   {hasAttachments && (
-                    <Attachments attachments={message.attachments} />
+                    <Attachments
+                      attachments={message.attachments}
+                      isFromMe={isFromMe}
+                      avatar={isFromMe ? myProfile : profile}
+                      messageTime={date}
+                      isRead={isRead}
+                    />
                   )}
                   {/* files message end */}
                 </div>
