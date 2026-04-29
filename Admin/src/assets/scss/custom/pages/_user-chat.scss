@@ -175,6 +175,9 @@
     @media (max-width: 991.98px) {
         height: calc(100vh - 80px);
         margin-bottom: 78px;
+        .pinned-messages-wrap{
+            margin-top: 80px;
+        }
     }
 
     .simplebar-content-wrapper{
@@ -184,6 +187,12 @@
         .simplebar-content{
             margin-top: auto;
         }
+    }
+
+    .pinned-messages-wrap{
+        margin-top: 90px;
+        position: relative;
+        z-index: 2;
     }
 
     .chat-conversation-list{

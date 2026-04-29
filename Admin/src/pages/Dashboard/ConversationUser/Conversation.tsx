@@ -164,7 +164,7 @@ const Conversation = ({
     >
       {getUserConversationsLoading && <Loader />}
       {pinnedMessages.length > 0 && (
-        <div className="mb-3">
+        <div className="mb-3 pinned-messages-wrap">
           <h6 className="text-uppercase text-muted font-size-11 mb-2">
             <i className="ri-pushpin-2-line me-1"></i>
             Pinned Messages
