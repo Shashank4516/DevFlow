@@ -99,6 +99,7 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
   const githubOk = data?.github_connected;
   const repos = data?.repos ?? [];
   const byRepo = data?.by_repo ?? {};
+  const githubLinked = !!githubOk || !!reduxGitHub;
 
   const [modal, setModal] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -106,6 +107,8 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
   const [ghPick, setGhPick] = useState("");
   const [ghBranch, setGhBranch] = useState("main");
   const [ghOptions, setGhOptions] = useState<GhRepo[]>([]);
+  const [manualRepo, setManualRepo] = useState("");
+  const [manualBranch, setManualBranch] = useState("main");
 
   const openModal = useCallback(() => {
     if (projectId == null) return;
@@ -119,7 +122,7 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
     );
     setGhPick("");
     setGhBranch("main");
-    if (reduxGitHub) {
+    if (githubLinked) {
       fetch(`${BACKEND.replace(/\/$/, "")}/api/github/repos.php`, { credentials: "include" })
         .then(r => r.json())
         .then(j => {
@@ -129,7 +132,7 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
         .catch(() => setGhOptions([]));
     }
     setModal(true);
-  }, [projectId, repos, reduxGitHub]);
+  }, [githubLinked, projectId, repos]);
 
   const saveLinks = useCallback(
     async (e: React.FormEvent) => {
@@ -140,15 +143,22 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
         const payload = {
           project_id: projectId,
           repos: formRepos.map(r => ({
-            repo_full_name: r.repo_full_name,
+            repo_full_name: r.repo_full_name.trim(),
             default_branch: r.default_branch || "main",
           })),
         };
-        await saveProjectReposConfig(payload);
+        const saved = await saveProjectReposConfig(payload);
+        setData(prev => {
+          if (!prev) return prev;
+          return {
+            ...prev,
+            repos: saved?.repos || prev.repos,
+          };
+        });
         setModal(false);
         await load();
-      } catch {
-        setErr("Couldn’t save repositories.");
+      } catch (e: any) {
+        setErr(e?.message || "Couldn’t save repositories.");
       } finally {
         setSaving(false);
       }
@@ -169,6 +179,22 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
       },
     ]);
     setGhPick("");
+  };
+
+  const addManual = () => {
+    const repo = manualRepo.trim();
+    if (!repo) return;
+    if (formRepos.some(r => r.repo_full_name === repo)) return;
+    setFormRepos([
+      ...formRepos,
+      {
+        id: -1,
+        repo_full_name: repo,
+        default_branch: manualBranch.trim() || "main",
+      },
+    ]);
+    setManualRepo("");
+    setManualBranch("main");
   };
 
   const removeAt = (idx: number) => {
@@ -350,7 +376,7 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
       <Modal isOpen={modal} toggle={() => setModal(false)} size="lg" centered>
         <ModalHeader toggle={() => setModal(false)}>Repositories for this project</ModalHeader>
         <ModalBody>
-          {!reduxGitHub && (
+          {!githubLinked && (
             <p className="text-muted small">
               Connect{" "}
               <a href={GITHUB_OAUTH} target="_blank" rel="noreferrer">
@@ -391,7 +417,7 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
               </div>
             ))}
 
-            {reduxGitHub && ghOptions.length > 0 && (
+            {githubLinked && ghOptions.length > 0 && (
               <div className="d-flex flex-wrap gap-2 align-items-end border-top border-secondary pt-3 mt-2">
                 <div className="flex-grow-1" style={{ minWidth: 200 }}>
                   <div className="text-muted small mb-1">Add from your GitHub</div>
@@ -417,6 +443,28 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
                 </Button>
               </div>
             )}
+
+            <div className="d-flex flex-wrap gap-2 align-items-end border-top border-secondary pt-3 mt-2">
+              <div className="flex-grow-1" style={{ minWidth: 220 }}>
+                <div className="text-muted small mb-1">Add repository manually</div>
+                <Input
+                  value={manualRepo}
+                  onChange={e => setManualRepo(e.target.value)}
+                  placeholder="org/name"
+                />
+              </div>
+              <div style={{ minWidth: 140 }}>
+                <div className="text-muted small mb-1">Branch</div>
+                <Input
+                  value={manualBranch}
+                  onChange={e => setManualBranch(e.target.value)}
+                  placeholder="main"
+                />
+              </div>
+              <Button type="button" color="secondary" onClick={addManual} disabled={!manualRepo.trim()}>
+                Add manual
+              </Button>
+            </div>
 
             <div className="d-flex justify-content-end gap-2 mt-3">
               <Button type="button" color="light" onClick={() => setModal(false)}>
