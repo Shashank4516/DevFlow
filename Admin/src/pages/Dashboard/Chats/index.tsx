@@ -177,6 +177,15 @@ const Index = (props: IndexProps) => {
     [favourites]
   );
 
+  // Hide users from Direct Messages once they are in Favourites.
+  const directMessagesOnly = useMemo(
+    () =>
+      (directMessages || []).filter(
+        (u: any) => !favouriteIds.has(String(u.id))
+      ),
+    [directMessages, favouriteIds]
+  );
+
   const onToggleFavourite = (id: number | string) => {
     dispatch(toggleFavouriteContact(id));
   };
@@ -206,7 +215,7 @@ const Index = (props: IndexProps) => {
 
               {/* direct messages */}
               <DirectMessages
-                users={directMessages}
+                users={directMessagesOnly}
                 selectedChat={selectedChat}
                 onSelectChat={onSelectChat}
                 onToggleFavourite={onToggleFavourite}
