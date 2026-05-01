@@ -80,7 +80,12 @@ if ($row) {
     mysqli_stmt_bind_param($delStmt, 'ii', $me, $target);
     mysqli_stmt_execute($delStmt);
     mysqli_stmt_close($delStmt);
-    json_ok(['status' => 'removed', 'friend_id' => $target, 'is_favourite' => false]);
+    json_ok([
+        'status' => 'removed',
+        'friend_id' => $target,
+        'is_favourite' => false,
+        'message' => 'Removed from favourites'
+    ]);
 }
 
 $insStmt = mysqli_prepare($conn, "INSERT INTO friend_favorites (user_id, friend_id) VALUES (?, ?)");
@@ -88,4 +93,9 @@ mysqli_stmt_bind_param($insStmt, 'ii', $me, $target);
 mysqli_stmt_execute($insStmt);
 mysqli_stmt_close($insStmt);
 
-json_ok(['status' => 'added', 'friend_id' => $target, 'is_favourite' => true]);
+json_ok([
+    'status' => 'added',
+    'friend_id' => $target,
+    'is_favourite' => true,
+    'message' => 'Added to favourites'
+]);

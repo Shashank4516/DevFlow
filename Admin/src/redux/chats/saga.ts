@@ -236,7 +236,13 @@ function* toggleFavouriteContact({ payload: id }: any) {
         response
       )
     );
-    yield call(showSuccessNotification, response + "");
+    // Refresh lists immediately so UI reflects star state without waiting on component effects.
+    yield put(getFavouritesAction());
+    yield put(getDirectMessagesAction());
+    const msg =
+      (response as any)?.message ||
+      ((response as any)?.is_favourite ? "Added to favourites" : "Removed from favourites");
+    yield call(showSuccessNotification, msg);
   } catch (error: any) {
     yield call(showErrorNotification, error + "");
     yield put(
