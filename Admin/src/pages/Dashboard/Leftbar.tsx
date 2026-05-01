@@ -11,7 +11,6 @@ import { TABS } from "../../constants/index";
 import ProfileSearch from "../../components/ProfileSearch";
 import Profile from "./Profile/index";
 import Chats from "./Chats/index";
-import Contacts from "./Contacts/index";
 import Calls from "./Calls/index";
 import Bookmark from "./Bookmark/index";
 import Notifications from "./Notifications/index";
@@ -55,13 +54,6 @@ const Leftbar = (props: LeftbarProps) => {
             role="tabpanel"
           >
             <Chats />
-          </TabPane>
-
-          <TabPane
-            tabId={TABS.CONTACTS}
-            role="tabpanel"
-          >
-            <Contacts />
           </TabPane>
 
           <TabPane

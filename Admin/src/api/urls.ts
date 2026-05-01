@@ -22,9 +22,10 @@ export const INVITE_CONTACT = "/invite-contact";
 export const GET_CALLS_LIST = "/calls-list";
 
 // bookmarks
-export const GET_BOOKMARKS_LIST = "/bookmarks-list";
-export const DELETE_BOOKMARK = "/bookmarks-delete";
-export const UPDATE_BOOKMARK = "/bookmarks-update";
+export const GET_BOOKMARKS_LIST = "/api/bookmarks/list.php";
+export const CREATE_BOOKMARK = "/api/bookmarks/create.php";
+export const DELETE_BOOKMARK = "/api/bookmarks/delete.php";
+export const UPDATE_BOOKMARK = "/api/bookmarks/update.php";
 
 // chats
 export const GET_FAVOURITES = "/api/friends/favorites.php";

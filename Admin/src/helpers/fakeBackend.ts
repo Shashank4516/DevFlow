@@ -275,6 +275,26 @@ const fakeBackend = () => {
     });
   });
 
+  mock.onPost(url.CREATE_BOOKMARK).reply(config => {
+    const data = JSON.parse(config["data"]);
+    return new Promise((resolve, reject) => {
+      if (data && data.title) {
+        const nextId =
+          (bookmarks || []).reduce((max, b: any) => Math.max(max, Number(b.id) || 0), 0) + 1;
+        const newBookmark = {
+          id: nextId,
+          icon: data.icon || "bx bx-pin",
+          title: data.title,
+          desc: data.desc || "",
+        };
+        onChangeBookmark([newBookmark, ...bookmarks]);
+        resolve([200, { ...newBookmark, message: "Bookmark created" }]);
+      } else {
+        reject(["Bookmark title is required"]);
+      }
+    });
+  });
+
   mock.onDelete(new RegExp(`${url.DELETE_BOOKMARK}/*`)).reply(config => {
     const { params } = config;
 
