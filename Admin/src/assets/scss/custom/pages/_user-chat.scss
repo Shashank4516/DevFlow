@@ -303,6 +303,12 @@
             border-radius: 3px;
             box-shadow: $box-shadow;
 
+            &.voice-only{
+                padding: 0;
+                background-color: transparent;
+                box-shadow: none;
+            }
+
             .voice-message-wrap{
                 padding: 0;
                 border: 0;

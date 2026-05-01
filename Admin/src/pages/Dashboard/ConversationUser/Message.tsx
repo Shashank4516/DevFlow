@@ -509,6 +509,9 @@ const Message = ({
   const hasImages = message.image && message.image.length;
   const hasAttachments = message.attachments && message.attachments.length;
   const hasText = message.text;
+  const hasOnlyVoiceAttachment =
+    !!message.attachments?.length &&
+    message.attachments.every((attachment: AttachmentTypes) => attachment.type === "voice");
   const isTyping = false;
 
   const chatUserFullName = chatUserDetails?.firstName
@@ -635,7 +638,11 @@ const Message = ({
               </>
             ) : (
               <>
-                <div className="ctext-wrap-content">
+                <div
+                  className={classnames("ctext-wrap-content", {
+                    "voice-only": hasOnlyVoiceAttachment,
+                  })}
+                >
                   {isRepliedMessage && (
                     <RepliedMessage
                       fullName={fullName}
