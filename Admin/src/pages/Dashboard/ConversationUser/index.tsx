@@ -8,6 +8,7 @@ import {
   deleteUserMessages,
   toggleArchiveContact,
   setChatUserConversations,
+  createBookmark,
 } from "../../../redux/actions";
 
 import { useProfile } from "../../../hooks";
@@ -261,6 +262,25 @@ const Index = ({ isChannel }: IndexProps) => {
     dispatch(toggleArchiveContact(chatUserDetails.id));
   };
 
+  const onAddBookmarkFromMessage = (message: MessagesTypes) => {
+    const attachments = Array.isArray(message.attachments)
+      ? message.attachments
+      : [];
+    const firstFile = attachments.find((a: any) => (a?.type || "file") !== "voice");
+    if (!firstFile) return;
+
+    dispatch(
+      createBookmark({
+        icon: "bx bx-file",
+        title: firstFile.name || `File from message #${message.mId}`,
+        desc:
+          firstFile.downloadLink ||
+          firstFile.desc ||
+          `Saved from chat message #${message.mId}`,
+      })
+    );
+  };
+
   return (
     <>
       <UserHead
@@ -279,6 +299,7 @@ const Index = ({ isChannel }: IndexProps) => {
         onTogglePin={onTogglePinMessage}
         onSetReplyData={onSetReplyData}
         isChannel={isChannel}
+        onAddBookmark={onAddBookmarkFromMessage}
       />
       <ChatInputSection
         onSend={onSend}

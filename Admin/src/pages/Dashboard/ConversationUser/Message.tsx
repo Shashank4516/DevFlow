@@ -34,9 +34,19 @@ interface MenuProps {
   onForward: () => void;
   onTogglePin: () => void;
   isPinned: boolean;
+  canAddBookmark?: boolean;
+  onAddBookmark?: () => void;
 }
 
-const Menu = ({ onDelete, onReply, onForward, onTogglePin, isPinned }: MenuProps) => {
+const Menu = ({
+  onDelete,
+  onReply,
+  onForward,
+  onTogglePin,
+  isPinned,
+  canAddBookmark = false,
+  onAddBookmark,
+}: MenuProps) => {
   return (
     <UncontrolledDropdown className="align-self-start message-box-drop">
       <DropdownToggle className="btn btn-toggle" role="button" tag={"a"}>
@@ -77,6 +87,15 @@ const Menu = ({ onDelete, onReply, onForward, onTogglePin, isPinned }: MenuProps
         >
           Mark as Unread <i className="bx bx-message-error text-muted ms-2"></i>
         </DropdownItem>
+        {canAddBookmark && onAddBookmark && (
+          <DropdownItem
+            className="d-flex align-items-center justify-content-between"
+            to="#"
+            onClick={onAddBookmark}
+          >
+            Add to Bookmarks <i className="bx bx-bookmarks text-muted ms-2"></i>
+          </DropdownItem>
+        )}
         <DropdownItem
           className="d-flex align-items-center justify-content-between delete-item"
           onClick={onDelete}
@@ -471,6 +490,7 @@ interface MessageProps {
   onOpenForward: (message: MessagesTypes) => void;
   isChannel: boolean;
   onDeleteImage: (messageId: string | number, imageId: string | number) => void;
+  onAddBookmark: (message: MessagesTypes) => void;
   // onSetReplyImageData: () => void;
 }
 const Message = ({
@@ -483,6 +503,7 @@ const Message = ({
   onOpenForward,
   isChannel,
   onDeleteImage,
+  onAddBookmark,
 }: MessageProps) => {
   const { userProfile } = useProfile();
   const hasImages = message.image && message.image.length;
@@ -533,6 +554,9 @@ const Message = ({
   };
   const onTogglePinMessage = () => {
     onTogglePin(message.mId);
+  };
+  const onAddBookmarkFromMessage = () => {
+    onAddBookmark(message);
   };
   return (
     <li
@@ -648,6 +672,8 @@ const Message = ({
                   onReply={onClickReply}
                   onTogglePin={onTogglePinMessage}
                   isPinned={isPinned}
+                  canAddBookmark={!!hasAttachments}
+                  onAddBookmark={onAddBookmarkFromMessage}
                 />
               </>
             )}

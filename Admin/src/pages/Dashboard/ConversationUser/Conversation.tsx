@@ -25,6 +25,7 @@ interface ConversationProps {
   onTogglePin: (messageId: string | number) => void;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   isChannel: boolean;
+  onAddBookmark: (message: MessagesTypes) => void;
 }
 const Conversation = ({
   chatUserDetails,
@@ -33,6 +34,7 @@ const Conversation = ({
   onTogglePin,
   onSetReplyData,
   isChannel,
+  onAddBookmark,
 }: ConversationProps) => {
   // global store
   const { dispatch, useAppSelector } = useRedux();
@@ -200,6 +202,7 @@ const Conversation = ({
               onOpenForward={onOpenForward}
               isChannel={isChannel}
               onDeleteImage={onDeleteImage}
+              onAddBookmark={onAddBookmark}
             />
           );
         })}
