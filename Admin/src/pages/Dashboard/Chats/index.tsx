@@ -172,8 +172,8 @@ const Index = (props: IndexProps) => {
   }, [directMessages, favourites]);
 
   // Set of favourite user IDs for quick lookup in the DirectMessages list
-  const favouriteIds = useMemo(
-    () => new Set((favourites || []).map((u: any) => String(u.id))),
+  const favouriteIds = useMemo<Set<string>>(
+    () => new Set<string>((favourites || []).map((u: any) => String(u.id))),
     [favourites]
   );
 
