@@ -308,6 +308,8 @@ const VoiceMessage = ({
     const h = 6 + ((i * 7) % 18);
     return h;
   });
+  const progress =
+    duration > 0 ? Math.max(0, Math.min(1, currentTime / duration)) : 0;
 
   const onTogglePlay = async () => {
     const audio = audioRef.current;
@@ -339,7 +341,11 @@ const VoiceMessage = ({
       <div className="voice-note__center">
         <div className="voice-note__wave">
           {bars.map((height, idx) => (
-            <span key={`${idx}-${height}`} style={{ height }} />
+                    <span
+                      key={`${idx}-${height}`}
+                      className={classnames({ "is-active": idx / bars.length <= progress })}
+                      style={{ height }}
+                    />
           ))}
         </div>
         <div className="voice-note__meta">
