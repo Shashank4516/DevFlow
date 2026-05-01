@@ -78,6 +78,30 @@
 .chat-list {
     margin: 0;
 
+    li.chat-user-item {
+        // 3-dot menu: hidden by default, shown on hover
+        .chat-user-menu {
+            position: absolute;
+            right: 12px;
+            top: 50%;
+            transform: translateY(-50%);
+            opacity: 0;
+            transition: opacity 0.15s;
+            z-index: 10;
+
+            button {
+                padding: 2px 4px;
+                line-height: 1;
+                font-size: 16px;
+            }
+        }
+
+        &:hover .chat-user-menu,
+        &.active .chat-user-menu {
+            opacity: 1;
+        }
+    }
+
     li {
         &.active {
             a {
