@@ -27,7 +27,7 @@ export const DELETE_BOOKMARK = "/bookmarks-delete";
 export const UPDATE_BOOKMARK = "/bookmarks-update";
 
 // chats
-export const GET_FAVOURITES = "/get-favourites";
+export const GET_FAVOURITES = "/api/friends/favorites.php";
 export const GET_DIRECT_MESSAGES = "/get-direct-messages";
 export const GET_CHANNELS = "/api/channels/list.php";
 export const ADD_CONTACTS = "/add-contact";
@@ -41,7 +41,7 @@ export const RECEIVE_MESSAGE_FROM_USER = "/receive-message-from-user";
 export const DELETE_MESSAGE = "/delete-message";
 export const FORWARD_MESSAGE = "/forward-message";
 export const DELETE_USER_MESSAGES = "/delete-user-messages";
-export const TOGGLE_FAVOURITE_CONTACT = "/toggle-favourite-contact";
+export const TOGGLE_FAVOURITE_CONTACT = "/api/friends/favorite_toggle.php";
 export const GET_ARCHIVE_CONTACT = "/get-archive-contacts";
 export const TOGGLE_ARCHIVE_CONTACT = "/toggle-archive-contact";
 export const READ_CONVERSATION = "/read-conversation";

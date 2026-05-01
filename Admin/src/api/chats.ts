@@ -119,8 +119,8 @@ const toggleChannelMessagePin = (data: {
 };
 
 const toggleFavouriteContact = (id: string | number) => {
-  return api.update(url.TOGGLE_FAVOURITE_CONTACT + "/" + id, {
-    params: { id },
+  return api.create(url.TOGGLE_FAVOURITE_CONTACT, {
+    target_user_id: Number(id),
   });
 };
 
