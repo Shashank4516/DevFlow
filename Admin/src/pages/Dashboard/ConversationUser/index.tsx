@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef, useCallback } from "react";
+import React, { useEffect, useMemo, useRef } from "react";
 
 import { useRedux } from "../../../hooks/index";
 import { createSelector } from "reselect";
@@ -14,8 +14,7 @@ import {
 import { useProfile } from "../../../hooks";
 
 import UserHead from "./UserHead";
-import Conversation, { ConversationHandle } from "./Conversation";
-import PinnedChatBanner from "./PinnedChatBanner";
+import Conversation from "./Conversation";
 import ChatInputSection from "./ChatInputSection/index";
 
 import { MessagesTypes } from "../../../data/messages";
@@ -60,7 +59,6 @@ const Index = ({ isChannel }: IndexProps) => {
   const { userProfile } = useProfile();
 
   const pollRef = useRef<number | null>(null);
-  const conversationRef = useRef<ConversationHandle>(null);
   const [chatError, setChatError] = useState<string | null>(null);
 
   // IMPORTANT: use stable MySQL numeric ids for Firestore conversation ids.
@@ -75,16 +73,6 @@ const Index = ({ isChannel }: IndexProps) => {
     () => String(chatUserDetails?.id || chatUserDetails?.uid || ""),
     [chatUserDetails?.id, chatUserDetails?.uid],
   );
-
-  const pinnedMessageCount = useMemo(() => {
-    const msgs = chatUserConversations?.messages;
-    if (!Array.isArray(msgs)) return 0;
-    return msgs.filter((m: MessagesTypes) => m.isPinned).length;
-  }, [chatUserConversations?.messages]);
-
-  const jumpToPinnedMessages = useCallback(() => {
-    conversationRef.current?.scrollToPinnedMessages();
-  }, []);
 
   const conversationId = useMemo(() => {
     if (isChannel) {
@@ -299,16 +287,12 @@ const Index = ({ isChannel }: IndexProps) => {
         chatUserDetails={chatUserDetails}
         currentUser={userProfile}
         pinnedTabs={pinnedTabs}
-        pinnedMessageCount={pinnedMessageCount}
-        onJumpToPinnedMessages={jumpToPinnedMessages}
         onOpenUserDetails={onOpenUserDetails}
         onDelete={onDeleteUserMessages}
         isChannel={isChannel}
         onToggleArchive={onToggleArchive}
       />
-      <PinnedChatBanner count={pinnedMessageCount} onJump={jumpToPinnedMessages} />
       <Conversation
-        ref={conversationRef}
         chatUserConversations={chatUserConversations}
         chatUserDetails={chatUserDetails}
         onDelete={onDeleteMessage}

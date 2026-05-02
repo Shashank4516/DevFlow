@@ -191,9 +191,6 @@ interface MoreProps {
   onDelete: () => void;
   isArchive: boolean;
   onToggleArchive: () => void;
-  pinnedMessageCount: number;
-  onJumpToPinnedMessages: () => void;
-  onOpenBookmarksModal: () => void;
 }
 const More = ({
   onOpenAudio,
@@ -201,9 +198,6 @@ const More = ({
   onDelete,
   isArchive,
   onToggleArchive,
-  pinnedMessageCount,
-  onJumpToPinnedMessages,
-  onOpenBookmarksModal,
 }: MoreProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const toggle = () => setDropdownOpen(!dropdownOpen);
@@ -233,23 +227,6 @@ const More = ({
           onClick={onOpenVideo}
         >
           Video <i className="bx bx-video text-muted"></i>
-        </DropdownItem>
-        {pinnedMessageCount > 0 && (
-          <DropdownItem
-            className="d-flex justify-content-between align-items-center"
-            to="#"
-            onClick={onJumpToPinnedMessages}
-          >
-            Pinned messages
-            <span className="badge bg-primary rounded-pill">{pinnedMessageCount}</span>
-          </DropdownItem>
-        )}
-        <DropdownItem
-          className="d-flex justify-content-between align-items-center"
-          to="#"
-          onClick={onOpenBookmarksModal}
-        >
-          Bookmarks <i className="ri-bookmark-line text-muted"></i>
         </DropdownItem>
         <DropdownItem
           className="d-flex justify-content-between align-items-center"
@@ -288,8 +265,6 @@ interface UserHeadProps {
   chatUserDetails: any;
   currentUser: any;
   pinnedTabs: Array<PinTypes>;
-  pinnedMessageCount: number;
-  onJumpToPinnedMessages: () => void;
   onOpenUserDetails: () => void;
   onDelete: () => void;
   isChannel: boolean;
@@ -299,8 +274,6 @@ const UserHead = ({
   chatUserDetails,
   currentUser,
   pinnedTabs,
-  pinnedMessageCount,
-  onJumpToPinnedMessages,
   onOpenUserDetails,
   onDelete,
   isChannel,
@@ -344,14 +317,6 @@ const UserHead = ({
   };
   const onClosePinnedTab = () => {
     setIsOpenPinnedTabModal(false);
-  };
-
-  const onPinToolbarClick = () => {
-    if (pinnedMessageCount > 0) {
-      onJumpToPinnedMessages();
-      return;
-    }
-    onOpenPinnedTab();
   };
 
   /*
@@ -432,20 +397,11 @@ const UserHead = ({
               <Button
                 type="button"
                 color="none"
-                className="btn nav-btn position-relative"
-                onClick={onPinToolbarClick}
-                title={
-                  pinnedMessageCount > 0
-                    ? `Jump to ${pinnedMessageCount} pinned message${pinnedMessageCount === 1 ? "" : "s"}`
-                    : "Bookmarks"
-                }
+                className="btn nav-btn"
+                onClick={onOpenPinnedTab}
+                title="Pinned"
               >
-                <i className="ri-pushpin-fill" />
-                {pinnedMessageCount > 0 && (
-                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-primary font-size-10 px-1 py-0">
-                    {pinnedMessageCount > 99 ? "99+" : pinnedMessageCount}
-                  </span>
-                )}
+                <i className="ri-pushpin-fill"></i>
               </Button>
             </li>
 
@@ -456,9 +412,6 @@ const UserHead = ({
                 onDelete={onDelete}
                 isArchive={chatUserDetails.isArchived}
                 onToggleArchive={onToggleArchive}
-                pinnedMessageCount={pinnedMessageCount}
-                onJumpToPinnedMessages={onJumpToPinnedMessages}
-                onOpenBookmarksModal={onOpenPinnedTab}
               />
             </li>
           </ul>

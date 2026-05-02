@@ -1,11 +1,4 @@
-import React, {
-  forwardRef,
-  useEffect,
-  useRef,
-  useCallback,
-  useState,
-  useImperativeHandle,
-} from "react";
+import React, { useEffect, useRef, useCallback, useState } from "react";
 
 // hooks
 import { useRedux } from "../../../hooks/index";
@@ -25,10 +18,6 @@ import ForwardModal from "../../../components/ForwardModal";
 
 // actions
 import { forwardMessage, deleteImage } from "../../../redux/actions";
-export type ConversationHandle = {
-  scrollToPinnedMessages: () => void;
-};
-
 interface ConversationProps {
   chatUserConversations: any;
   chatUserDetails: any;
@@ -38,9 +27,7 @@ interface ConversationProps {
   isChannel: boolean;
   onAddBookmark: (message: MessagesTypes) => void;
 }
-
-const Conversation = forwardRef<ConversationHandle, ConversationProps>(function Conversation(
-  {
+const Conversation = ({
   chatUserDetails,
   chatUserConversations,
   onDelete,
@@ -48,9 +35,7 @@ const Conversation = forwardRef<ConversationHandle, ConversationProps>(function 
   onSetReplyData,
   isChannel,
   onAddBookmark,
-},
-  ref,
-) {
+}: ConversationProps) => {
   // global store
   const { dispatch, useAppSelector } = useRedux();
 
@@ -72,24 +57,12 @@ const Conversation = forwardRef<ConversationHandle, ConversationProps>(function 
       : [];
   const pinnedMessages = messages.filter((message: MessagesTypes) => message.isPinned);
 
-  const pinnedWrapRef = useRef<HTMLDivElement | null>(null);
-
-  const scrollRef = useRef<any>();
-
-  useImperativeHandle(ref, () => ({
-    scrollToPinnedMessages: () => {
-      const el = pinnedWrapRef.current;
-      if (!el) return;
-      requestAnimationFrame(() => {
-        el.scrollIntoView({ behavior: "smooth", block: "start" });
-      });
-    },
-  }));
+  const ref = useRef<any>();
   const shouldStickToBottomRef = useRef(true);
   const previousMessageCountRef = useRef(0);
 
   const getScrollHost = useCallback(() => {
-    return scrollRef?.current?.getScrollElement?.() as HTMLElement | undefined;
+    return ref?.current?.getScrollElement?.() as HTMLElement | undefined;
   }, []);
 
   const isNearBottom = useCallback((el: HTMLElement, threshold = 100) => {
@@ -104,8 +77,8 @@ const Conversation = forwardRef<ConversationHandle, ConversationProps>(function 
   }, [getScrollHost]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.recalculate();
+    if (ref && ref.current) {
+      ref.current.recalculate();
     }
   }, []);
 
@@ -127,8 +100,8 @@ const Conversation = forwardRef<ConversationHandle, ConversationProps>(function 
 
   useEffect(() => {
     if (!chatUserConversations.messages) return;
-    if (scrollRef.current) {
-      scrollRef.current.recalculate();
+    if (ref?.current) {
+      ref.current.recalculate();
     }
 
     const currentCount = messages.length;
@@ -188,18 +161,12 @@ const Conversation = forwardRef<ConversationHandle, ConversationProps>(function 
   };
   return (
     <AppSimpleBar
-      scrollRef={scrollRef}
+      scrollRef={ref}
       className="chat-conversation p-3 p-lg-4 positin-relative"
     >
       {getUserConversationsLoading && <Loader />}
       {pinnedMessages.length > 0 && (
-        <div
-          id="pinned-messages-anchor"
-          ref={pinnedWrapRef}
-          className="mb-3 pinned-messages-wrap"
-          role="region"
-          aria-label="Pinned messages"
-        >
+        <div className="mb-3 pinned-messages-wrap">
           <h6 className="text-uppercase text-muted font-size-11 mb-2">
             <i className="ri-pushpin-2-line me-1"></i>
             Pinned Messages
@@ -252,6 +219,6 @@ const Conversation = forwardRef<ConversationHandle, ConversationProps>(function 
       )}
     </AppSimpleBar>
   );
-});
+};
 
 export default Conversation;
