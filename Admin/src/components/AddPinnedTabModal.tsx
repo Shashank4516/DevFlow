@@ -154,13 +154,14 @@ const AddPinnedTabModal = ({
       toggle={onClose}
       className="pinnedtabModal"
       tabIndex={-1}
-      contentClassName="shadow-lg border-0"
+      contentClassName="shadow-lg pinnedtab-modal-content"
+      backdropClassName="pinnedtab-modal-backdrop"
       centered
       scrollable
     >
       <ModalBody className="p-0 ">
-        <ModalHeader toggle={onClose} className="bg-primary">
-          <div className="modal-title modal-title-custom text-white bg-primary font-size-16">
+        <ModalHeader toggle={onClose} className="pinnedtab-modal-header border-0 text-white">
+          <div className="modal-title modal-title-custom text-white font-size-16 mb-0">
             Pinned in chat
           </div>
         </ModalHeader>

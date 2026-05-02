@@ -804,6 +804,49 @@
 	}
 }
 
+// Pinned-in-chat modal: translucent backdrop + frosted dialog
+.pinnedtab-modal-backdrop.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.modal.pinnedtabModal {
+    .modal-content.pinnedtab-modal-content {
+        overflow: hidden;
+        background-color: rgba(var(--#{$prefix}body-bg-rgb), 0.62);
+        backdrop-filter: saturate(150%) blur(20px);
+        -webkit-backdrop-filter: saturate(150%) blur(20px);
+        border: 1px solid rgba(var(--#{$prefix}body-color-rgb), 0.1);
+        box-shadow:
+            0 0 0 1px rgba(var(--#{$prefix}body-color-rgb), 0.04),
+            0 1rem 3rem rgba(0, 0, 0, 0.22);
+    }
+
+    .modal-header.pinnedtab-modal-header {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        background-color: rgba(var(--#{$prefix}primary-rgb), 0.78) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        --bs-modal-header-padding-y: 1rem;
+
+        .btn-close {
+            filter: brightness(0) invert(1);
+            opacity: 0.85;
+        }
+
+        .modal-title-custom {
+            color: #fff;
+        }
+    }
+
+    .modal-body .modal-body {
+        background-color: transparent;
+    }
+}
+
 // GitHub workspace (fills main pane when GitHub tab is active)
 .github-main-workspace {
     position: absolute;
