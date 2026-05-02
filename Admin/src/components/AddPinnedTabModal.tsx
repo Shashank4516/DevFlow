@@ -1,100 +1,86 @@
-import React, { useState } from "react";
+import React, { useEffect } from "react";
 import {
   Modal,
   ModalBody,
   ModalHeader,
-  Dropdown,
-  DropdownMenu,
-  DropdownToggle,
-  DropdownItem,
 } from "reactstrap";
+import { createSelector } from "reselect";
 
-// components
 import AppSimpleBar from "./AppSimpleBar";
+import Loader from "./Loader";
+import BookMark from "../pages/Dashboard/Bookmark/BookMark";
+import { useRedux } from "../hooks";
+import {
+  getBookmarks,
+  createBookmark,
+  deleteBookmark,
+  updateBookmark,
+} from "../redux/actions";
+import type { BookMarkTypes } from "../data/bookmarks";
 
-// interface
-import { PinTypes } from "../data/chat";
-import { Link } from "react-router-dom";
-
-interface PinProps {
-  pin: PinTypes;
-  
-}
-const Pin = ({ pin }: PinProps) => {
-  const [dropdownOpen, setDropdownOpen] = useState(false);
-  const toggle = () => setDropdownOpen(!dropdownOpen);
-  // const [userData,setuserData]= useState();
-  // const deleteUser = (index: any) => {
-  //   setuserData((x: any) =>{
-  //  const userData=   x.splice(index, 1);
-  //     return userData;
-  //   });
-  // };
-  
-
-  return (
-    <li>
-      <div className="d-flex align-items-center">
-        <div className="flex-shrink-0 avatar-xs me-3">
-          <div className="avatar-title bg-primary-subtle text-primary rounded-circle">
-            <i className={pin.icon}></i>
-          </div>
-        </div>
-        <div className="flex-grow-1 overflow-hidden">
-          <h5 className="font-size-14 text-truncate mb-1">
-            <Link to="#" className="p-0">
-              {pin.title}
-            </Link>
-          </h5>
-          <p className="text-muted font-size-13 mb-0">{pin.desc}</p>
-        </div>
-
-        <div className="flex-shrink-0 ms-3">
-          <Dropdown isOpen={dropdownOpen} toggle={toggle}>
-            <DropdownToggle
-              tag="a"
-              className="font-size-18 text-muted px-1"
-              role="button"
-            >
-              <i className="bx bx-dots-horizontal-rounded"></i>
-            </DropdownToggle>
-            <DropdownMenu className="dropdown-menu-end">
-              <DropdownItem
-                className="d-flex align-items-center justify-content-between"
-                href="#"
-              >
-                Open <i className="bx bx-folder-open ms-2 text-muted"></i>
-              </DropdownItem>
-              <DropdownItem
-                className="d-flex align-items-center justify-content-between"
-                href="#"
-              >
-                Edit <i className="bx bx-pencil ms-2 text-muted"></i>
-              </DropdownItem>
-              <DropdownItem divider />
-              <DropdownItem
-                className="d-flex align-items-center justify-content-between"
-                href="#">
-                Delete {" "} <i className="bx bx-trash ms-2 text-muted"></i>
-              </DropdownItem>
-            </DropdownMenu>
-          </Dropdown>
-        </div>
-      </div>
-    </li>
-  );
-};
 interface AddPinnedTabModalProps {
   isOpen: boolean;
   onClose: () => void;
-  pinnedTabs: Array<PinTypes>;
 }
-const AddPinnedTabModal = ({
-  isOpen,
-  onClose,
-  pinnedTabs,
-}: AddPinnedTabModalProps) => {
-  const count = Array.isArray(pinnedTabs) ? pinnedTabs.length : 0;
+
+const selectBookmarkModalState = createSelector(
+  (state: any) => state.Bookmarks,
+  (b: any) => ({
+    bookmarks: (b?.bookmarks || []) as BookMarkTypes[],
+    getBookmarksLoading: !!b?.getBookmarksLoading,
+    isBookmarkCreated: !!b?.isBookmarkCreated,
+    isBookmarkDeleted: !!b?.isBookmarkDeleted,
+    isBookmarkUpdated: !!b?.isBookmarkUpdated,
+  })
+);
+
+const AddPinnedTabModal = ({ isOpen, onClose }: AddPinnedTabModalProps) => {
+  const { dispatch, useAppSelector } = useRedux();
+
+  const {
+    bookmarks,
+    getBookmarksLoading,
+    isBookmarkCreated,
+    isBookmarkDeleted,
+    isBookmarkUpdated,
+  } = useAppSelector(selectBookmarkModalState);
+
+  const count = Array.isArray(bookmarks) ? bookmarks.length : 0;
+
+  useEffect(() => {
+    if (!isOpen) return;
+    dispatch(getBookmarks());
+  }, [isOpen, dispatch]);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    if (isBookmarkCreated || isBookmarkDeleted || isBookmarkUpdated) {
+      dispatch(getBookmarks());
+    }
+  }, [dispatch, isOpen, isBookmarkCreated, isBookmarkDeleted, isBookmarkUpdated]);
+
+  const onPin = () => {
+    const title = window.prompt("Bookmark title");
+    if (!title || !title.trim()) return;
+    const desc = window.prompt("Bookmark description or URL (optional)") || "";
+    const d = desc.trim();
+    dispatch(
+      createBookmark({
+        icon: d.startsWith("http") ? "bx bx-pin" : "bx bx-file",
+        title: title.trim(),
+        desc: d,
+      })
+    );
+  };
+
+  const onUpdate = (id: number, data: BookMarkTypes) => {
+    dispatch(updateBookmark(id, data));
+  };
+
+  const onDelete = (id: number) => {
+    dispatch(deleteBookmark(id));
+  };
+
   return (
     <Modal
       isOpen={isOpen}
@@ -106,24 +92,27 @@ const AddPinnedTabModal = ({
       scrollable
     >
       <ModalBody className="p-0 ">
-      <ModalHeader toggle={onClose} className="bg-primary">
-      <div className="modal-title modal-title-custom text-white bg-primary font-size-16">
-      BookMark
-      </div>
-     </ModalHeader>
-        <div className="modal-body p-4">
+        <ModalHeader toggle={onClose} className="bg-primary">
+          <div className="modal-title modal-title-custom text-white bg-primary font-size-16">
+            BookMark
+          </div>
+        </ModalHeader>
+        <div className="modal-body p-4 position-relative">
+          {getBookmarksLoading && bookmarks.length === 0 && (
+            <div className="py-5">
+              <Loader />
+            </div>
+          )}
           <div className="d-flex align-items-center mb-3">
             <div className="flex-grow-1">
-              <div>
-                <h5 className="font-size-16 mb-0">{count} Pinned tabs</h5>
-              </div>
+              <h5 className="font-size-16 mb-0">
+                {count} pinned tab{count === 1 ? "" : "s"}
+              </h5>
             </div>
             <div className="flex-shrink-0">
-              <div>
-                <button type="button" className="btn btn-sm btn-soft-primary">
-                  <i className="bx bx-plus"></i> Pin
-                </button>
-              </div>
+              <button type="button" className="btn btn-sm btn-soft-primary" onClick={onPin}>
+                <i className="bx bx-plus"></i> Pin
+              </button>
             </div>
           </div>
           <AppSimpleBar
@@ -131,9 +120,20 @@ const AddPinnedTabModal = ({
             className="chat-bookmark-list mx-n4"
           >
             <ul className="list-unstyled chat-list">
-              {(pinnedTabs || []).map((pin: PinTypes, key: number) => (
-                <Pin pin={pin} key={key} />
-              ))}
+              {bookmarks.length === 0 && !getBookmarksLoading ? (
+                <li className="px-3 py-4 text-muted text-center small">
+                  No bookmarks yet. Tap <strong>+ Pin</strong> to add one.
+                </li>
+              ) : (
+                bookmarks.map((bookmark: BookMarkTypes) => (
+                  <BookMark
+                    key={bookmark.id}
+                    bookmark={bookmark}
+                    onUpdate={onUpdate}
+                    onDelete={onDelete}
+                  />
+                ))
+              )}
             </ul>
           </AppSimpleBar>
         </div>

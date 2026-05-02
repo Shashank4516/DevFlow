@@ -22,9 +22,6 @@ import VideoCallModal from "../../../components/VideoCallModal";
 import GroupVideoCallModal from "../../../components/GroupVideoCallModal";
 import AddPinnedTabModal from "../../../components/AddPinnedTabModal";
 
-// interface
-import { PinTypes } from "../../../data/chat";
-
 // actions
 import { changeSelectedChat } from "../../../redux/actions";
 
@@ -264,7 +261,6 @@ const More = ({
 interface UserHeadProps {
   chatUserDetails: any;
   currentUser: any;
-  pinnedTabs: Array<PinTypes>;
   onOpenUserDetails: () => void;
   onDelete: () => void;
   isChannel: boolean;
@@ -273,7 +269,6 @@ interface UserHeadProps {
 const UserHead = ({
   chatUserDetails,
   currentUser,
-  pinnedTabs,
   onOpenUserDetails,
   onDelete,
   isChannel,
@@ -443,11 +438,7 @@ const UserHead = ({
         />
       )}
       {isOpenPinnedTabModal && (
-        <AddPinnedTabModal
-          isOpen={isOpenPinnedTabModal}
-          onClose={onClosePinnedTab}
-          pinnedTabs={pinnedTabs}
-        />
+        <AddPinnedTabModal isOpen={isOpenPinnedTabModal} onClose={onClosePinnedTab} />
       )}
     </div>
   );

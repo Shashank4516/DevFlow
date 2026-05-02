@@ -18,7 +18,6 @@ import Conversation from "./Conversation";
 import ChatInputSection from "./ChatInputSection/index";
 
 import { MessagesTypes } from "../../../data/messages";
-import { pinnedTabs } from "../../../data/index";
 import { useState } from "react";
 import {
   getChatUserConversations as getChatUserConversationsApi,
@@ -286,7 +285,6 @@ const Index = ({ isChannel }: IndexProps) => {
       <UserHead
         chatUserDetails={chatUserDetails}
         currentUser={userProfile}
-        pinnedTabs={pinnedTabs}
         onOpenUserDetails={onOpenUserDetails}
         onDelete={onDeleteUserMessages}
         isChannel={isChannel}
