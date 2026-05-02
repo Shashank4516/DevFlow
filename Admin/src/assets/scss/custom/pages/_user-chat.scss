@@ -889,6 +889,49 @@
     background-color: var(--#{$prefix}tertiary-bg);
 }
 
+// Diff preview header: GitHub icon + readable text on bg-dark (avoid global dark-theme outline buttons)
+.github-diff-panel.github-diff-panel {
+    .github-diff-panel__header {
+        background-color: rgba(0, 0, 0, 0.2);
+    }
+
+    .github-diff-panel__gh-icon {
+        font-size: 1.35rem;
+        color: #f0f6fc;
+        line-height: 1;
+    }
+
+    .github-diff-panel__filename {
+        color: #f0f6fc;
+    }
+
+    .github-diff-panel__meta {
+        color: #8b949e;
+        font-weight: 500;
+
+        @media (min-width: 480px) {
+            color: #b1bac4;
+        }
+    }
+
+    .github-diff-panel__action.btn {
+        color: #e6edf3;
+        border: 1px solid rgba(230, 237, 243, 0.45);
+        background-color: rgba(255, 255, 255, 0.06);
+        font-weight: 500;
+
+        &:hover {
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.65);
+            background-color: rgba(255, 255, 255, 0.14);
+        }
+
+        &:focus-visible {
+            box-shadow: 0 0 0 0.2rem rgba(88, 166, 255, 0.35);
+        }
+    }
+}
+
 .github-diff-table {
     --bs-table-bg: transparent;
     --bs-table-color: inherit;

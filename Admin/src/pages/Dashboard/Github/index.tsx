@@ -101,22 +101,23 @@ const DiffPreview = ({ file }: { file: CompareFile }) => {
   return (
     <div className="github-diff-panel d-flex flex-column h-100 min-h-0 border rounded overflow-hidden bg-dark">
       <div className="github-diff-panel__header d-flex flex-wrap align-items-center gap-2 px-3 py-2 border-bottom border-secondary flex-shrink-0">
-        <div className="small text-white text-truncate flex-grow-1 min-w-0 fw-semibold" title={file.filename}>
+        <i className="bx bxl-github github-diff-panel__gh-icon flex-shrink-0" title="GitHub" aria-hidden />
+        <div className="small github-diff-panel__filename text-truncate flex-grow-1 min-w-0 fw-semibold" title={file.filename}>
           {file.filename}
         </div>
-        <span className="small text-white-50 text-nowrap">
+        <span className="small github-diff-panel__meta text-nowrap">
           {file.status} · +{file.additions} −{file.deletions}
         </span>
         {file.blob_url && (
           <button
             type="button"
-            className="btn btn-sm btn-outline-light"
+            className="btn btn-sm github-diff-panel__action"
             onClick={() => window.open(file.blob_url, "_blank")}
           >
             Open on GitHub
           </button>
         )}
-        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={copyPatch}>
+        <button type="button" className="btn btn-sm github-diff-panel__action" onClick={copyPatch}>
           {copied ? "Copied" : "Copy patch"}
         </button>
       </div>
