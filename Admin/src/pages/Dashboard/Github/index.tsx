@@ -566,7 +566,7 @@ const Github = () => {
     }
 
     return (
-      <main className="github-ws-main flex-grow-1 min-w-0 min-h-0 d-flex flex-column p-3">
+      <main className="github-ws-main flex-grow-1 min-w-0 min-h-0 d-flex flex-column">
         <DiffPreview file={selectedFile} />
       </main>
     );
