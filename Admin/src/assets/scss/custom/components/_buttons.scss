@@ -197,8 +197,8 @@ a {
 	}
 
 	.btn-outline-dark {
-		color: var(--#{$prefix}dark);
-		border-color: var(--#{$prefix}dark);
+		color: white;
+		// border-color: var(--#{$prefix}dark);
 		&:hover {
 			color: var(--#{$prefix}light);
 			background-color: rgba(var(--#{$prefix}dark-rgb), 0.75);
