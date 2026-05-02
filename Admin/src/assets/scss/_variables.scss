@@ -416,9 +416,7 @@ $enable-rfs:                  true;
 $enable-validation-icons:     true;
 $enable-negative-margins:     false;
 $enable-deprecation-messages: true;
-// Bootstrap default adds !important to utilities (e.g. `.p-3 { padding: 1rem !important }`), which fights custom padding overrides.
-// $enable-important-utilities: true;
-$enable-important-utilities:  false;
+$enable-important-utilities:  true;
 
 $enable-dark-mode:            true;
 $color-mode-type:             data; // `data` or `media-query`
