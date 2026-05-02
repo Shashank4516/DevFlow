@@ -63,17 +63,11 @@ interface CompareData {
   files: CompareFile[];
 }
 
-const lineStyles = (line: string): { background: string; color: string } => {
-  if (line.startsWith("+") && !line.startsWith("+++")) {
-    return { background: "rgba(46, 160, 67, 0.22)", color: "#b4f9c8" };
-  }
-  if (line.startsWith("-") && !line.startsWith("---")) {
-    return { background: "rgba(248, 81, 73, 0.22)", color: "#ffcacb" };
-  }
-  if (line.startsWith("@@")) {
-    return { background: "rgba(56, 139, 253, 0.22)", color: "#a6ceff" };
-  }
-  return { background: "transparent", color: "#d8e6ff" };
+const lineRowClass = (line: string): string => {
+  if (line.startsWith("+") && !line.startsWith("+++")) return "github-diff-line github-diff-line--add";
+  if (line.startsWith("-") && !line.startsWith("---")) return "github-diff-line github-diff-line--del";
+  if (line.startsWith("@@")) return "github-diff-line github-diff-line--hunk";
+  return "github-diff-line github-diff-line--ctx";
 };
 
 const DiffPreview = ({ file }: { file: CompareFile }) => {
@@ -99,8 +93,8 @@ const DiffPreview = ({ file }: { file: CompareFile }) => {
   const lines = patch.split("\n");
 
   return (
-    <div className="github-diff-panel d-flex flex-column h-100 min-h-0 border rounded overflow-hidden bg-dark">
-      <div className="github-diff-panel__header d-flex flex-wrap align-items-center gap-2 px-3 py-2 border-bottom border-secondary flex-shrink-0">
+    <div className="github-diff-panel d-flex flex-column h-100 min-h-0 border rounded overflow-hidden">
+      <div className="github-diff-panel__header d-flex flex-wrap align-items-center gap-2 px-3 py-2 border-bottom flex-shrink-0">
         <i className="bx bxl-github github-diff-panel__gh-icon flex-shrink-0" title="GitHub" aria-hidden />
         <div className="small github-diff-panel__filename text-truncate flex-grow-1 min-w-0 fw-semibold" title={file.filename}>
           {file.filename}
@@ -121,27 +115,25 @@ const DiffPreview = ({ file }: { file: CompareFile }) => {
           {copied ? "Copied" : "Copy patch"}
         </button>
       </div>
-      <div className="github-diff-panel__body flex-grow-1 overflow-auto min-h-0">
-        <table className="table table-borderless mb-0 github-diff-table">
+      <div className="github-diff-panel__body flex-grow-1 overflow-auto min-h-0 d-flex flex-column">
+        <table className="table table-borderless mb-0 github-diff-table flex-shrink-0">
           <tbody>
             {lines.map((line, idx) => {
-              const { background, color } = lineStyles(line);
               const text = line || " ";
               return (
-                <tr key={`${idx}-${text.slice(0, 24)}`} style={{ background, color }}>
-                  <td className="github-diff-table__lineno align-top text-end text-white-50 user-select-none py-0 px-2">
+                <tr key={`${idx}-${text.slice(0, 24)}`} className={lineRowClass(line)}>
+                  <td className="github-diff-table__lineno align-top text-end user-select-none py-0 px-2">
                     {idx + 1}
                   </td>
                   <td className="github-diff-table__code align-top py-0 px-2 font-monospace small text-break">
-                    <pre className="mb-0" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
-                      {text}
-                    </pre>
+                    <pre className="mb-0">{text}</pre>
                   </td>
                 </tr>
               );
             })}
           </tbody>
         </table>
+        <div className="github-diff-panel__pad flex-grow-1 flex-shrink-0" aria-hidden />
       </div>
     </div>
   );
