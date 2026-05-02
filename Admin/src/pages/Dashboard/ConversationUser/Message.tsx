@@ -464,6 +464,14 @@ const Typing = () => {
   );
 };
 
+const GITHUB_REPO_MENTION_SEGMENT =
+  /^(@[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)(\s+@[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)*$/;
+
+const isGithubRepoOnlyText = (text: string | undefined) => {
+  if (!text) return false;
+  return GITHUB_REPO_MENTION_SEGMENT.test(text.trim());
+};
+
 const renderTextWithRepoMentions = (text: string) => {
   const mentionPattern = /(@[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)/g;
   const parts = text.split(mentionPattern);
@@ -583,7 +591,11 @@ const Message = ({
         <div className="user-chat-content">
           {hasImages && message.text && (
             <div className="ctext-wrap">
-              <div className="ctext-wrap-content">
+              <div
+                className={classnames("ctext-wrap-content", {
+                  "github-repo-msg": isGithubRepoOnlyText(message.text),
+                })}
+              >
                 <p className="mb-0 ctext-content">
                   {renderTextWithRepoMentions(message.text || "")}
                 </p>
@@ -647,6 +659,11 @@ const Message = ({
                 <div
                   className={classnames("ctext-wrap-content", {
                     "voice-only": hasOnlyVoiceAttachment,
+                    "github-repo-msg":
+                      hasText &&
+                      !isRepliedMessage &&
+                      !hasAttachments &&
+                      isGithubRepoOnlyText(message.text),
                   })}
                 >
                   {isRepliedMessage && (

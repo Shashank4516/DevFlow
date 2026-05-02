@@ -303,6 +303,12 @@
             border-radius: 3px;
             box-shadow: $box-shadow;
 
+            &.github-repo-msg {
+                padding: 0;
+                background-color: transparent;
+                box-shadow: none;
+            }
+
             &.voice-only{
                 padding: 0;
                 background-color: transparent;
@@ -752,7 +758,7 @@
 .chat-repo-mention {
     display: inline-flex;
     align-items: center;
-    padding: 1px 6px;
+    padding: 10px 20px;
     margin: 0 1px;
     border-radius: 999px;
     background: rgba(var(--bs-primary-rgb), 0.15);
