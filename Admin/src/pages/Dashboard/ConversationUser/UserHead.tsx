@@ -22,6 +22,8 @@ import VideoCallModal from "../../../components/VideoCallModal";
 import GroupVideoCallModal from "../../../components/GroupVideoCallModal";
 import AddPinnedTabModal from "../../../components/AddPinnedTabModal";
 
+import { MessagesTypes } from "../../../data/messages";
+
 // actions
 import { changeSelectedChat } from "../../../redux/actions";
 
@@ -261,6 +263,8 @@ const More = ({
 interface UserHeadProps {
   chatUserDetails: any;
   currentUser: any;
+  pinnedMessages: MessagesTypes[];
+  onTogglePinMessage: (messageId: string | number) => void;
   onOpenUserDetails: () => void;
   onDelete: () => void;
   isChannel: boolean;
@@ -269,6 +273,8 @@ interface UserHeadProps {
 const UserHead = ({
   chatUserDetails,
   currentUser,
+  pinnedMessages,
+  onTogglePinMessage,
   onOpenUserDetails,
   onDelete,
   isChannel,
@@ -394,7 +400,11 @@ const UserHead = ({
                 color="none"
                 className="btn nav-btn"
                 onClick={onOpenPinnedTab}
-                title="Pinned"
+                title={
+                  pinnedMessages.length > 0
+                    ? `Pinned in this chat (${pinnedMessages.length})`
+                    : "Pinned messages"
+                }
               >
                 <i className="ri-pushpin-fill"></i>
               </Button>
@@ -438,7 +448,12 @@ const UserHead = ({
         />
       )}
       {isOpenPinnedTabModal && (
-        <AddPinnedTabModal isOpen={isOpenPinnedTabModal} onClose={onClosePinnedTab} />
+        <AddPinnedTabModal
+          isOpen={isOpenPinnedTabModal}
+          onClose={onClosePinnedTab}
+          pinnedMessages={pinnedMessages}
+          onTogglePin={onTogglePinMessage}
+        />
       )}
     </div>
   );

@@ -73,6 +73,12 @@ const Index = ({ isChannel }: IndexProps) => {
     [chatUserDetails?.id, chatUserDetails?.uid],
   );
 
+  const pinnedMessages = useMemo(() => {
+    const msgs = chatUserConversations?.messages;
+    if (!Array.isArray(msgs)) return [];
+    return msgs.filter((m: MessagesTypes) => m.isPinned);
+  }, [chatUserConversations?.messages]);
+
   const conversationId = useMemo(() => {
     if (isChannel) {
       if (!peerIdStr) return null;
@@ -285,6 +291,8 @@ const Index = ({ isChannel }: IndexProps) => {
       <UserHead
         chatUserDetails={chatUserDetails}
         currentUser={userProfile}
+        pinnedMessages={pinnedMessages}
+        onTogglePinMessage={onTogglePinMessage}
         onOpenUserDetails={onOpenUserDetails}
         onDelete={onDeleteUserMessages}
         isChannel={isChannel}
