@@ -804,6 +804,67 @@
 	}
 }
 
+// GitHub workspace (fills main pane when GitHub tab is active)
+.github-main-workspace {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    min-height: 0;
+    background-color: var(--#{$prefix}body-bg);
+}
+
+.github-ws-body {
+    min-height: 0;
+}
+
+.github-ws-rail {
+    width: min(360px, 42vw);
+    flex-shrink: 0;
+    background-color: var(--#{$prefix}secondary-bg);
+}
+
+.github-ws-list-item:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.06);
+}
+
+.github-ws-file-pill {
+    border: 1px solid var(--#{$prefix}border-color-translucent);
+
+    &.github-ws-file-pill--active {
+        border-color: rgba(var(--bs-primary-rgb), 0.5);
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+    }
+}
+
+.github-ws-main {
+    flex: 1;
+    min-width: 0;
+    background-color: var(--#{$prefix}body-bg);
+}
+
+.github-ws-summary {
+    background-color: var(--#{$prefix}tertiary-bg);
+}
+
+.github-diff-table {
+    --bs-table-bg: transparent;
+    --bs-table-color: inherit;
+
+    td {
+        border: none;
+    }
+
+    .github-diff-table__lineno {
+        width: 3.25rem;
+        font-size: 11px;
+        vertical-align: top;
+    }
+
+    .github-diff-table__code pre {
+        font-size: 12px;
+        line-height: 1.45;
+    }
+}
 
 // only for firefox browser
 @-moz-document url-prefix() {

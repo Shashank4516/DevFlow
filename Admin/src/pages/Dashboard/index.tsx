@@ -14,6 +14,7 @@ import ConversationUser from "./ConversationUser/index";
 import UserProfileDetails from "./UserProfileDetails/index";
 import Welcome from "./ConversationUser/Welcome";
 import KanbanBoard from "./Stack/KanbanBoard";
+import Github from "./Github/index";
 import VideoCallModal from "../../components/VideoCallModal";
 import GroupVideoCallModal from "../../components/GroupVideoCallModal";
 import { useProfile } from "../../hooks";
@@ -100,6 +101,8 @@ const Index = (props: IndexProps) => {
           <div className="tm-main-wrapper">
             <KanbanBoard />
           </div>
+        ) : activeTab === TABS.GITHUB ? (
+          <Github />
         ) : selectedChat !== null ? (
           <div className="chat-content d-lg-flex">
             <div className="w-100 overflow-hidden position-relative">

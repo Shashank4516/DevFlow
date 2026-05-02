@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { createSelector } from "reselect";
 import AppSimpleBar from "../../../components/AppSimpleBar";
-import LeftbarTitle from "../../../components/LeftbarTitle";
 import Loader from "../../../components/Loader";
 import { setGithubStatus } from "../../../redux/actions";
 
@@ -64,36 +63,86 @@ interface CompareData {
   files: CompareFile[];
 }
 
-const renderDiff = (patch: string) => {
-  if (!patch) {
-    return "No patch preview available for this file type.";
+const lineStyles = (line: string): { background: string; color: string } => {
+  if (line.startsWith("+") && !line.startsWith("+++")) {
+    return { background: "rgba(46, 160, 67, 0.22)", color: "#b4f9c8" };
   }
+  if (line.startsWith("-") && !line.startsWith("---")) {
+    return { background: "rgba(248, 81, 73, 0.22)", color: "#ffcacb" };
+  }
+  if (line.startsWith("@@")) {
+    return { background: "rgba(56, 139, 253, 0.22)", color: "#a6ceff" };
+  }
+  return { background: "transparent", color: "#d8e6ff" };
+};
+
+const DiffPreview = ({ file }: { file: CompareFile }) => {
+  const patch = file.patch;
+  const [copied, setCopied] = useState(false);
+
+  const copyPatch = () => {
+    if (!patch) return;
+    navigator.clipboard.writeText(patch).then(() => {
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 1600);
+    });
+  };
+
+  if (!patch) {
+    return (
+      <div className="github-ws-main-empty h-100 d-flex align-items-center justify-content-center text-muted small px-4 text-center">
+        No patch preview for this file (binary or large change). Open on GitHub to view the diff.
+      </div>
+    );
+  }
+
   const lines = patch.split("\n");
+
   return (
-    <>
-      {lines.map((line, idx) => {
-        let background = "transparent";
-        let color = "#dbe7ff";
-        if (line.startsWith("+") && !line.startsWith("+++")) {
-          background = "rgba(46, 160, 67, 0.25)";
-          color = "#7ee787";
-        } else if (line.startsWith("-") && !line.startsWith("---")) {
-          background = "rgba(248, 81, 73, 0.22)";
-          color = "#ffb3ad";
-        } else if (line.startsWith("@@")) {
-          background = "rgba(56, 139, 253, 0.18)";
-          color = "#79c0ff";
-        }
-        return (
-          <div
-            key={`${idx}-${line.slice(0, 16)}`}
-            style={{ background, color, padding: "0 6px", borderRadius: 3 }}
+    <div className="github-diff-panel d-flex flex-column h-100 min-h-0 border rounded overflow-hidden bg-dark">
+      <div className="github-diff-panel__header d-flex flex-wrap align-items-center gap-2 px-3 py-2 border-bottom border-secondary flex-shrink-0">
+        <div className="small text-white text-truncate flex-grow-1 min-w-0 fw-semibold" title={file.filename}>
+          {file.filename}
+        </div>
+        <span className="small text-white-50 text-nowrap">
+          {file.status} · +{file.additions} −{file.deletions}
+        </span>
+        {file.blob_url && (
+          <button
+            type="button"
+            className="btn btn-sm btn-outline-light"
+            onClick={() => window.open(file.blob_url, "_blank")}
           >
-            {line || " "}
-          </div>
-        );
-      })}
-    </>
+            Open on GitHub
+          </button>
+        )}
+        <button type="button" className="btn btn-sm btn-outline-secondary" onClick={copyPatch}>
+          {copied ? "Copied" : "Copy patch"}
+        </button>
+      </div>
+      <div className="github-diff-panel__body flex-grow-1 overflow-auto min-h-0">
+        <table className="table table-borderless mb-0 github-diff-table">
+          <tbody>
+            {lines.map((line, idx) => {
+              const { background, color } = lineStyles(line);
+              const text = line || " ";
+              return (
+                <tr key={`${idx}-${text.slice(0, 24)}`} style={{ background, color }}>
+                  <td className="github-diff-table__lineno align-top text-end text-white-50 user-select-none py-0 px-2">
+                    {idx + 1}
+                  </td>
+                  <td className="github-diff-table__code align-top py-0 px-2 font-monospace small text-break">
+                    <pre className="mb-0" style={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }}>
+                      {text}
+                    </pre>
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </div>
   );
 };
 
@@ -125,7 +174,6 @@ const Github = () => {
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareError, setCompareError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<CompareFile | null>(null);
-  const [fullScreenReview, setFullScreenReview] = useState(false);
 
   useEffect(() => {
     if (!BACKEND_URL || githubConnected || syncedOnce) return;
@@ -194,12 +242,13 @@ const Github = () => {
     if (!BACKEND_URL) return;
     setCompareLoading(true);
     setCompareError(null);
-    const query = base && head
-      ? `repo=${encodeURIComponent(repoFullName)}&base=${encodeURIComponent(base)}&head=${encodeURIComponent(head)}`
-      : `repo=${encodeURIComponent(repoFullName)}&branch=${encodeURIComponent(branch)}`;
+    const query =
+      base && head
+        ? `repo=${encodeURIComponent(repoFullName)}&base=${encodeURIComponent(base)}&head=${encodeURIComponent(head)}`
+        : `repo=${encodeURIComponent(repoFullName)}&branch=${encodeURIComponent(branch)}`;
     fetch(`${BACKEND_URL}/api/github/compare.php?${query}`, { credentials: "include" })
       .then((res) => {
-        if (!res.ok) throw new Error("Failed to load compare diff");
+        if (!res.ok) throw new Error("Failed to compare diff");
         return res.json();
       })
       .then((data) => {
@@ -231,7 +280,8 @@ const Github = () => {
       .then((res) => res.json())
       .then((data) => {
         setBranches(data.branches || []);
-        const def = data.branches?.find((b: Branch) => b.name === repo.default_branch) || data.branches?.[0];
+        const def =
+          data.branches?.find((b: Branch) => b.name === repo.default_branch) || data.branches?.[0];
         if (def) {
           setCurrentBranch(def.name);
           loadContents(repo.full_name, def.name, "");
@@ -264,57 +314,68 @@ const Github = () => {
     loadCommits(selectedRepo.full_name, branch);
   };
 
-  if (!BACKEND_URL) {
-    return (
-      <div className="p-3">
-        <LeftbarTitle title="GitHub" />
-        <p className="text-muted small">Backend not configured.</p>
-      </div>
-    );
-  }
+  const handleConnect = () => {
+    if (BACKEND_URL) {
+      window.location.href = `${BACKEND_URL.replace(/\/$/, "")}/auth/github/index.php`;
+    }
+  };
 
-  if (!githubConnected) {
-    const handleConnectFromTab = () => {
-      if (BACKEND_URL) {
-        window.location.href = `${BACKEND_URL.replace(/\/$/, "")}/auth/github/index.php`;
-      }
-    };
-    return (
-      <div className="p-3">
-        <LeftbarTitle title="GitHub" />
-        <p className="text-muted small mb-3">
-          Connect your GitHub account to view repositories, branches, and files.
-        </p>
-        {BACKEND_URL ? (
-          <button
-            type="button"
-            className="btn btn-primary btn-sm"
-            onClick={handleConnectFromTab}
-          >
-            <i className="bx bxl-github me-1" />
-            Connect with GitHub
-          </button>
-        ) : (
-          <p className="text-danger small mb-0">
-            Set VITE_BACKEND_URL in .env to connect.
-          </p>
-        )}
-      </div>
-    );
-  }
+  const renderFilesExplorer = () => (
+    <div className="github-ws-files h-100 d-flex flex-column min-h-0 p-3">
+      {contentsLoading && <Loader />}
+      {!contentsLoading && (
+        <AppSimpleBar className="flex-grow-1 github-ws-files-scroll w-100" style={{ height: "100%", maxHeight: "100%" }}>
+          <ul className="list-unstyled mb-0">
+            {currentPath && (
+              <li
+                className="cursor-pointer rounded px-2 py-2 github-ws-list-item"
+                onClick={() => openFolder(currentPath.split("/").slice(0, -1).join("/"))}
+              >
+                <div className="d-flex align-items-center">
+                  <i className="bx bx-up-arrow-circle font-size-18 me-2" />
+                  <span className="font-size-14">..</span>
+                </div>
+              </li>
+            )}
+            {(contents || []).map((item) => (
+              <li
+                key={item.path}
+                className="cursor-pointer rounded px-2 py-2 github-ws-list-item"
+                onClick={() =>
+                  item.type === "dir"
+                    ? openFolder(item.path)
+                    : window.open(
+                        `https://github.com/${selectedRepo!.full_name}/blob/${currentBranch || selectedRepo!.default_branch}/${item.path}`,
+                        "_blank"
+                      )
+                }
+              >
+                <div className="d-flex align-items-center">
+                  <i
+                    className={`font-size-18 me-2 ${item.type === "dir" ? "bx bx-folder" : "bx bx-file"}`}
+                  />
+                  <span className="font-size-14">{item.name}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </AppSimpleBar>
+      )}
+    </div>
+  );
 
-  return (
-    <>
-      <LeftbarTitle title="GitHub" />
-      {loading && <Loader />}
-      {error && <p className="text-danger small px-3">{error}</p>}
-      <AppSimpleBar className="chat-message-list" style={{ maxHeight: "calc(100vh - 200px)" }}>
+  const renderRail = () => (
+    <aside className="github-ws-rail border-end d-flex flex-column min-h-0">
+      <AppSimpleBar
+        className="github-ws-rail-scroll flex-grow-1 w-100"
+        style={{ height: "100%", maxHeight: "100%" }}
+      >
         {!selectedRepo ? (
-          <ul className="list-unstyled contact-list">
+          <ul className="list-unstyled contact-list mb-0">
             {(repos || []).map((repo) => (
               <li
                 key={repo.id}
-                className="cursor-pointer"
+                className="cursor-pointer github-ws-list-item"
                 onClick={() => loadBranches(repo)}
               >
                 <div className="d-flex align-items-center py-2 px-3">
@@ -322,9 +383,7 @@ const Github = () => {
                   <div className="flex-grow-1 overflow-hidden">
                     <h6 className="text-truncate font-size-14 mb-0">{repo.name}</h6>
                     {repo.description && (
-                      <p className="text-muted text-truncate font-size-12 mb-0">
-                        {repo.description}
-                      </p>
+                      <p className="text-muted text-truncate font-size-12 mb-0">{repo.description}</p>
                     )}
                   </div>
                 </div>
@@ -346,7 +405,7 @@ const Github = () => {
             {branchLoading && <Loader />}
             {!branchLoading && branches.length > 0 && (
               <div className="px-3 py-2">
-                <p className="font-size-12 text-muted mb-1">Branches</p>
+                <p className="font-size-12 text-muted mb-1">Branch</p>
                 <select
                   className="form-select form-select-sm"
                   value={currentBranch}
@@ -360,7 +419,7 @@ const Github = () => {
                 </select>
               </div>
             )}
-            <div className="px-3 pb-2 d-flex gap-2">
+            <div className="px-3 pb-2 pt-1 d-flex gap-2 border-bottom">
               <button
                 type="button"
                 className={`btn btn-sm ${mode === "files" ? "btn-primary" : "btn-soft-secondary"}`}
@@ -377,88 +436,40 @@ const Github = () => {
               </button>
             </div>
 
-            {mode === "files" && (
-              <>
-                {contentsLoading && <Loader />}
-                {!contentsLoading && (
-                  <ul className="list-unstyled contact-list px-3 pb-3">
-                    {currentPath && (
-                      <li
-                        className="cursor-pointer"
-                        onClick={() =>
-                          openFolder(currentPath.split("/").slice(0, -1).join("/"))
-                        }
-                      >
-                        <div className="d-flex align-items-center py-2">
-                          <i className="bx bx-up-arrow-circle font-size-18 me-2" />
-                          <span className="font-size-14">..</span>
-                        </div>
-                      </li>
-                    )}
-                    {(contents || []).map((item) => (
-                      <li
-                        key={item.path}
-                        className="cursor-pointer"
-                        onClick={() =>
-                          item.type === "dir"
-                            ? openFolder(item.path)
-                            : window.open(
-                                `https://github.com/${selectedRepo!.full_name}/blob/${currentBranch || selectedRepo!.default_branch}/${item.path}`,
-                                "_blank"
-                              )
-                        }
-                      >
-                        <div className="d-flex align-items-center py-2">
-                          <i
-                            className={`font-size-18 me-2 ${item.type === "dir" ? "bx bx-folder" : "bx bx-file"}`}
-                          />
-                          <span className="font-size-14">{item.name}</span>
-                        </div>
-                      </li>
-                    ))}
-                  </ul>
-                )}
-              </>
-            )}
-
             {mode === "review" && (
-              <div className="px-3 pb-3">
+              <div className="px-3 py-3">
                 {commitsLoading && <Loader />}
-                {compareError && (
-                  <p className="small text-danger mb-2">{compareError}</p>
-                )}
+                {compareError && <p className="small text-danger mb-2">{compareError}</p>}
                 {!commitsLoading && commits.length > 0 && (
                   <>
-                    <p className="font-size-12 text-muted mb-1">Compare Range</p>
-                    <div className="d-flex gap-2 mb-2">
-                      <select
-                        className="form-select form-select-sm"
-                        value={baseSha}
-                        onChange={(e) => setBaseSha(e.target.value)}
-                      >
-                        <option value="">Base commit</option>
-                        {commits.map((c) => (
-                          <option key={`base-${c.sha}`} value={c.sha}>
-                            {c.short_sha} - {c.title}
-                          </option>
-                        ))}
-                      </select>
-                      <select
-                        className="form-select form-select-sm"
-                        value={headSha}
-                        onChange={(e) => setHeadSha(e.target.value)}
-                      >
-                        <option value="">Head commit</option>
-                        {commits.map((c) => (
-                          <option key={`head-${c.sha}`} value={c.sha}>
-                            {c.short_sha} - {c.title}
-                          </option>
-                        ))}
-                      </select>
-                    </div>
+                    <p className="font-size-12 text-muted mb-1">Compare range</p>
+                    <select
+                      className="form-select form-select-sm mb-2"
+                      value={baseSha}
+                      onChange={(e) => setBaseSha(e.target.value)}
+                    >
+                      <option value="">Base commit</option>
+                      {commits.map((c) => (
+                        <option key={`base-${c.sha}`} value={c.sha}>
+                          {c.short_sha} — {c.title}
+                        </option>
+                      ))}
+                    </select>
+                    <select
+                      className="form-select form-select-sm mb-2"
+                      value={headSha}
+                      onChange={(e) => setHeadSha(e.target.value)}
+                    >
+                      <option value="">Head commit</option>
+                      {commits.map((c) => (
+                        <option key={`head-${c.sha}`} value={c.sha}>
+                          {c.short_sha} — {c.title}
+                        </option>
+                      ))}
+                    </select>
                     <button
                       type="button"
-                      className="btn btn-sm btn-primary mb-3"
+                      className="btn btn-sm btn-primary w-100 mb-3"
                       disabled={!baseSha || !headSha || compareLoading}
                       onClick={() =>
                         loadCompare(
@@ -469,88 +480,55 @@ const Github = () => {
                         )
                       }
                     >
-                      {compareLoading ? "Loading..." : "Load Diff"}
+                      {compareLoading ? "Loading…" : "Load diff"}
                     </button>
                   </>
                 )}
 
                 {compareData && (
                   <>
-                    <div className="mb-3 p-2 border rounded small">
+                    <div className="mb-3 p-2 border rounded font-size-12 github-ws-summary">
                       <div>
                         <strong>Status:</strong> {compareData.status || "N/A"}
                       </div>
                       <div>
-                        <strong>Commits:</strong> {compareData.total_commits} |{" "}
+                        <strong>Commits:</strong> {compareData.total_commits} ·{" "}
                         <strong>Files:</strong> {compareData.files.length}
                       </div>
                       <div className="text-muted">
-                        {compareData.base.slice(0, 7)}...{compareData.head.slice(0, 7)}
+                        {compareData.base.slice(0, 7)}…{compareData.head.slice(0, 7)}
                       </div>
                     </div>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-dark mb-3"
-                      onClick={() => setFullScreenReview(true)}
-                    >
-                      <i className="bx bx-expand-alt me-1" />
-                      Open Full Screen Review
-                    </button>
 
-                    <p className="font-size-12 text-muted mb-1">Recent Commits</p>
-                    <ul className="list-unstyled mb-3">
-                      {compareData.commits.map((c) => (
+                    <p className="font-size-12 text-muted mb-1">Recent commits</p>
+                    <ul className="list-unstyled mb-3 small">
+                      {compareData.commits.slice(0, 6).map((c) => (
                         <li key={c.sha} className="mb-2">
-                          <div className="small fw-semibold">{c.title || c.message}</div>
+                          <div className="fw-semibold text-truncate">{c.title || c.message}</div>
                           <div className="font-size-11 text-muted">
-                            {c.short_sha} by {c.github_login || c.author_name}
+                            {c.short_sha} · {c.github_login || c.author_name}
                           </div>
                         </li>
                       ))}
                     </ul>
 
-                    <p className="font-size-12 text-muted mb-1">Changed Files</p>
-                    <div className="border rounded mb-2" style={{ maxHeight: 180, overflowY: "auto" }}>
-                      <ul className="list-unstyled mb-0">
-                        {compareData.files.map((f) => (
-                          <li
-                            key={f.filename}
-                            className={`px-2 py-1 cursor-pointer ${selectedFile?.filename === f.filename ? "bg-light" : ""}`}
-                            onClick={() => setSelectedFile(f)}
-                          >
-                            <div className="small text-truncate">{f.filename}</div>
-                            <div className="font-size-11 text-muted">
-                              {f.status} | +{f.additions} -{f.deletions}
-                            </div>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-
-                    {selectedFile && (
-                      <div>
-                        <div className="d-flex align-items-center justify-content-between mb-1">
-                          <p className="font-size-12 text-muted mb-0 text-truncate">
-                            {selectedFile.filename}
-                          </p>
-                          {selectedFile.blob_url && (
-                            <button
-                              type="button"
-                              className="btn btn-link btn-sm p-0 ms-2"
-                              onClick={() => window.open(selectedFile.blob_url, "_blank")}
-                            >
-                              Open
-                            </button>
-                          )}
-                        </div>
-                        <pre
-                          className="small border rounded p-2 mb-0"
-                          style={{ maxHeight: 280, overflow: "auto", background: "#0b1220", color: "#dbe7ff" }}
+                    <p className="font-size-12 text-muted mb-1">Changed files</p>
+                    <ul className="list-unstyled mb-0">
+                      {compareData.files.map((f) => (
+                        <li
+                          key={f.filename}
+                          className={`px-2 py-2 rounded cursor-pointer mb-1 github-ws-file-pill ${
+                            selectedFile?.filename === f.filename ? "github-ws-file-pill--active" : ""
+                          }`}
+                          onClick={() => setSelectedFile(f)}
                         >
-{renderDiff(selectedFile.patch)}
-                        </pre>
-                      </div>
-                    )}
+                          <div className="small text-truncate">{f.filename}</div>
+                          <div className="font-size-11 text-muted">
+                            {f.status} · +{f.additions} −{f.deletions}
+                          </div>
+                        </li>
+                      ))}
+                    </ul>
                   </>
                 )}
               </div>
@@ -558,93 +536,98 @@ const Github = () => {
           </>
         )}
       </AppSimpleBar>
-      {fullScreenReview && compareData && (
-        <div
-          className="position-fixed top-0 start-0 w-100 h-100"
-          style={{ zIndex: 2000, background: "rgba(9, 14, 30, 0.94)" }}
-        >
-          <div className="d-flex align-items-center justify-content-between px-4 py-3 border-bottom border-secondary">
-            <div className="text-white">
-              <h5 className="mb-1 text-white">GitHub Code Review</h5>
-              <div className="small text-white-50">
-                {selectedRepo?.full_name} | {compareData.base.slice(0, 7)}...{compareData.head.slice(0, 7)}
-              </div>
-            </div>
-            <button
-              type="button"
-              className="btn btn-sm btn-light"
-              onClick={() => setFullScreenReview(false)}
-            >
-              <i className="bx bx-x me-1" />
-              Close
-            </button>
-          </div>
-          <div className="d-flex" style={{ height: "calc(100vh - 78px)" }}>
-            <div
-              className="border-end border-secondary p-3"
-              style={{ width: 360, overflowY: "auto", background: "rgba(13, 20, 40, 0.95)" }}
-            >
-              <p className="font-size-12 text-white-50 mb-2">Changed Files</p>
-              <ul className="list-unstyled mb-0">
-                {compareData.files.map((f) => (
-                  <li
-                    key={`full-${f.filename}`}
-                    className={`px-2 py-2 rounded cursor-pointer mb-1 ${
-                      selectedFile?.filename === f.filename ? "bg-primary bg-opacity-25" : ""
-                    }`}
-                    onClick={() => setSelectedFile(f)}
-                  >
-                    <div className="small text-white text-truncate">{f.filename}</div>
-                    <div className="font-size-11 text-white-50">
-                      {f.status} | +{f.additions} -{f.deletions}
-                    </div>
-                  </li>
-                ))}
-              </ul>
-            </div>
+    </aside>
+  );
 
-            <div className="flex-grow-1 p-3 d-flex flex-column" style={{ minWidth: 0 }}>
-              {selectedFile ? (
-                <>
-                  <div className="d-flex align-items-center justify-content-between mb-2">
-                    <div className="small text-white text-truncate me-3">{selectedFile.filename}</div>
-                    <div className="d-flex align-items-center gap-2">
-                      <span className="small text-white-50">
-                        {selectedFile.status} | +{selectedFile.additions} -{selectedFile.deletions}
-                      </span>
-                      {selectedFile.blob_url && (
-                        <button
-                          type="button"
-                          className="btn btn-sm btn-outline-light"
-                          onClick={() => window.open(selectedFile.blob_url, "_blank")}
-                        >
-                          Open on GitHub
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                  <pre
-                    className="small border border-secondary rounded p-3 mb-0 flex-grow-1"
-                    style={{
-                      overflow: "auto",
-                      background: "#050a17",
-                      color: "#e6efff",
-                      lineHeight: 1.45,
-                    }}
-                  >
-{renderDiff(selectedFile.patch)}
-                  </pre>
-                </>
-              ) : (
-                <div className="h-100 d-flex align-items-center justify-content-center text-white-50">
-                  Select a changed file to preview diff
-                </div>
-              )}
-            </div>
-          </div>
+  const renderMain = () => {
+    if (!selectedRepo) {
+      return (
+        <main className="github-ws-main d-flex flex-column align-items-center justify-content-center text-muted p-4">
+          <i className="bx bxl-github display-4 mb-3 opacity-50" />
+          <p className="mb-0 text-center small">Select a repository from the list to browse files or review changes.</p>
+        </main>
+      );
+    }
+
+    if (mode === "files") {
+      return <main className="github-ws-main flex-grow-1 min-w-0 min-h-0 d-flex flex-column">{renderFilesExplorer()}</main>;
+    }
+
+    if (!compareData) {
+      return (
+        <main className="github-ws-main d-flex flex-column align-items-center justify-content-center text-muted p-4">
+          <i className="bx bx-git-compare display-4 mb-3 opacity-50" />
+          <p className="mb-0 text-center small">
+            Choose base and head commits, then tap <strong>Load diff</strong>. The preview appears here.
+          </p>
+        </main>
+      );
+    }
+
+    if (!selectedFile) {
+      return (
+        <main className="github-ws-main d-flex flex-column align-items-center justify-content-center text-muted p-4">
+          <p className="mb-0 small">Select a changed file from the list.</p>
+        </main>
+      );
+    }
+
+    return (
+      <main className="github-ws-main flex-grow-1 min-w-0 min-h-0 d-flex flex-column p-3">
+        <DiffPreview file={selectedFile} />
+      </main>
+    );
+  };
+
+  if (!BACKEND_URL) {
+    return (
+      <div className="github-main-workspace d-flex flex-column">
+        <div className="p-4">
+          <h5 className="mb-2">GitHub</h5>
+          <p className="text-muted small mb-0">Backend URL is not configured (VITE_BACKEND_URL).</p>
         </div>
-      )}
-    </>
+      </div>
+    );
+  }
+
+  if (!githubConnected) {
+    return (
+      <div className="github-main-workspace d-flex flex-column align-items-center justify-content-center p-4">
+        <div className="text-center" style={{ maxWidth: 420 }}>
+          <i className="bx bxl-github display-4 text-primary mb-3" />
+          <h5 className="mb-2">Connect GitHub</h5>
+          <p className="text-muted small mb-4">
+            Connect your GitHub account to browse repositories, branches, files, and inline diffs in the main workspace.
+          </p>
+          <button type="button" className="btn btn-primary" onClick={handleConnect}>
+            <i className="bx bxl-github me-1" />
+            Continue with GitHub
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="github-main-workspace d-flex flex-column github-main-workspace--connected overflow-hidden">
+      <header className="github-ws-head border-bottom px-3 py-2 d-flex align-items-center flex-shrink-0">
+        <h5 className="mb-0 me-3">GitHub</h5>
+        {loading && <Loader />}
+        {error && (
+          <span className="text-danger small">{error}</span>
+        )}
+        {selectedRepo && !loading && (
+          <span className="text-muted small text-truncate">
+            <span className="d-none d-md-inline">{selectedRepo.full_name}</span>
+          </span>
+        )}
+      </header>
+
+      <div className="github-ws-body d-flex flex-grow-1 min-h-0">
+        {renderRail()}
+        {renderMain()}
+      </div>
+    </div>
   );
 };
 

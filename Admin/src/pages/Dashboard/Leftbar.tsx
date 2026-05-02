@@ -14,7 +14,6 @@ import Chats from "./Chats/index";
 import Calls from "./Calls/index";
 import Bookmark from "./Bookmark/index";
 import Notifications from "./Notifications/index";
-import Github from "./Github/index";
 import Settings from "./Settings/index";
 import Stack from "./Stack/index";
 
@@ -77,11 +76,10 @@ const Leftbar = (props: LeftbarProps) => {
             <Bookmark />
           </TabPane>
 
-          <TabPane
-            tabId={TABS.GITHUB}
-            role="tabpanel"
-          >
-            <Github />
+          <TabPane tabId={TABS.GITHUB} role="tabpanel">
+            <div className="px-3 py-4 text-center text-muted font-size-13">
+              Repositories and code review open in the main panel when this tab is selected.
+            </div>
           </TabPane>
 
           <TabPane
