@@ -1,4 +1,5 @@
 import React from "react";
+import classnames from "classnames";
 import { TabContent, TabPane } from "reactstrap";
 
 // hooks
@@ -34,10 +35,15 @@ const Leftbar = (props: LeftbarProps) => {
   // Inside your component
   const { activeTab} = useAppSelector(errorData);
 
+  const hideSidebar = activeTab === TABS.GITHUB;
+
   return (
     <>
-      {/* start chat-leftsidebar */}
-      <div className="chat-leftsidebar">
+      {/* start chat-leftsidebar — hidden on GitHub tab so the code workspace uses full width */}
+      <div
+        className={classnames("chat-leftsidebar", hideSidebar && "d-none")}
+        aria-hidden={hideSidebar}
+      >
         <ProfileSearch />
         <TabContent activeTab={activeTab}>
           {/* Start Profile tab-pane */}
@@ -76,11 +82,7 @@ const Leftbar = (props: LeftbarProps) => {
             <Bookmark />
           </TabPane>
 
-          <TabPane tabId={TABS.GITHUB} role="tabpanel">
-            <div className="px-3 py-4 text-center text-muted font-size-13">
-              Repositories and code review open in the main panel when this tab is selected.
-            </div>
-          </TabPane>
+          <TabPane tabId={TABS.GITHUB} role="tabpanel" />
 
           <TabPane
             tabId={TABS.STACK}
