@@ -14,7 +14,7 @@ function db_session_ensure_table(mysqli $conn): void
     mysqli_query($conn, "
         CREATE TABLE IF NOT EXISTS php_sessions (
             session_id  VARCHAR(128)     NOT NULL PRIMARY KEY,
-            data        MEDIUMTEXT       NOT NULL DEFAULT '',
+            data        MEDIUMTEXT       NOT NULL,
             updated_at  INT UNSIGNED     NOT NULL DEFAULT 0,
             INDEX idx_updated_at (updated_at)
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
