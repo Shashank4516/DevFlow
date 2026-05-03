@@ -57,20 +57,13 @@ if ($affected <= 0) {
     json_ok(['error' => 'todo_not_found']);
 }
 
-tasks_sync_progress_from_todos($conn, $projectId, $taskId);
-
-$stmt3 = mysqli_prepare($conn, 'SELECT progress_done, progress_total FROM project_tasks WHERE id = ? AND project_id = ? LIMIT 1');
-mysqli_stmt_bind_param($stmt3, 'ii', $taskId, $projectId);
-mysqli_stmt_execute($stmt3);
-$res3 = mysqli_stmt_get_result($stmt3);
-$p = mysqli_fetch_assoc($res3) ?: ['progress_done' => 0, 'progress_total' => 4];
-mysqli_stmt_close($stmt3);
+$prog = tasks_sync_progress_from_todos($conn, $projectId, $taskId);
 
 json_ok([
     'ok' => true,
     'progress' => [
-        'done' => (int) $p['progress_done'],
-        'total' => max(1, (int) $p['progress_total']),
+        'done' => $prog['done'],
+        'total' => $prog['total'],
     ],
 ]);
 

@@ -57,6 +57,8 @@ $res2 = mysqli_stmt_get_result($stmt2);
 
 $tasks = [];
 while ($row = mysqli_fetch_assoc($res2)) {
+    $tid = (int) $row['id'];
+    $prog = tasks_sync_progress_from_todos($conn, $projectId, $tid);
     $badges = [];
     if (!empty($row['badges_json'])) {
         $decoded = json_decode((string) $row['badges_json'], true);
@@ -74,8 +76,8 @@ while ($row = mysqli_fetch_assoc($res2)) {
         'description'    => (string) ($row['description'] ?? ''),
         'column_key'     => $row['column_key'],
         'progress'       => [
-            'done'  => (int) $row['progress_done'],
-            'total' => max(1, (int) $row['progress_total']),
+            'done'  => $prog['done'],
+            'total' => $prog['total'],
         ],
         'files'          => (int) $row['files_count'],
         'comments'       => (int) $row['comments_count'],

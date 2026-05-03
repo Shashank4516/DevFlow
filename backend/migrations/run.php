@@ -199,7 +199,7 @@ $steps[] = run_step($conn, 'Create project_tasks table', "
         `column_key`      VARCHAR(32)   NOT NULL DEFAULT 'todo',
         `sort_order`      INT           NOT NULL DEFAULT 0,
         `progress_done`   TINYINT UNSIGNED NOT NULL DEFAULT 0,
-        `progress_total`  TINYINT UNSIGNED NOT NULL DEFAULT 4,
+        `progress_total`  TINYINT UNSIGNED NOT NULL DEFAULT 0,
         `files_count`     INT UNSIGNED  NOT NULL DEFAULT 0,
         `comments_count`  INT UNSIGNED  NOT NULL DEFAULT 0,
         `badges_json`     TEXT,

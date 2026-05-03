@@ -31,7 +31,7 @@ function projects_ensure_tables(mysqli $conn): void
         column_key VARCHAR(32) NOT NULL DEFAULT 'todo',
         sort_order INT NOT NULL DEFAULT 0,
         progress_done TINYINT UNSIGNED NOT NULL DEFAULT 0,
-        progress_total TINYINT UNSIGNED NOT NULL DEFAULT 4,
+        progress_total TINYINT UNSIGNED NOT NULL DEFAULT 0,
         files_count INT UNSIGNED NOT NULL DEFAULT 0,
         comments_count INT UNSIGNED NOT NULL DEFAULT 0,
         badges_json TEXT,
@@ -109,9 +109,11 @@ function project_user_can_manage_repos(mysqli $conn, int $userId, int $projectId
 }
 
 /**
- * Recompute and store progress counters from the todo checklist.
+ * Recompute and store checklist progress counters (0 items → done=0 total=0; no fake totals).
+ *
+ * @return array{done: int, total: int}
  */
-function tasks_sync_progress_from_todos(mysqli $conn, int $projectId, int $taskId): void
+function tasks_sync_progress_from_todos(mysqli $conn, int $projectId, int $taskId): array
 {
     $stmt = mysqli_prepare($conn, "
         SELECT
@@ -129,8 +131,7 @@ function tasks_sync_progress_from_todos(mysqli $conn, int $projectId, int $taskI
     $total = (int)($row['total'] ?? 0);
     $done  = (int)($row['done'] ?? 0);
 
-    // Keep legacy defaults: if no todos exist, show 0/4.
-    $progressTotal = $total > 0 ? $total : 4;
+    $progressTotal = $total > 0 ? $total : 0;
     $progressDone  = $total > 0 ? $done : 0;
 
     $upd = mysqli_prepare($conn, "
@@ -142,6 +143,8 @@ function tasks_sync_progress_from_todos(mysqli $conn, int $projectId, int $taskI
     mysqli_stmt_bind_param($upd, 'iiii', $progressDone, $progressTotal, $taskId, $projectId);
     mysqli_stmt_execute($upd);
     mysqli_stmt_close($upd);
+
+    return ['done' => $progressDone, 'total' => $progressTotal];
 }
 
 function project_user_has_access(mysqli $conn, int $userId, int $projectId): bool

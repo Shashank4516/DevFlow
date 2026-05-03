@@ -109,7 +109,7 @@ function taskToCard(t: StackBoardTask): Card {
     badges,
     progress: {
       done: t.progress?.done ?? 0,
-      total: Math.max(1, t.progress?.total ?? 4),
+      total: t.progress?.total ?? 0,
     },
     files: t.files ?? 0,
     comments: t.comments ?? 0,
@@ -291,7 +291,18 @@ const ProgressBar = ({
   total: number;
   color: string;
 }) => {
-  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+  if (total <= 0) {
+    return (
+      <div className="tm-progress tm-progress--empty">
+        <div className="tm-progress__header">
+          <span className="tm-progress__label">Checklist</span>
+        </div>
+        <p className="tm-progress__hint">No checklist items yet</p>
+      </div>
+    );
+  }
+
+  const pct = Math.round((done / total) * 100);
   const safeTotal = Math.max(1, total);
   const clampedPct = Math.max(0, Math.min(100, pct));
   const activeSegments = Math.floor((clampedPct / 100) * safeTotal);
@@ -299,7 +310,7 @@ const ProgressBar = ({
   return (
     <div className="tm-progress">
       <div className="tm-progress__header">
-        <span className="tm-progress__label">Progress</span>
+        <span className="tm-progress__label">Checklist progress</span>
         <span className="tm-progress__count">
           {done}/{total}
         </span>

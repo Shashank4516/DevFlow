@@ -142,7 +142,7 @@ json_ok([
         'column_key'  => (string) $taskRow['column_key'],
         'progress'    => [
             'done'  => (int) $taskRow['progress_done'],
-            'total' => max(1, (int) $taskRow['progress_total']),
+            'total' => (int) $taskRow['progress_total'],
         ],
         'files'       => (int) $taskRow['files_count'],
         'comments'    => (int) $taskRow['comments_count'],

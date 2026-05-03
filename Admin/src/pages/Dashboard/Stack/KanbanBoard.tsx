@@ -12,7 +12,15 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { Button, Form, Input, Modal, ModalBody, ModalHeader } from "reactstrap";
+import {
+  Button,
+  Form,
+  Input,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+} from "reactstrap";
 import { createSelector } from "reselect";
 
 import { useRedux, useProfile } from "../../../hooks";
@@ -118,7 +126,7 @@ function taskToCard(t: StackBoardTask): Card {
     badges,
     progress: {
       done: t.progress?.done ?? 0,
-      total: Math.max(1, t.progress?.total ?? 4),
+      total: t.progress?.total ?? 0,
     },
     files: t.files ?? 0,
     comments: t.comments ?? 0,
@@ -312,15 +320,32 @@ const ProgressBar = ({
   total: number;
   color: string;
 }) => {
-  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+  if (total <= 0) {
+    return (
+      <div
+        className="tm-progress tm-progress--empty"
+        title="Open the checklist on this card to add items. The bar reflects completed checklist items only."
+      >
+        <div className="tm-progress__header">
+          <span className="tm-progress__label">Checklist</span>
+        </div>
+        <p className="tm-progress__hint">No checklist items yet</p>
+      </div>
+    );
+  }
+
+  const pct = Math.round((done / total) * 100);
   const safeTotal = Math.max(1, total);
   const clampedPct = Math.max(0, Math.min(100, pct));
   const activeSegments = Math.floor((clampedPct / 100) * safeTotal);
   const remainderPct = ((clampedPct / 100) * safeTotal - activeSegments) * 100;
   return (
-    <div className="tm-progress">
+    <div
+      className="tm-progress"
+      title="Progress reflects completed checklist items for this task."
+    >
       <div className="tm-progress__header">
-        <span className="tm-progress__label">Progress</span>
+        <span className="tm-progress__label">Checklist progress</span>
         <span className="tm-progress__count">
           {done}/{total}
         </span>
@@ -416,7 +441,8 @@ const KanbanCard = ({
           <button
             type="button"
             className="tm-card__menu-btn"
-            aria-label="Open checklist"
+            aria-label="Open checklist editor"
+            title="Checklist"
             onPointerDown={e => e.stopPropagation()}
             onClick={() => onOpenChecklist(card)}
           >
@@ -600,6 +626,10 @@ const KanbanBoard = () => {
   const [checklistLoading, setChecklistLoading] = useState(false);
   const [todos, setTodos] = useState<StackTaskTodo[]>([]);
   const [newTodoText, setNewTodoText] = useState("");
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+  const [completeConfirmPending, setCompleteConfirmPending] = useState<{
+    cardId: string;
+  } | null>(null);
 
   const hasBackend = !!import.meta.env.VITE_BACKEND_URL;
 
@@ -661,6 +691,29 @@ const KanbanBoard = () => {
     setActiveDragId(String(event.active.id));
   };
 
+  const performMoveToColumn = useCallback(
+    async (cardId: string, targetColumnKey: string) => {
+      if (stackProjectId == null || !hasBackend) return;
+      const prevTasks = boardTasks;
+      setBoardTasks(p =>
+        p.map(t =>
+          t.id === cardId ? { ...t, column_key: targetColumnKey } : t
+        )
+      );
+      try {
+        await moveProjectTask({
+          project_id: stackProjectId,
+          task_id: parseInt(cardId, 10),
+          column_key: targetColumnKey,
+        });
+        window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
+      } catch {
+        setBoardTasks(prevTasks);
+      }
+    },
+    [stackProjectId, hasBackend, boardTasks]
+  );
+
   const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragId(null);
@@ -675,23 +728,31 @@ const KanbanBoard = () => {
     if (!targetCol) return;
     if (source.col.id === targetCol.id) return;
 
-    const prevTasks = boardTasks;
-    setBoardTasks(p =>
-      p.map(t =>
-        t.id === cardId ? { ...t, column_key: targetCol.id } : t
-      )
-    );
-
-    try {
-      await moveProjectTask({
-        project_id: stackProjectId,
-        task_id: parseInt(cardId, 10),
-        column_key: targetCol.id,
-      });
-      window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
-    } catch {
-      setBoardTasks(prevTasks);
+    if (targetCol.id === "complete") {
+      try {
+        const todosRes = await getTaskTodos({
+          project_id: stackProjectId,
+          task_id: parseInt(cardId, 10),
+        });
+        setBoardTasks(prev =>
+          patchTaskProgress(prev, cardId, {
+            done: todosRes.progress?.done ?? 0,
+            total: todosRes.progress?.total ?? 0,
+          })
+        );
+        const list = todosRes.todos || [];
+        const incomplete = list.filter(t => !t.is_done).length;
+        if (list.length > 0 && incomplete > 0) {
+          setCompleteConfirmPending({ cardId });
+          setCompleteConfirmOpen(true);
+          return;
+        }
+      } catch {
+        /* If checklist fails to load, allow moving without prompting. */
+      }
     }
+
+    await performMoveToColumn(cardId, targetCol.id);
   };
 
   const handleDragCancel = () => {
@@ -715,7 +776,7 @@ const KanbanBoard = () => {
         setBoardTasks(prev =>
           patchTaskProgress(prev, card.id, {
             done: res.progress?.done ?? 0,
-            total: res.progress?.total ?? 1,
+            total: res.progress?.total ?? 0,
           })
         );
       } finally {
@@ -745,7 +806,7 @@ const KanbanBoard = () => {
         setBoardTasks(prev =>
           patchTaskProgress(prev, checklistCard.id, {
             done: res.progress?.done ?? 0,
-            total: res.progress?.total ?? 1,
+            total: res.progress?.total ?? 0,
           })
         );
         window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
@@ -773,7 +834,7 @@ const KanbanBoard = () => {
         setBoardTasks(prev =>
           patchTaskProgress(prev, checklistCard.id, {
             done: res.progress?.done ?? 0,
-            total: res.progress?.total ?? 1,
+            total: res.progress?.total ?? 0,
           })
         );
       } catch {
@@ -1092,12 +1153,61 @@ const KanbanBoard = () => {
       </Modal>
 
       <Modal
+        isOpen={completeConfirmOpen}
+        toggle={() => {
+          setCompleteConfirmOpen(false);
+          setCompleteConfirmPending(null);
+        }}
+        centered
+      >
+        <ModalHeader
+          toggle={() => {
+            setCompleteConfirmOpen(false);
+            setCompleteConfirmPending(null);
+          }}
+        >
+          Move to Complete?
+        </ModalHeader>
+        <ModalBody>
+          <p className="small text-muted mb-0">
+            This task still has unchecked checklist items. You can finish them
+            later, or move to Complete anyway.
+          </p>
+        </ModalBody>
+        <ModalFooter className="border-0 pt-0">
+          <Button
+            color="secondary"
+            outline
+            type="button"
+            onClick={() => {
+              setCompleteConfirmOpen(false);
+              setCompleteConfirmPending(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            color="primary"
+            type="button"
+            onClick={() => {
+              const p = completeConfirmPending;
+              setCompleteConfirmOpen(false);
+              setCompleteConfirmPending(null);
+              if (p) void performMoveToColumn(p.cardId, "complete");
+            }}
+          >
+            Move anyway
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal
         isOpen={checklistOpen}
         toggle={() => setChecklistOpen(false)}
         centered
       >
         <ModalHeader toggle={() => setChecklistOpen(false)}>
-          Checklist{checklistCard ? ` — ${checklistCard.title}` : ""}
+          Subtasks checklist{checklistCard ? ` — ${checklistCard.title}` : ""}
         </ModalHeader>
         <ModalBody>
           {checklistLoading ? (
@@ -1105,7 +1215,10 @@ const KanbanBoard = () => {
           ) : null}
 
           {todos.length === 0 && !checklistLoading ? (
-            <p className="small text-muted mb-3">No items yet. Add your first todo.</p>
+            <p className="small text-muted mb-3">
+              No items yet. Add subtasks below; they define checklist progress on
+              the card.
+            </p>
           ) : (
             <div className="mb-3">
               {todos.filter((t): t is StackTaskTodo => t != null).map(t => (
@@ -1140,7 +1253,7 @@ const KanbanBoard = () => {
           <Form onSubmit={handleAddTodo}>
             <Input
               className="mb-2"
-              placeholder="Add a todo item…"
+              placeholder="Add a checklist item…"
               value={newTodoText}
               onChange={e => setNewTodoText(e.target.value)}
               disabled={!checklistCard}

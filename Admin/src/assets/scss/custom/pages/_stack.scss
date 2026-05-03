@@ -1012,6 +1012,23 @@ $tm-font: "Plus Jakarta Sans", "Poppins", sans-serif;
       border-radius: inherit;
     }
   }
+
+  &.tm-progress--empty {
+    gap: 4px;
+
+    .tm-progress__label {
+      color: rgba($tm-white, 0.42);
+      font-weight: 400;
+    }
+
+    .tm-progress__hint {
+      font-size: 11px;
+      font-weight: 400;
+      color: rgba($tm-white, 0.38);
+      line-height: 1.35;
+      margin: 0;
+    }
+  }
 }
 
 // ── Work graph (project ↔ Git) ────────────────────────────

@@ -56,7 +56,7 @@ mysqli_stmt_close($maxStmt);
 
 $badgesJson = json_encode([]);
 $progressDone = 0;
-$progressTotal = 4;
+$progressTotal = 0;
 $files = 0;
 $comments = 0;
 
@@ -119,7 +119,7 @@ json_ok([
         'column_key'  => (string) ($taskRow['column_key'] ?? $columnKey),
         'progress'    => [
             'done'  => (int) ($taskRow['progress_done'] ?? $progressDone),
-            'total' => max(1, (int) ($taskRow['progress_total'] ?? $progressTotal)),
+            'total' => (int) ($taskRow['progress_total'] ?? $progressTotal),
         ],
         'files'       => (int) ($taskRow['files_count'] ?? $files),
         'comments'    => (int) ($taskRow['comments_count'] ?? $comments),
