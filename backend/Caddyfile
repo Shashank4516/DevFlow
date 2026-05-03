@@ -8,9 +8,6 @@
 :{$PORT:8080} {
 	root * /app
 	encode zstd gzip
-	# Railway sets env on the container; FrankenPHP needs explicit pass-through for PHP to see it.
-	php_server {
-		env GITHUB_WEBHOOK_SECRET "{$GITHUB_WEBHOOK_SECRET}"
-	}
+	php_server
 	file_server
 }
