@@ -2,8 +2,8 @@
 /**
  * GitHub Webhook receiver for Stack automation.
  *
- * Verifies GitHub signature (X-Hub-Signature-256) using env var:
- *   GITHUB_WEBHOOK_SECRET
+ * Verifies GitHub signature (X-Hub-Signature-256) using:
+ *   GITHUB_WEBHOOK_SECRET (Railway/FrankenPHP may expose via $_SERVER, not getenv())
  *
  * Automation (forward-only):
  * - push that references DF-<taskId> -> move task to inprogress
@@ -20,6 +20,23 @@
  */
 declare(strict_types=1);
 
+/** @return string non-empty secret or '' if unset */
+function github_webhook_resolve_secret(): string
+{
+    $key = 'GITHUB_WEBHOOK_SECRET';
+    $g = getenv($key);
+    if (is_string($g) && $g !== '') {
+        return $g;
+    }
+    if (isset($_SERVER[$key]) && is_string($_SERVER[$key]) && $_SERVER[$key] !== '') {
+        return $_SERVER[$key];
+    }
+    if (isset($_ENV[$key]) && is_string($_ENV[$key]) && $_ENV[$key] !== '') {
+        return $_ENV[$key];
+    }
+    return '';
+}
+
 header('Content-Type: application/json');
 
 if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
@@ -28,7 +45,7 @@ if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     exit;
 }
 
-$secret = getenv('GITHUB_WEBHOOK_SECRET') ?: '';
+$secret = github_webhook_resolve_secret();
 if ($secret === '') {
     http_response_code(500);
     echo json_encode(['error' => 'webhook_not_configured']);
