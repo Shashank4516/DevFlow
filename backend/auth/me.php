@@ -30,6 +30,7 @@ if (empty($_SESSION['logged_in']) || empty($_SESSION['auth_user'])) {
 $user = $_SESSION['auth_user'];
 $dbProfileImage = null;
 $dbCoverImage = null;
+$dbProfileTag = null;
 
 // If we have a DB user id, hydrate latest images from DB so changes reflect across devices.
 if (!empty($_SESSION['user_id'])) {
@@ -45,9 +46,16 @@ if (!empty($_SESSION['user_id'])) {
             mysqli_free_result($colsRes);
         }
 
-        $sql = $hasCover
-            ? "SELECT profile_image, cover_image FROM users WHERE id = ? LIMIT 1"
-            : "SELECT profile_image, NULL AS cover_image FROM users WHERE id = ? LIMIT 1";
+        $hasProfileTag = false;
+        $tagRes = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'profile_tag'");
+        if ($tagRes) {
+            $hasProfileTag = mysqli_num_rows($tagRes) > 0;
+            mysqli_free_result($tagRes);
+        }
+
+        $coverSel = $hasCover ? 'cover_image' : 'NULL AS cover_image';
+        $tagSel = $hasProfileTag ? 'profile_tag' : 'NULL AS profile_tag';
+        $sql = "SELECT profile_image, {$coverSel}, {$tagSel} FROM users WHERE id = ? LIMIT 1";
         $stmt = mysqli_prepare($conn, $sql);
         if ($stmt) {
             mysqli_stmt_bind_param($stmt, 'i', $meId);
@@ -57,8 +65,30 @@ if (!empty($_SESSION['user_id'])) {
                 $row = mysqli_fetch_assoc($res);
                 $dbProfileImage = $row['profile_image'] ?? null;
                 $dbCoverImage = $row['cover_image'] ?? null;
+                $dbProfileTag = $row['profile_tag'] ?? null;
             }
             mysqli_stmt_close($stmt);
+        }
+
+        if ($hasProfileTag && ($dbProfileTag === null || $dbProfileTag === '')) {
+            require_once dirname(__DIR__) . '/profile_tag.php';
+            $nm = is_array($_SESSION['basic_details'] ?? null)
+                ? (string) ($_SESSION['basic_details']['fullName'] ?? '')
+                : (string) ($user['displayName'] ?? '');
+            if ($nm === '') {
+                $nm = (string) (($user['firstName'] ?? '') . ' ' . ($user['lastName'] ?? ''));
+            }
+            devflow_ensure_user_profile_tag($conn, $meId, trim($nm) !== '' ? trim($nm) : 'user');
+            $stmt2 = mysqli_prepare($conn, 'SELECT profile_tag FROM users WHERE id = ? LIMIT 1');
+            if ($stmt2) {
+                mysqli_stmt_bind_param($stmt2, 'i', $meId);
+                mysqli_stmt_execute($stmt2);
+                $r2 = mysqli_stmt_get_result($stmt2);
+                if ($r2 && ($row2 = mysqli_fetch_assoc($r2))) {
+                    $dbProfileTag = $row2['profile_tag'] ?? null;
+                }
+                mysqli_stmt_close($stmt2);
+            }
         }
     }
 }
@@ -77,6 +107,9 @@ $basicDetails = isset($_SESSION['basic_details']) ? $_SESSION['basic_details'] :
 if (is_array($basicDetails)) {
     if ($dbProfileImage) $basicDetails['profile'] = $dbProfileImage;
     if ($dbCoverImage) $basicDetails['coverImage'] = $dbCoverImage;
+    if ($dbProfileTag !== null && $dbProfileTag !== '') {
+        $basicDetails['profileTag'] = $dbProfileTag;
+    }
 }
 
 $payload = [

@@ -121,8 +121,12 @@ const MyProfile = ({ basicDetails }: MyProfileProps) => {
         </div>
 
         <h5 className="font-size-16 mb-1 text-truncate">{fullName}</h5>
-        <p className="text-muted font-size-14 text-truncate mb-0">
-          {basicDetails && basicDetails.title ? basicDetails.title : "-"}
+        <p className="text-muted font-size-14 text-truncate mb-0 font-monospace">
+          {basicDetails?.profileTag
+            ? basicDetails.profileTag
+            : basicDetails && basicDetails.title
+              ? basicDetails.title
+              : "-"}
         </p>
       </div>
     </>

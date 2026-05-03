@@ -108,6 +108,9 @@ const UserProfile = ({ basicDetails, status, onChangeData }: UserProfileProps) =
       </div>
 
       <h5 className="font-size-16 mb-1 text-truncate">{fullName}</h5>
+      {basicDetails?.profileTag ? (
+        <p className="text-muted font-size-13 mb-2 font-monospace">{basicDetails.profileTag}</p>
+      ) : null}
 
       <Dropdown
         className="d-inline-block"

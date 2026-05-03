@@ -157,6 +157,11 @@ if ($stmt) {
     mysqli_stmt_close($stmt);
 }
 
+if ($dbUserId > 0) {
+    require_once dirname(__DIR__, 2) . '/profile_tag.php';
+    devflow_ensure_user_profile_tag($conn, $dbUserId, $githubName !== '' ? $githubName : $githubUsername);
+}
+
 $user = [
     'id'           => $dbUserId,
     'uid'          => 'github-' . $ghUser['id'],

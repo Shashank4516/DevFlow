@@ -23,6 +23,7 @@ export interface SearchProfile {
   id: number;
   name: string;
   profile_image: string;
+  profile_tag?: string | null;
 }
 
 type ApiError = "auth" | "server" | "network" | null;
@@ -217,7 +218,7 @@ const ProfileSearch = () => {
         <Input
           type="text"
           className="form-control bg-light border-0"
-          placeholder="Search profiles..."
+          placeholder="Search by name, email, or tag…"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           onFocus={() => query.length >= 2 && setDropdownOpen(true)}
@@ -284,7 +285,14 @@ const ProfileSearch = () => {
                       height={36}
                       style={{ objectFit: "cover" }}
                     />
-                    <span className="text-truncate">{profile.name || "Unknown"}</span>
+                    <span className="d-flex flex-column text-start min-w-0">
+                      <span className="text-truncate">{profile.name || "Unknown"}</span>
+                      {profile.profile_tag ? (
+                        <span className="text-muted font-monospace small text-truncate">
+                          {profile.profile_tag}
+                        </span>
+                      ) : null}
+                    </span>
                   </button>
 
                   {relation === "accepted" ? (
@@ -329,7 +337,7 @@ const ProfileSearch = () => {
           className="dropdown-menu show w-100 position-absolute start-0 mt-1 shadow-sm"
         >
           <div className="px-3 py-3 text-muted text-center">
-            No profiles found. The database was searched; no name or email matches &quot;{query}&quot;.
+            No profiles found. No name, email, or profile tag matches &quot;{query}&quot;.
           </div>
         </div>
       )}

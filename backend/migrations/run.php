@@ -56,8 +56,10 @@ $steps[] = run_step($conn, 'Create users table', "
         `last_seen_at`     TIMESTAMP    NULL DEFAULT NULL,
         `auth_provider`    VARCHAR(32)  NOT NULL DEFAULT 'google',
         `auth_provider_id` VARCHAR(255) NOT NULL DEFAULT '',
+        `profile_tag`      VARCHAR(40)  NULL DEFAULT NULL,
         `created_at`       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
-        KEY `idx_auth_provider` (`auth_provider`, `auth_provider_id`)
+        KEY `idx_auth_provider` (`auth_provider`, `auth_provider_id`),
+        UNIQUE KEY `uniq_profile_tag` (`profile_tag`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 
@@ -75,6 +77,14 @@ if (table_exists($conn, 'users')) {
 
     // Widen profile_image so base64 data URLs fit (no-op if already LONGTEXT)
     $steps[] = run_step($conn, 'Widen users.profile_image to LONGTEXT', "ALTER TABLE `users` MODIFY COLUMN `profile_image` LONGTEXT NULL");
+
+    if (!column_exists($conn, 'users', 'profile_tag')) {
+        $steps[] = run_step($conn, 'Add users.profile_tag (Discord-style unique id)', "
+            ALTER TABLE `users`
+            ADD COLUMN `profile_tag` VARCHAR(40) NULL DEFAULT NULL,
+            ADD UNIQUE KEY `uniq_profile_tag` (`profile_tag`)
+        ");
+    }
 }
 
 
@@ -222,6 +232,20 @@ $steps[] = run_step($conn, 'Create project_repos table', "
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci
 ");
 
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Backfill profile_tag for existing users (Discord-style)
+// ─────────────────────────────────────────────────────────────────────────────
+if (table_exists($conn, 'users') && column_exists($conn, 'users', 'profile_tag')) {
+    require_once dirname(__DIR__) . '/profile_tag.php';
+    $bf = @mysqli_query($conn, "SELECT id, name FROM users WHERE profile_tag IS NULL OR profile_tag = ''");
+    if ($bf) {
+        while ($row = mysqli_fetch_assoc($bf)) {
+            devflow_ensure_user_profile_tag($conn, (int) ($row['id'] ?? 0), (string) ($row['name'] ?? 'user'));
+        }
+        mysqli_free_result($bf);
+    }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Done

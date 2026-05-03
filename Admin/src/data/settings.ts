@@ -9,6 +9,8 @@ export interface BasicDetailsTypes {
   coverImage: string;
   email: string;
   location: string;
+  /** Discord-style unique id from backend (e.g. shashank#0412) */
+  profileTag?: string;
 }
 
 export interface ThemeTypes {

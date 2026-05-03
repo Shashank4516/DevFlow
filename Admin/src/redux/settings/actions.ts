@@ -34,6 +34,7 @@ export const setSettingsFromAuthUser = (basicDetails: {
   profile?: string;
   email?: string;
   location?: string;
+  profileTag?: string;
 }) => ({
   type: SettingsActionTypes.SET_BASIC_DETAILS_FROM_AUTH,
   payload: basicDetails,
