@@ -48,18 +48,25 @@ const Index = (props: IndexProps) => {
 
   const errorData = createSelector(
     (state: any) => state.Profile,
-    (state) => ({
-      profileDetails: state.profileDetails,
-      getProfileLoading: state.getProfileLoading,
-      isProfileFetched: state.isProfileFetched,
+    (state: any) => state.Settings,
+    (profile, settings) => ({
+      profileDetails: profile.profileDetails,
+      getProfileLoading: profile.getProfileLoading,
+      isProfileFetched: profile.isProfileFetched,
+      /** From /auth/me.php — mock GET_PROFILE_DETAILS does not include this */
+      profileTagFromSession: settings?.settings?.basicDetails?.profileTag as string | undefined,
     })
   );
-  const { profileDetails, getProfileLoading, isProfileFetched } = useAppSelector(errorData);
+  const { profileDetails, getProfileLoading, isProfileFetched, profileTagFromSession } =
+    useAppSelector(errorData);
 
-  const basicDetails = useMemo(
-    () => getBasicDetailsWithSaved(profileDetails?.basicDetails),
-    [profileDetails?.basicDetails]
-  );
+  const basicDetails = useMemo(() => {
+    const merged = getBasicDetailsWithSaved(profileDetails?.basicDetails);
+    if (profileTagFromSession) {
+      return { ...merged, profileTag: profileTagFromSession };
+    }
+    return merged;
+  }, [profileDetails?.basicDetails, profileTagFromSession]);
 
   useEffect(() => {
     dispatch(getProfileDetails());
