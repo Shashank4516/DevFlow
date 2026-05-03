@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { useRedux } from "../../../hooks/index";
 import { createSelector } from "reselect";
@@ -18,7 +18,11 @@ import Conversation from "./Conversation";
 import ChatInputSection from "./ChatInputSection/index";
 
 import { MessagesTypes } from "../../../data/messages";
-import { useState } from "react";
+import {
+  isChatPeerMuted,
+  toggleMuteChatPeer,
+} from "../../../helpers/chatMute";
+import { showSuccessNotification } from "../../../helpers/notifications";
 import {
   getChatUserConversations as getChatUserConversationsApi,
   sendMessage as sendMessageApi,
@@ -59,6 +63,7 @@ const Index = ({ isChannel }: IndexProps) => {
 
   const pollRef = useRef<number | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [peerMutedNotify, setPeerMutedNotify] = useState(false);
 
   // IMPORTANT: use stable MySQL numeric ids for Firestore conversation ids.
   // Firebase auth uid can differ per login method and will cause each side
@@ -201,6 +206,10 @@ const Index = ({ isChannel }: IndexProps) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, myUid, peerIdStr, isChannel]);
 
+  useEffect(() => {
+    setPeerMutedNotify(isChatPeerMuted(peerIdStr));
+  }, [peerIdStr]);
+
   const onDeleteMessage = (messageId: string | number) => {
     dispatch(deleteMessage(chatUserDetails.id, messageId));
   };
@@ -260,11 +269,31 @@ const Index = ({ isChannel }: IndexProps) => {
   };
 
   const onDeleteUserMessages = () => {
+    if (chatUserDetails?.id == null) return;
+    // eslint-disable-next-line no-alert
+    if (
+      !window.confirm(
+        "Delete all messages in this chat from your device? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
     dispatch(deleteUserMessages(chatUserDetails.id));
   };
 
   const onToggleArchive = () => {
     dispatch(toggleArchiveContact(chatUserDetails.id));
+  };
+
+  const onToggleMute = () => {
+    if (!peerIdStr) return;
+    const next = toggleMuteChatPeer(peerIdStr);
+    setPeerMutedNotify(next);
+    showSuccessNotification(
+      next
+        ? "Notifications muted for this chat"
+        : "Notifications unmuted for this chat",
+    );
   };
 
   const onAddBookmarkFromMessage = (message: MessagesTypes) => {
@@ -297,6 +326,8 @@ const Index = ({ isChannel }: IndexProps) => {
         onDelete={onDeleteUserMessages}
         isChannel={isChannel}
         onToggleArchive={onToggleArchive}
+        isMuted={peerMutedNotify}
+        onToggleMute={onToggleMute}
       />
       <Conversation
         chatUserConversations={chatUserConversations}

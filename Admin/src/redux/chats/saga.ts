@@ -37,6 +37,7 @@ import {
   getDirectMessages as getDirectMessagesAction,
   getFavourites as getFavouritesAction,
   getChannels as getChannelsAction,
+  getArchiveContact as getArchiveContactAction,
 } from "./actions";
 
 function* getFavourites() {
@@ -199,13 +200,25 @@ function* forwardMessage({ payload: data }: any) {
   }
 }
 
-function* deleteUserMessages({ payload: userId }: any) {
+function* deleteUserMessages({
+  payload: userId,
+}: any): Generator<any, void, any> {
   try {
-    const response: Promise<any> = yield call(deleteUserMessagesApi, userId);
+    const response: any = yield call(deleteUserMessagesApi, userId);
+    const msg =
+      typeof response === "string"
+        ? response
+        : response?.message != null
+          ? String(response.message)
+          : "Messages deleted";
     yield put(
-      chatsApiResponseSuccess(ChatsActionTypes.DELETE_USER_MESSAGES, response)
+      chatsApiResponseSuccess(ChatsActionTypes.DELETE_USER_MESSAGES, {
+        userId,
+        message: msg,
+      })
     );
-    yield call(showSuccessNotification, response + "");
+    yield put(getDirectMessagesAction());
+    yield call(showSuccessNotification, msg);
   } catch (error: any) {
     yield call(showErrorNotification, error + "");
     yield put(
@@ -264,13 +277,25 @@ function* getArchiveContact() {
   }
 }
 
-function* toggleArchiveContact({ payload: id }: any) {
+function* toggleArchiveContact({ payload: id }: any): Generator<any, void, any> {
   try {
-    const response: Promise<any> = yield call(toggleArchiveContactApi, id);
+    const response: any = yield call(toggleArchiveContactApi, id);
+    const msg =
+      typeof response === "string"
+        ? response
+        : response?.message != null
+          ? String(response.message)
+          : "Archive updated";
     yield put(
-      chatsApiResponseSuccess(ChatsActionTypes.TOGGLE_ARCHIVE_CONTACT, response)
+      chatsApiResponseSuccess(ChatsActionTypes.TOGGLE_ARCHIVE_CONTACT, {
+        userId: id,
+        message: msg,
+      })
     );
-    yield call(showSuccessNotification, response + "");
+    yield put(getDirectMessagesAction());
+    yield put(getArchiveContactAction());
+    yield put(getChannelsAction());
+    yield call(showSuccessNotification, msg);
   } catch (error: any) {
     yield call(showErrorNotification, error + "");
     yield put(

@@ -96,11 +96,29 @@ const Chats = (state = INIT_STATE, action: any) => {
             ...state,
             isMessageForwarded: true,
           };
-        case ChatsActionTypes.DELETE_USER_MESSAGES:
+        case ChatsActionTypes.DELETE_USER_MESSAGES: {
+          const uid = action.payload?.data?.userId;
+          const cid = state.chatUserDetails && (state.chatUserDetails as any).id;
+          const clearConversation =
+            uid != null &&
+            cid != null &&
+            String(cid) === String(uid);
           return {
             ...state,
             isUserMessagesDeleted: true,
+            ...(clearConversation
+              ? {
+                  chatUserConversations: {
+                    ...(typeof state.chatUserConversations === "object" &&
+                    state.chatUserConversations !== null
+                      ? state.chatUserConversations
+                      : {}),
+                    messages: [],
+                  },
+                }
+              : {}),
           };
+        }
         case ChatsActionTypes.GET_CHANNEL_DETAILS:
           return {
             ...state,
@@ -120,11 +138,24 @@ const Chats = (state = INIT_STATE, action: any) => {
             isArchiveContactFetched: true,
             isContactArchiveToggled: false,
           };
-        case ChatsActionTypes.TOGGLE_ARCHIVE_CONTACT:
+        case ChatsActionTypes.TOGGLE_ARCHIVE_CONTACT: {
+          const toggleId = action.payload?.data?.userId;
+          const details = state.chatUserDetails as { id?: string | number; isArchived?: boolean };
+          const idsMatch =
+            toggleId != null &&
+            details?.id != null &&
+            String(details.id) === String(toggleId);
           return {
             ...state,
             isContactArchiveToggled: true,
+            chatUserDetails: idsMatch
+              ? {
+                  ...(state.chatUserDetails as object),
+                  isArchived: !(details?.isArchived === true),
+                }
+              : state.chatUserDetails,
           };
+        }
         case ChatsActionTypes.DELETE_IMAGE:
           return {
             ...state,

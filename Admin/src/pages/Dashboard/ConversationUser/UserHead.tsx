@@ -190,6 +190,8 @@ interface MoreProps {
   onDelete: () => void;
   isArchive: boolean;
   onToggleArchive: () => void;
+  isMuted: boolean;
+  onToggleMute: () => void;
 }
 const More = ({
   onOpenAudio,
@@ -197,9 +199,12 @@ const More = ({
   onDelete,
   isArchive,
   onToggleArchive,
+  isMuted,
+  onToggleMute,
 }: MoreProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const toggle = () => setDropdownOpen(!dropdownOpen);
+  const closeMenu = () => setDropdownOpen(false);
 
   return (
     <Dropdown isOpen={dropdownOpen} toggle={toggle}>
@@ -230,11 +235,14 @@ const More = ({
         <DropdownItem
           className="d-flex justify-content-between align-items-center"
           to="#"
-          onClick={onToggleArchive}
+          onClick={() => {
+            onToggleArchive();
+            closeMenu();
+          }}
         >
           {isArchive ? (
             <>
-              Un-Archive <i className="bx bx-archive-out text-muted"></i>
+              Unarchive <i className="bx bx-archive-out text-muted"></i>
             </>
           ) : (
             <>
@@ -245,13 +253,28 @@ const More = ({
         <DropdownItem
           className="d-flex justify-content-between align-items-center"
           to="#"
+          onClick={() => {
+            onToggleMute();
+            closeMenu();
+          }}
         >
-          Muted <i className="bx bx-microphone-off text-muted"></i>
+          {isMuted ? (
+            <>
+              Unmute <i className="bx bx-microphone text-muted"></i>
+            </>
+          ) : (
+            <>
+              Mute <i className="bx bx-microphone-off text-muted"></i>
+            </>
+          )}
         </DropdownItem>
         <DropdownItem
           className="d-flex justify-content-between align-items-center"
           to="#"
-          onClick={onDelete}
+          onClick={() => {
+            onDelete();
+            closeMenu();
+          }}
         >
           Delete <i className="bx bx-trash text-muted"></i>
         </DropdownItem>
@@ -269,6 +292,8 @@ interface UserHeadProps {
   onDelete: () => void;
   isChannel: boolean;
   onToggleArchive: () => void;
+  isMuted: boolean;
+  onToggleMute: () => void;
 }
 const UserHead = ({
   chatUserDetails,
@@ -279,6 +304,8 @@ const UserHead = ({
   onDelete,
   isChannel,
   onToggleArchive,
+  isMuted,
+  onToggleMute,
 }: UserHeadProps) => {
   // global store
   const { dispatch } = useRedux();
@@ -417,6 +444,8 @@ const UserHead = ({
                 onDelete={onDelete}
                 isArchive={chatUserDetails.isArchived}
                 onToggleArchive={onToggleArchive}
+                isMuted={isMuted}
+                onToggleMute={onToggleMute}
               />
             </li>
           </ul>
