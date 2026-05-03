@@ -864,6 +864,22 @@
     width: min(360px, 42vw);
     flex-shrink: 0;
     background-color: var(--#{$prefix}secondary-bg);
+
+    // Branch / compare selects: keep a visible edge off the rail (especially dark mode).
+    .form-select {
+        border: 1px solid var(--#{$prefix}border-color);
+        background-color: var(--#{$prefix}body-bg);
+        color: var(--#{$prefix}body-color);
+    }
+}
+
+body[data-bs-theme="dark"] .github-main-workspace .github-ws-rail .form-select,
+body[data-bs-theme="dark"] .github-main-workspace .github-ws-rail .github-ws-summary.border {
+    border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+body[data-bs-theme="dark"] .github-main-workspace .github-ws-rail .form-select {
+    background-color: rgba(var(--#{$prefix}body-bg-rgb), 0.55);
 }
 
 .github-ws-list-item:hover {
