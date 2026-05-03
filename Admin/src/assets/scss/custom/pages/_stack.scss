@@ -1156,18 +1156,15 @@ $tm-font: "Plus Jakarta Sans", "Poppins", sans-serif;
 
 .tm-workgraph__track {
   display: flex;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: 12px;
-  overflow-x: auto;
   padding-bottom: 4px;
-  scrollbar-width: thin;
-  scrollbar-color: $tm-border transparent;
 }
 
 .tm-wg-card {
-  flex: 0 0 min(100%, 300px);
-  min-width: 240px;
-  max-width: 320px;
+  flex: 1 1 420px;
+  min-width: 320px;
+  max-width: 100%;
   background: $tm-input-bg;
   border: 1px solid $tm-border;
   border-radius: 10px;
