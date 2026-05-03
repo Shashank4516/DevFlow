@@ -2,6 +2,9 @@
 /**
  * Shared PHP session initialization.
  *
+ * Sessions are stored in MySQL (php_sessions table) so they survive
+ * Railway container restarts and redeploys — users stay logged in after pushes.
+ *
  * Railway often runs frontend + backend on different domains. For `fetch(..., { credentials: "include" })`
  * to send the session cookie back to PHP, the cookie must allow cross-site usage:
  * - SameSite=None
@@ -31,5 +34,10 @@ if (!isset($GLOBALS['DEVFLOW_SESSION_INIT_DONE'])) {
         'httponly' => true,
         'samesite' => $sameSite,
     ]);
+
+    // Register DB-backed session handler so sessions survive container restarts.
+    require_once __DIR__ . '/db.php';
+    require_once __DIR__ . '/db_session_handler.php';
+    db_session_register($conn);
 }
 
