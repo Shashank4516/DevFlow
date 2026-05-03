@@ -31,6 +31,15 @@ mysqli_query($conn, "CREATE TABLE IF NOT EXISTS friend_requests (
     KEY idx_requester_status (requester_id, status)
 )");
 
+mysqli_query($conn, "CREATE TABLE IF NOT EXISTS friend_dm_archived (
+    user_id INT NOT NULL,
+    peer_id INT NOT NULL,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (user_id, peer_id),
+    KEY idx_user (user_id),
+    KEY idx_peer (peer_id)
+)");
+
 // Ensure presence column exists
 $colRes = mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'last_seen_at'");
 $hasLastSeen = $colRes && mysqli_num_rows($colRes) > 0;
@@ -57,9 +66,14 @@ $stmt = mysqli_prepare($conn, "
     JOIN users u ON u.id = CASE WHEN fr.requester_id = ? THEN fr.addressee_id ELSE fr.requester_id END
     WHERE (fr.requester_id = ? OR fr.addressee_id = ?)
       AND fr.status = 'accepted'
+      AND NOT EXISTS (
+        SELECT 1 FROM friend_dm_archived fa
+        WHERE fa.user_id = ?
+          AND fa.peer_id = CASE WHEN fr.requester_id = ? THEN fr.addressee_id ELSE fr.requester_id END
+      )
     ORDER BY u.name
 ");
-mysqli_stmt_bind_param($stmt, 'iiiiii', $me, $me, $me, $me, $me, $me);
+mysqli_stmt_bind_param($stmt, 'iiiiiiii', $me, $me, $me, $me, $me, $me, $me, $me);
 mysqli_stmt_execute($stmt);
 $res = mysqli_stmt_get_result($stmt);
 

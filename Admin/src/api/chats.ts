@@ -81,8 +81,8 @@ const forwardMessage = (data: object) => {
 };
 
 const deleteUserMessages = (userId: number | string) => {
-  return api.delete(url.DELETE_USER_MESSAGES + "/" + userId, {
-    params: { userId },
+  return api.create(url.DELETE_USER_MESSAGES, {
+    with_user_id: Number(userId),
   });
 };
 
@@ -132,7 +132,9 @@ const getArchiveContact = () => {
 };
 
 const toggleArchiveContact = (id: string | number) => {
-  return api.update(url.TOGGLE_ARCHIVE_CONTACT + "/" + id, { params: { id } });
+  return api.create(url.TOGGLE_ARCHIVE_CONTACT, {
+    target_user_id: Number(id),
+  });
 };
 
 const readConversation = (id: string | number) => {

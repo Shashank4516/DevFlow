@@ -141,19 +141,27 @@ const Chats = (state = INIT_STATE, action: any) => {
         case ChatsActionTypes.TOGGLE_ARCHIVE_CONTACT: {
           const toggleId = action.payload?.data?.userId;
           const details = state.chatUserDetails as { id?: string | number; isArchived?: boolean };
+          const fromApi = action.payload?.data?.isArchived;
           const idsMatch =
             toggleId != null &&
             details?.id != null &&
             String(details.id) === String(toggleId);
+          const nextArchived =
+            idsMatch && typeof fromApi === "boolean"
+              ? fromApi
+              : idsMatch
+                ? !(details?.isArchived === true)
+                : undefined;
           return {
             ...state,
             isContactArchiveToggled: true,
-            chatUserDetails: idsMatch
-              ? {
-                  ...(state.chatUserDetails as object),
-                  isArchived: !(details?.isArchived === true),
-                }
-              : state.chatUserDetails,
+            chatUserDetails:
+              idsMatch && typeof nextArchived === "boolean"
+                ? {
+                    ...(state.chatUserDetails as object),
+                    isArchived: nextArchived,
+                  }
+                : state.chatUserDetails,
           };
         }
         case ChatsActionTypes.DELETE_IMAGE:

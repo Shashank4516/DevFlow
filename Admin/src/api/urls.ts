@@ -41,10 +41,10 @@ export const READ_MESSAGE = "/read-message";
 export const RECEIVE_MESSAGE_FROM_USER = "/receive-message-from-user";
 export const DELETE_MESSAGE = "/delete-message";
 export const FORWARD_MESSAGE = "/forward-message";
-export const DELETE_USER_MESSAGES = "/delete-user-messages";
+export const DELETE_USER_MESSAGES = "/api/messages/clear_dm.php";
 export const TOGGLE_FAVOURITE_CONTACT = "/api/friends/favorite_toggle.php";
-export const GET_ARCHIVE_CONTACT = "/get-archive-contacts";
-export const TOGGLE_ARCHIVE_CONTACT = "/toggle-archive-contact";
+export const GET_ARCHIVE_CONTACT = "/api/friends/archived_list.php";
+export const TOGGLE_ARCHIVE_CONTACT = "/api/friends/archive_toggle.php";
 export const READ_CONVERSATION = "/read-conversation";
 export const DELETE_IMAGE = "/user-delete-img";
 

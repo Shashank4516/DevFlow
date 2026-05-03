@@ -290,6 +290,10 @@ function* toggleArchiveContact({ payload: id }: any): Generator<any, void, any> 
       chatsApiResponseSuccess(ChatsActionTypes.TOGGLE_ARCHIVE_CONTACT, {
         userId: id,
         message: msg,
+        isArchived:
+          typeof response?.isArchived === "boolean"
+            ? response.isArchived
+            : undefined,
       })
     );
     yield put(getDirectMessagesAction());

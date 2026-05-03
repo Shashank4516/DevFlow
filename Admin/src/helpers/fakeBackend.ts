@@ -737,17 +737,26 @@ const fakeBackend = () => {
     });
   });
 
-  mock.onDelete(new RegExp(`${url.DELETE_USER_MESSAGES}/*`)).reply(config => {
-    const { params } = config;
+  mock.onPost(url.DELETE_USER_MESSAGES).reply(config => {
+    let parsed: any = {};
+    try {
+      parsed =
+        typeof config.data === "string"
+          ? JSON.parse(config.data || "{}")
+          : config.data || {};
+    } catch {
+      parsed = {};
+    }
+    const userId = parsed.with_user_id;
 
     return new Promise((resolve, reject) => {
-      if (params.userId) {
+      if (userId != null && userId !== "") {
         let modifiedC = [...conversations];
         modifiedC = (modifiedC || []).filter(
-          (c: any) => c.userId + "" !== params.userId + ""
+          (c: any) => c.userId + "" !== userId + ""
         );
         onChangeConversations(modifiedC);
-        resolve([200, "Messages are Deleted!"]);
+        resolve([200, { message: "Messages are Deleted!" }]);
       } else {
         reject(["Your id is not found"]);
       }
@@ -827,8 +836,17 @@ const fakeBackend = () => {
     });
   });
 
-  mock.onPut(new RegExp(`${url.TOGGLE_ARCHIVE_CONTACT}/*`)).reply(config => {
-    const data = JSON.parse(config["data"]);
+  mock.onPost(url.TOGGLE_ARCHIVE_CONTACT).reply(config => {
+    let data: any = {};
+    try {
+      data =
+        typeof config.data === "string"
+          ? JSON.parse(config.data || "{}")
+          : config.data || {};
+    } catch {
+      data = {};
+    }
+    const targetId = data.target_user_id;
 
     let message = "User has been added to your archives";
     let modifiedC = [...contacts];
@@ -836,27 +854,31 @@ const fakeBackend = () => {
     let modifiedD = [...directMessages];
     let modifiedChannels = [...userChannels];
     let modifiedChatChannels = [...channels];
-    if (data.params.id && contacts.length !== 0) {
+    if (
+      targetId != null &&
+      targetId !== "" &&
+      ((contacts?.length ?? 0) > 0 || (userChannels?.length ?? 0) > 0)
+    ) {
       const contactIdx = (modifiedC || []).findIndex(
-        (c: any) => c.id + "" === data.params.id + ""
+        (c: any) => c.id + "" === targetId + ""
       );
       const channelIdx = (modifiedChannels || []).findIndex(
-        (c: any) => c.id + "" === data.params.id + ""
+        (c: any) => c.id + "" === targetId + ""
       );
       if (contactIdx > -1) {
         if (contacts[contactIdx].isArchived) {
           contacts[contactIdx].isArchived = false;
-          modifiedA = modifiedA.filter((f: any) => f.id !== data.params.id);
+          modifiedA = modifiedA.filter((f: any) => f.id !== targetId);
           message = "User has been removed to your archives";
         } else {
           contacts[contactIdx].isArchived = true;
           modifiedA = [...modifiedA, contacts[contactIdx]];
-          modifiedD = modifiedD.filter((c: any) => c.id !== data.params.id);
+          modifiedD = modifiedD.filter((c: any) => c.id !== targetId);
         }
       } else if (channelIdx > -1) {
         if (userChannels[channelIdx].isArchived) {
           userChannels[channelIdx].isArchived = false;
-          modifiedA = modifiedA.filter((f: any) => f.id !== data.params.id);
+          modifiedA = modifiedA.filter((f: any) => f.id !== targetId);
           message = "User has been removed to your archives";
         } else {
           userChannels[channelIdx].isArchived = true;
@@ -865,10 +887,10 @@ const fakeBackend = () => {
             { ...userChannels[channelIdx], isChannel: true },
           ];
           modifiedChannels = modifiedChannels.filter(
-            (c: any) => c.id !== data.params.id
+            (c: any) => c.id !== targetId
           );
           modifiedChatChannels = modifiedChatChannels.filter(
-            (c: any) => c.id !== data.params.id
+            (c: any) => c.id !== targetId
           );
         }
       }
@@ -880,9 +902,28 @@ const fakeBackend = () => {
     onChangeChannels(modifiedChatChannels);
 
     return new Promise((resolve, reject) => {
-      if (data.params.id) {
+      if (targetId != null && targetId !== "") {
+        const contactIdx = (contacts || []).findIndex(
+          (c: any) => c.id + "" === targetId + ""
+        );
+        const channelIx = (userChannels || []).findIndex(
+          (c: any) => c.id + "" === targetId + ""
+        );
+        const isArchived =
+          contactIdx > -1
+            ? !!contacts[contactIdx].isArchived
+            : channelIx > -1
+              ? !!userChannels[channelIx].isArchived
+              : false;
         setTimeout(() => {
-          resolve([200, message]);
+          resolve([
+            200,
+            {
+              message,
+              isArchived,
+              friend_id: targetId,
+            },
+          ]);
         });
       } else {
         reject(["Internal Error!"]);
