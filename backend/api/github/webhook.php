@@ -20,19 +20,19 @@
  */
 declare(strict_types=1);
 
-/** @return string non-empty secret or '' if unset */
+/** @return string non-empty secret or '' if unset (trim avoids newline pasted in Railway/GitHub UI) */
 function github_webhook_resolve_secret(): string
 {
     $key = 'GITHUB_WEBHOOK_SECRET';
     $g = getenv($key);
-    if (is_string($g) && $g !== '') {
-        return $g;
+    if (is_string($g) && trim($g) !== '') {
+        return trim($g);
     }
-    if (isset($_SERVER[$key]) && is_string($_SERVER[$key]) && $_SERVER[$key] !== '') {
-        return $_SERVER[$key];
+    if (isset($_SERVER[$key]) && is_string($_SERVER[$key]) && trim($_SERVER[$key]) !== '') {
+        return trim($_SERVER[$key]);
     }
-    if (isset($_ENV[$key]) && is_string($_ENV[$key]) && $_ENV[$key] !== '') {
-        return $_ENV[$key];
+    if (isset($_ENV[$key]) && is_string($_ENV[$key]) && trim($_ENV[$key]) !== '') {
+        return trim($_ENV[$key]);
     }
     return '';
 }
