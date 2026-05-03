@@ -44,7 +44,7 @@ const Leftbar = (props: LeftbarProps) => {
         className={classnames("chat-leftsidebar", hideSidebar && "d-none")}
         aria-hidden={hideSidebar}
       >
-        <ProfileSearch />
+        {activeTab !== TABS.STACK && <ProfileSearch />}
         <TabContent activeTab={activeTab}>
           {/* Start Profile tab-pane */}
           <TabPane
