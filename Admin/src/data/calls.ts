@@ -21,6 +21,8 @@ export interface CallItem {
   hasVideoCall: boolean;
   peoplesAvailableOnCall: number;
   peoples?: Array<any>;
+  /** Remote party id (for callbacks / new call from Calls tab). */
+  peerUserId?: string;
 }
 const calls: CallItem[] = [
   {

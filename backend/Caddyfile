@@ -7,7 +7,8 @@
 # Railway sets PORT. Fallback 8080 for local `docker run`.
 :{$PORT:8080} {
 	root * /app
-	encode zstd gzip
+	@nowebhook not path /api/github/webhook.php
+	encode @nowebhook zstd gzip
 	php_server
 	file_server
 }

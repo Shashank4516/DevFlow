@@ -33,9 +33,9 @@
     --#{$prefix}header-item-sub-color: #{$text-muted};
     --#{$prefix}header-height: 70px;
 
-    //sidebar vertical light
-    --#{$prefix}sidebar-bg:                                         #2e2e2e;
-    --#{$prefix}sidebar-menu-item-color:                            #878a92;
+    //sidebar vertical light (narrow icon rail + inner panel)
+    --#{$prefix}sidebar-bg:                                         #ffffff;
+    --#{$prefix}sidebar-menu-item-color:                            #6c757d;
     --#{$prefix}sidebar-menu-item-active-color:                     #4eac6d;
     --#{$prefix}sidebar-menu-item-active-bg:                        #f7f7ff;
     --#{$prefix}sidebar-sub-bg:                                     #ffffff;

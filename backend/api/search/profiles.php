@@ -3,7 +3,7 @@
  * Search users by name (Instagram-style).
  * GET ?q=trader%20guy
  * Returns JSON array of { id, name, profile_image }.
- */
+ */ 
 require dirname(__DIR__, 2) . '/session_init.php';
 session_start();
 
@@ -52,10 +52,20 @@ if (strlen($q) < 2) {
 require_once dirname(__DIR__, 2) . '/db.php';
 
 $term = '%' . $q . '%';
+$hasTagCol = false;
+$tc = @mysqli_query($conn, "SHOW COLUMNS FROM users LIKE 'profile_tag'");
+if ($tc && mysqli_num_rows($tc) > 0) {
+    $hasTagCol = true;
+}
+if ($tc) {
+    mysqli_free_result($tc);
+}
+
+$tagSelect = $hasTagCol ? 'profile_tag' : "NULL AS profile_tag";
 $stmt = mysqli_prepare($conn, "
-    SELECT id, name, profile_image
+    SELECT id, name, profile_image, {$tagSelect}
     FROM users
-    WHERE name LIKE ? OR email LIKE ?
+    WHERE name LIKE ? OR email LIKE ?" . ($hasTagCol ? " OR profile_tag LIKE ?" : '') . "
     ORDER BY name
     LIMIT 20
 ");
@@ -64,7 +74,11 @@ if (!$stmt) {
     echo json_encode(['error' => 'database_error']);
     exit;
 }
-mysqli_stmt_bind_param($stmt, 'ss', $term, $term);
+if ($hasTagCol) {
+    mysqli_stmt_bind_param($stmt, 'sss', $term, $term, $term);
+} else {
+    mysqli_stmt_bind_param($stmt, 'ss', $term, $term);
+}
 mysqli_stmt_execute($stmt);
 $result = mysqli_stmt_get_result($stmt);
 
@@ -74,6 +88,7 @@ while ($row = mysqli_fetch_assoc($result)) {
         'id'             => (int) $row['id'],
         'name'           => $row['name'] ?? '',
         'profile_image'  => $row['profile_image'] ?? '',
+        'profile_tag'    => $row['profile_tag'] ?? null,
     ];
 }
 mysqli_stmt_close($stmt);

@@ -8,7 +8,6 @@ import {
   DropdownItem,
   Input,
   Button,
-  Alert,
   UncontrolledTooltip,
 } from "reactstrap";
 import { Link } from "react-router-dom";
@@ -20,10 +19,10 @@ import { useRedux } from "../../../hooks/index";
 // components
 import AudioCallModal from "../../../components/AudioCallModal";
 import VideoCallModal from "../../../components/VideoCallModal";
+import GroupVideoCallModal from "../../../components/GroupVideoCallModal";
 import AddPinnedTabModal from "../../../components/AddPinnedTabModal";
 
-// interface
-import { PinTypes } from "../../../data/chat";
+import { MessagesTypes } from "../../../data/messages";
 
 // actions
 import { changeSelectedChat } from "../../../redux/actions";
@@ -191,6 +190,8 @@ interface MoreProps {
   onDelete: () => void;
   isArchive: boolean;
   onToggleArchive: () => void;
+  isMuted: boolean;
+  onToggleMute: () => void;
 }
 const More = ({
   onOpenAudio,
@@ -198,9 +199,12 @@ const More = ({
   onDelete,
   isArchive,
   onToggleArchive,
+  isMuted,
+  onToggleMute,
 }: MoreProps) => {
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const toggle = () => setDropdownOpen(!dropdownOpen);
+  const closeMenu = () => setDropdownOpen(false);
 
   return (
     <Dropdown isOpen={dropdownOpen} toggle={toggle}>
@@ -231,11 +235,14 @@ const More = ({
         <DropdownItem
           className="d-flex justify-content-between align-items-center"
           to="#"
-          onClick={onToggleArchive}
+          onClick={() => {
+            onToggleArchive();
+            closeMenu();
+          }}
         >
           {isArchive ? (
             <>
-              Un-Archive <i className="bx bx-archive-out text-muted"></i>
+              Unarchive <i className="bx bx-archive-out text-muted"></i>
             </>
           ) : (
             <>
@@ -246,13 +253,28 @@ const More = ({
         <DropdownItem
           className="d-flex justify-content-between align-items-center"
           to="#"
+          onClick={() => {
+            onToggleMute();
+            closeMenu();
+          }}
         >
-          Muted <i className="bx bx-microphone-off text-muted"></i>
+          {isMuted ? (
+            <>
+              Unmute <i className="bx bx-microphone text-muted"></i>
+            </>
+          ) : (
+            <>
+              Mute <i className="bx bx-microphone-off text-muted"></i>
+            </>
+          )}
         </DropdownItem>
         <DropdownItem
           className="d-flex justify-content-between align-items-center"
           to="#"
-          onClick={onDelete}
+          onClick={() => {
+            onDelete();
+            closeMenu();
+          }}
         >
           Delete <i className="bx bx-trash text-muted"></i>
         </DropdownItem>
@@ -261,55 +283,29 @@ const More = ({
   );
 };
 
-interface PinnedAlertProps {
-  onOpenPinnedTab: () => void;
-}
-const PinnedAlert = ({ onOpenPinnedTab }: PinnedAlertProps) => {
-  const [visible, setVisible] = useState(true);
-
-  const onDismiss = () => setVisible(false);
-
-  return (
-    <Alert
-      color="warning"
-      isOpen={visible}
-      toggle={onDismiss}
-      className="topbar-bookmark p-1 px-3 px-lg-4 pe-lg-5 pe-5 alert-dismiss-custom"
-      role="alert"
-    >
-      <div className="d-flex align-items-start bookmark-tabs">
-        <div className="tab-list-link">
-          <Link to="#" className="tab-links" onClick={onOpenPinnedTab}>
-            <i className="ri-pushpin-fill align-middle me-1"></i> 10 Pinned
-          </Link>
-        </div>
-        <div id="add-bookmark">
-          <Link to="#" className="tab-links border-0 px-3">
-            <i className="ri-add-fill align-middle"></i>
-          </Link>
-        </div>
-        <UncontrolledTooltip target="add-bookmark" placement="bottom">
-          Add Bookmark
-        </UncontrolledTooltip>
-      </div>
-    </Alert>
-  );
-};
 interface UserHeadProps {
   chatUserDetails: any;
-  pinnedTabs: Array<PinTypes>;
+  currentUser: any;
+  pinnedMessages: MessagesTypes[];
+  onTogglePinMessage: (messageId: string | number) => void;
   onOpenUserDetails: () => void;
   onDelete: () => void;
   isChannel: boolean;
   onToggleArchive: () => void;
+  isMuted: boolean;
+  onToggleMute: () => void;
 }
 const UserHead = ({
   chatUserDetails,
-  pinnedTabs,
+  currentUser,
+  pinnedMessages,
+  onTogglePinMessage,
   onOpenUserDetails,
   onDelete,
   isChannel,
   onToggleArchive,
+  isMuted,
+  onToggleMute,
 }: UserHeadProps) => {
   // global store
   const { dispatch } = useRedux();
@@ -323,6 +319,10 @@ const UserHead = ({
   const onCloseVideo = () => {
     setIsOpenVideoModal(false);
   };
+
+  const [isOpenGroupVideoModal, setIsOpenGroupVideoModal] = useState<boolean>(false);
+  const onOpenGroupVideo = () => setIsOpenGroupVideoModal(true);
+  const onCloseGroupVideo = () => setIsOpenGroupVideoModal(false);
 
   /*
         audio call modal
@@ -397,6 +397,20 @@ const UserHead = ({
               </>
             )}
 
+            {isChannel && (
+              <li className="list-inline-item d-none d-lg-inline-block me-2 ms-0">
+                <Button
+                  type="button"
+                  color="none"
+                  className="btn nav-btn"
+                  onClick={onOpenGroupVideo}
+                  title="Group video call"
+                >
+                  <i className="bx bx-video"></i>
+                </Button>
+              </li>
+            )}
+
             <li className="list-inline-item d-none d-lg-inline-block me-2 ms-0">
               <button
                 onClick={onOpenUserDetails}
@@ -408,18 +422,35 @@ const UserHead = ({
             </li>
 
             <li className="list-inline-item d-none d-lg-inline-block me-2 ms-0">
+              <Button
+                type="button"
+                color="none"
+                className="btn nav-btn"
+                onClick={onOpenPinnedTab}
+                title={
+                  pinnedMessages.length > 0
+                    ? `Pinned in this chat (${pinnedMessages.length})`
+                    : "Pinned messages"
+                }
+              >
+                <i className="ri-pushpin-fill"></i>
+              </Button>
+            </li>
+
+            <li className="list-inline-item d-none d-lg-inline-block me-2 ms-0">
               <More
                 onOpenAudio={onOpenAudio}
                 onOpenVideo={onOpenVideo}
                 onDelete={onDelete}
                 isArchive={chatUserDetails.isArchived}
                 onToggleArchive={onToggleArchive}
+                isMuted={isMuted}
+                onToggleMute={onToggleMute}
               />
             </li>
           </ul>
         </Col>
       </Row>
-      <PinnedAlert onOpenPinnedTab={onOpenPinnedTab} />
       {isOpenAudioModal && (
         <AudioCallModal
           isOpen={isOpenAudioModal}
@@ -432,13 +463,25 @@ const UserHead = ({
           isOpen={isOpenVideoModal}
           onClose={onCloseVideo}
           user={chatUserDetails}
+          currentUser={currentUser}
+          direction="outgoing"
+        />
+      )}
+      {isOpenGroupVideoModal && (
+        <GroupVideoCallModal
+          isOpen={isOpenGroupVideoModal}
+          onClose={onCloseGroupVideo}
+          channel={chatUserDetails}
+          currentUser={currentUser}
+          direction="outgoing"
         />
       )}
       {isOpenPinnedTabModal && (
         <AddPinnedTabModal
           isOpen={isOpenPinnedTabModal}
           onClose={onClosePinnedTab}
-          pinnedTabs={pinnedTabs}
+          pinnedMessages={pinnedMessages}
+          onTogglePin={onTogglePinMessage}
         />
       )}
     </div>

@@ -4,7 +4,8 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // actions
-import { changelayoutMode, setSettingsFromAuthUser, changeTab, setGithubStatus } from "../../redux/actions";
+import { changelayoutMode, setSettingsFromAuthUser, changeTab, setGithubStatus, getDirectMessages } from "../../redux/actions";
+import { pingPresence } from "../../api/presence";
 
 // components
 import SideMenu from "./SideMenu";
@@ -74,6 +75,25 @@ const Index = (props: IndexProps) => {
   useEffect(() => {
     dispatch(changelayoutMode(layoutMode));
   }, [dispatch, layoutMode]);
+
+  // Refresh friends list periodically so updated avatars reflect "in real time".
+  useEffect(() => {
+    const id = window.setInterval(() => {
+      dispatch(getDirectMessages());
+    }, 15000);
+    return () => window.clearInterval(id);
+  }, [dispatch]);
+
+  // Presence heartbeat for "online" green dot.
+  useEffect(() => {
+    const tick = () => {
+      if (document.visibilityState !== "visible") return;
+      pingPresence().catch(() => {});
+    };
+    tick();
+    const id = window.setInterval(tick, 10000);
+    return () => window.clearInterval(id);
+  }, []);
 
   useEffect(() => {
     if (!location.search.includes("github=connected")) return;

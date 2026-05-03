@@ -47,6 +47,14 @@
     }
 }
 
+body[data-bs-theme="light"] .side-menu {
+    border-right-color: var(--#{$prefix}border-color-translucent);
+
+    @media (max-width: 991.98px) {
+        border-top-color: var(--#{$prefix}border-color-translucent);
+    }
+}
+
 .sidemenu-navigation {
     height: 100%;
     @media (max-width: 991.98px) {

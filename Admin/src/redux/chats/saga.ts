@@ -37,6 +37,7 @@ import {
   getDirectMessages as getDirectMessagesAction,
   getFavourites as getFavouritesAction,
   getChannels as getChannelsAction,
+  getArchiveContact as getArchiveContactAction,
 } from "./actions";
 
 function* getFavourites() {
@@ -199,13 +200,25 @@ function* forwardMessage({ payload: data }: any) {
   }
 }
 
-function* deleteUserMessages({ payload: userId }: any) {
+function* deleteUserMessages({
+  payload: userId,
+}: any): Generator<any, void, any> {
   try {
-    const response: Promise<any> = yield call(deleteUserMessagesApi, userId);
+    const response: any = yield call(deleteUserMessagesApi, userId);
+    const msg =
+      typeof response === "string"
+        ? response
+        : response?.message != null
+          ? String(response.message)
+          : "Messages deleted";
     yield put(
-      chatsApiResponseSuccess(ChatsActionTypes.DELETE_USER_MESSAGES, response)
+      chatsApiResponseSuccess(ChatsActionTypes.DELETE_USER_MESSAGES, {
+        userId,
+        message: msg,
+      })
     );
-    yield call(showSuccessNotification, response + "");
+    yield put(getDirectMessagesAction());
+    yield call(showSuccessNotification, msg);
   } catch (error: any) {
     yield call(showErrorNotification, error + "");
     yield put(
@@ -236,7 +249,13 @@ function* toggleFavouriteContact({ payload: id }: any) {
         response
       )
     );
-    yield call(showSuccessNotification, response + "");
+    // Refresh lists immediately so UI reflects star state without waiting on component effects.
+    yield put(getFavouritesAction());
+    yield put(getDirectMessagesAction());
+    const msg =
+      (response as any)?.message ||
+      ((response as any)?.is_favourite ? "Added to favourites" : "Removed from favourites");
+    yield call(showSuccessNotification, msg);
   } catch (error: any) {
     yield call(showErrorNotification, error + "");
     yield put(
@@ -258,13 +277,29 @@ function* getArchiveContact() {
   }
 }
 
-function* toggleArchiveContact({ payload: id }: any) {
+function* toggleArchiveContact({ payload: id }: any): Generator<any, void, any> {
   try {
-    const response: Promise<any> = yield call(toggleArchiveContactApi, id);
+    const response: any = yield call(toggleArchiveContactApi, id);
+    const msg =
+      typeof response === "string"
+        ? response
+        : response?.message != null
+          ? String(response.message)
+          : "Archive updated";
     yield put(
-      chatsApiResponseSuccess(ChatsActionTypes.TOGGLE_ARCHIVE_CONTACT, response)
+      chatsApiResponseSuccess(ChatsActionTypes.TOGGLE_ARCHIVE_CONTACT, {
+        userId: id,
+        message: msg,
+        isArchived:
+          typeof response?.isArchived === "boolean"
+            ? response.isArchived
+            : undefined,
+      })
     );
-    yield call(showSuccessNotification, response + "");
+    yield put(getDirectMessagesAction());
+    yield put(getArchiveContactAction());
+    yield put(getChannelsAction());
+    yield call(showSuccessNotification, msg);
   } catch (error: any) {
     yield call(showErrorNotification, error + "");
     yield put(

@@ -16,12 +16,13 @@ $me = (int)$_SESSION['user_id'];
 $body = read_json_body();
 $toUserId = isset($body['to_user_id']) ? (int)$body['to_user_id'] : 0;
 $text = trim((string)($body['text'] ?? ''));
+$attachments = isset($body['attachments']) && is_array($body['attachments']) ? $body['attachments'] : [];
 
 if ($toUserId <= 0 || $toUserId === $me) {
     http_response_code(400);
     json_ok(['error' => 'invalid_recipient']);
 }
-if ($text === '') {
+if ($text === '' && count($attachments) === 0) {
     http_response_code(400);
     json_ok(['error' => 'empty_message']);
 }
@@ -51,17 +52,33 @@ if ($conversationId <= 0) {
     json_ok(['error' => 'conversation_create_failed']);
 }
 
+$safeAttachments = [];
+foreach ($attachments as $attachment) {
+    if (!is_array($attachment)) continue;
+    $url = trim((string)($attachment['url'] ?? $attachment['downloadLink'] ?? ''));
+    if ($url === '') continue;
+    $safeAttachments[] = [
+        'url' => $url,
+        'type' => (string)($attachment['type'] ?? 'file'),
+        'name' => (string)($attachment['name'] ?? 'file'),
+        'size' => isset($attachment['size']) ? (int)$attachment['size'] : 0,
+        'mimeType' => (string)($attachment['mimeType'] ?? ''),
+        'duration' => isset($attachment['duration']) ? (float)$attachment['duration'] : null,
+    ];
+}
+$attachmentsJson = $safeAttachments ? json_encode($safeAttachments) : null;
+
 $ins = mysqli_prepare($conn, "
-    INSERT INTO messages (conversation_id, sender_id, receiver_id, body, is_read)
-    VALUES (?, ?, ?, ?, 0)
+    INSERT INTO messages (conversation_id, sender_id, receiver_id, body, attachments_json, is_read)
+    VALUES (?, ?, ?, ?, ?, 0)
 ");
-mysqli_stmt_bind_param($ins, 'iiis', $conversationId, $me, $toUserId, $text);
+mysqli_stmt_bind_param($ins, 'iiiss', $conversationId, $me, $toUserId, $text, $attachmentsJson);
 mysqli_stmt_execute($ins);
 $messageId = (int)mysqli_insert_id($conn);
 mysqli_stmt_close($ins);
 
 $rowStmt = mysqli_prepare($conn, "
-    SELECT id, sender_id, receiver_id, body, is_read, created_at
+    SELECT id, sender_id, receiver_id, body, attachments_json, is_read, is_pinned, pinned_at, created_at
     FROM messages
     WHERE id = ?
     LIMIT 1

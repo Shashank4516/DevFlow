@@ -15,6 +15,8 @@ export interface BasicDetailsTypes {
   avatar: string;
   profile?: string;
   coverImage: string;
+  /** Discord-style unique id from backend */
+  profileTag?: string;
 }
 
 export interface MediaListItemTypes {

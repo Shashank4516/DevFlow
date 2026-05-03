@@ -18,6 +18,11 @@ export const getBookmarks = () => ({
   type: BookmarksActionTypes.GET_BOOKMARKS,
 });
 
+export const createBookmark = (data: { icon?: string; title: string; desc?: string }) => ({
+  type: BookmarksActionTypes.CREATE_BOOKMARK,
+  payload: data,
+});
+
 export const updateBookmark = (id: number, data: object) => ({
   type: BookmarksActionTypes.UPDATE_BOOKMARK,
   payload: { id, data },

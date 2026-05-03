@@ -14,4 +14,7 @@ ENV PORT=8080
 
 EXPOSE 8080
 
-CMD ["frankenphp", "run", "--config", "/app/Caddyfile"]
+# Railway injects GITHUB_WEBHOOK_SECRET at runtime only. Dockerfile must use $$ so BUILD does not strip $…
+# (see https://docs.docker.com/reference/dockerfile/#environment-replacement).
+# Explicit env … frankenPHP gives PHP getenv() reliable access for api/github/webhook.php.
+CMD ["sh", "-c", "exec env GITHUB_WEBHOOK_SECRET=\"$GITHUB_WEBHOOK_SECRET\" frankenphp run --config /app/Caddyfile"]

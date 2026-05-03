@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useRef } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
 import { useRedux } from "../../../hooks/index";
 import { createSelector } from "reselect";
@@ -8,6 +8,7 @@ import {
   deleteUserMessages,
   toggleArchiveContact,
   setChatUserConversations,
+  createBookmark,
 } from "../../../redux/actions";
 
 import { useProfile } from "../../../hooks";
@@ -17,11 +18,19 @@ import Conversation from "./Conversation";
 import ChatInputSection from "./ChatInputSection/index";
 
 import { MessagesTypes } from "../../../data/messages";
-import { pinnedTabs } from "../../../data/index";
-import { useState } from "react";
+import {
+  isChatPeerMuted,
+  toggleMuteChatPeer,
+} from "../../../helpers/chatMute";
+import { showSuccessNotification } from "../../../helpers/notifications";
 import {
   getChatUserConversations as getChatUserConversationsApi,
   sendMessage as sendMessageApi,
+  uploadMessageAttachment,
+  getChannelMessages as getChannelMessagesApi,
+  sendChannelMessage as sendChannelMessageApi,
+  toggleMessagePin as toggleMessagePinApi,
+  toggleChannelMessagePin as toggleChannelMessagePinApi,
 } from "../../../api/chats";
 
 interface IndexProps {
@@ -54,6 +63,7 @@ const Index = ({ isChannel }: IndexProps) => {
 
   const pollRef = useRef<number | null>(null);
   const [chatError, setChatError] = useState<string | null>(null);
+  const [peerMutedNotify, setPeerMutedNotify] = useState(false);
 
   // IMPORTANT: use stable MySQL numeric ids for Firestore conversation ids.
   // Firebase auth uid can differ per login method and will cause each side
@@ -68,8 +78,18 @@ const Index = ({ isChannel }: IndexProps) => {
     [chatUserDetails?.id, chatUserDetails?.uid],
   );
 
+  const pinnedMessages = useMemo(() => {
+    const msgs = chatUserConversations?.messages;
+    if (!Array.isArray(msgs)) return [];
+    return msgs.filter((m: MessagesTypes) => m.isPinned);
+  }, [chatUserConversations?.messages]);
+
   const conversationId = useMemo(() => {
-    if (isChannel || !myUid || !peerIdStr) return null;
+    if (isChannel) {
+      if (!peerIdStr) return null;
+      return `channel_${peerIdStr}`;
+    }
+    if (!myUid || !peerIdStr) return null;
     return `dm_${[myUid, peerIdStr].sort().join("__")}`;
   }, [isChannel, myUid, peerIdStr]);
 
@@ -80,26 +100,73 @@ const Index = ({ isChannel }: IndexProps) => {
     setReplyData(reply);
   };
 
-  const onSend = (data: any) => {
-    if (!data?.text || !conversationId || !myUid || !peerIdStr) return;
-    const text = String(data.text).trim();
-    if (!text) return;
+  const onSend = async (data: any) => {
+    if (!conversationId || !myUid || !peerIdStr) return;
+    const text = String(data?.text || "").trim();
+    const attachments: Array<any> = [];
 
-    sendMessageApi({ to_user_id: peerIdStr, text }).catch((e: any) => {
+    try {
+      for (const image of data?.images || []) {
+        const uploaded: any = await uploadMessageAttachment({
+          file: image,
+          kind: "image",
+          name: image.name,
+        });
+        if (uploaded?.attachment) attachments.push(uploaded.attachment);
+      }
+
+      for (const file of data?.files || []) {
+        const uploaded: any = await uploadMessageAttachment({
+          file,
+          kind: "file",
+          name: file.name,
+        });
+        if (uploaded?.attachment) attachments.push(uploaded.attachment);
+      }
+
+      if (data?.voice?.blob) {
+        const uploaded: any = await uploadMessageAttachment({
+          file: data.voice.blob,
+          kind: "voice",
+          name: `voice-message-${Date.now()}.webm`,
+          duration: data.voice.duration,
+        });
+        if (uploaded?.attachment) attachments.push(uploaded.attachment);
+      }
+
+      if (!text && attachments.length === 0) return;
+      if (isChannel) {
+        await sendChannelMessageApi({
+          channel_id: peerIdStr,
+          text,
+          attachments,
+        });
+      } else {
+        await sendMessageApi({
+          to_user_id: peerIdStr,
+          text,
+          attachments,
+        });
+      }
+      setChatError(null);
+      setReplyData(null);
+      await loadMessages();
+    } catch (e: any) {
       const msg = e?.message || "Failed to send message";
       setChatError(msg);
       // Also surface immediately since users expect feedback on send.
       // eslint-disable-next-line no-alert
       alert(msg);
-    });
-    setChatError(null);
-    setReplyData(null);
+      throw e;
+    }
   };
 
   const loadMessages = async () => {
     if (!conversationId || !myUid || !peerIdStr) return;
     try {
-      const data: any = await getChatUserConversationsApi(peerIdStr);
+      const data: any = isChannel
+        ? await getChannelMessagesApi(peerIdStr)
+        : await getChatUserConversationsApi(peerIdStr);
       dispatch(
         setChatUserConversations({
           conversationId: data?.conversationId || conversationId,
@@ -137,13 +204,80 @@ const Index = ({ isChannel }: IndexProps) => {
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [conversationId, myUid, peerIdStr]);
+  }, [conversationId, myUid, peerIdStr, isChannel]);
+
+  useEffect(() => {
+    setPeerMutedNotify(isChatPeerMuted(peerIdStr));
+  }, [peerIdStr]);
 
   const onDeleteMessage = (messageId: string | number) => {
     dispatch(deleteMessage(chatUserDetails.id, messageId));
   };
 
+  const onTogglePinMessage = async (messageId: string | number) => {
+    if (!peerIdStr) return;
+    const existingMessages = Array.isArray(chatUserConversations?.messages)
+      ? chatUserConversations.messages
+      : [];
+    const previous = existingMessages.find(
+      (message: MessagesTypes) => String(message.mId) === String(messageId),
+    );
+    const nextPinned = !previous?.isPinned;
+
+    // Optimistically reflect pin state so user sees it instantly.
+    dispatch(
+      setChatUserConversations({
+        ...chatUserConversations,
+        messages: existingMessages.map((message: MessagesTypes) =>
+          String(message.mId) === String(messageId)
+            ? {
+                ...message,
+                isPinned: nextPinned,
+                pinnedAt: nextPinned ? new Date().toISOString() : null,
+              }
+            : message,
+        ),
+      }),
+    );
+
+    try {
+      if (isChannel) {
+        await toggleChannelMessagePinApi({
+          channel_id: peerIdStr,
+          message_id: messageId,
+        });
+      } else {
+        await toggleMessagePinApi({
+          with_user_id: peerIdStr,
+          message_id: messageId,
+        });
+      }
+      await loadMessages();
+    } catch (e: any) {
+      // Roll back optimistic update if server rejects toggle.
+      dispatch(
+        setChatUserConversations({
+          ...chatUserConversations,
+          messages: existingMessages,
+        }),
+      );
+      const msg = e?.message || "Failed to toggle pin";
+      setChatError(msg);
+      // eslint-disable-next-line no-alert
+      alert(msg);
+    }
+  };
+
   const onDeleteUserMessages = () => {
+    if (chatUserDetails?.id == null) return;
+    // eslint-disable-next-line no-alert
+    if (
+      !window.confirm(
+        "Delete all messages in this chat from your device? This cannot be undone.",
+      )
+    ) {
+      return;
+    }
     dispatch(deleteUserMessages(chatUserDetails.id));
   };
 
@@ -151,22 +285,58 @@ const Index = ({ isChannel }: IndexProps) => {
     dispatch(toggleArchiveContact(chatUserDetails.id));
   };
 
+  const onToggleMute = () => {
+    if (!peerIdStr) return;
+    const next = toggleMuteChatPeer(peerIdStr);
+    setPeerMutedNotify(next);
+    showSuccessNotification(
+      next
+        ? "Notifications muted for this chat"
+        : "Notifications unmuted for this chat",
+    );
+  };
+
+  const onAddBookmarkFromMessage = (message: MessagesTypes) => {
+    const attachments = Array.isArray(message.attachments)
+      ? message.attachments
+      : [];
+    const firstFile = attachments.find((a: any) => (a?.type || "file") !== "voice");
+    if (!firstFile) return;
+
+    dispatch(
+      createBookmark({
+        icon: "bx bx-file",
+        title: firstFile.name || `File from message #${message.mId}`,
+        desc:
+          firstFile.downloadLink ||
+          firstFile.desc ||
+          `Saved from chat message #${message.mId}`,
+      })
+    );
+  };
+
   return (
     <>
       <UserHead
         chatUserDetails={chatUserDetails}
-        pinnedTabs={pinnedTabs}
+        currentUser={userProfile}
+        pinnedMessages={pinnedMessages}
+        onTogglePinMessage={onTogglePinMessage}
         onOpenUserDetails={onOpenUserDetails}
         onDelete={onDeleteUserMessages}
         isChannel={isChannel}
         onToggleArchive={onToggleArchive}
+        isMuted={peerMutedNotify}
+        onToggleMute={onToggleMute}
       />
       <Conversation
         chatUserConversations={chatUserConversations}
         chatUserDetails={chatUserDetails}
         onDelete={onDeleteMessage}
+        onTogglePin={onTogglePinMessage}
         onSetReplyData={onSetReplyData}
         isChannel={isChannel}
+        onAddBookmark={onAddBookmarkFromMessage}
       />
       <ChatInputSection
         onSend={onSend}

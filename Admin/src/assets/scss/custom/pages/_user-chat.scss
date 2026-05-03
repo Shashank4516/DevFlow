@@ -175,6 +175,9 @@
     @media (max-width: 991.98px) {
         height: calc(100vh - 80px);
         margin-bottom: 78px;
+        .pinned-messages-wrap{
+            margin-top: 80px;
+        }
     }
 
     .simplebar-content-wrapper{
@@ -184,6 +187,12 @@
         .simplebar-content{
             margin-top: auto;
         }
+    }
+
+    .pinned-messages-wrap{
+        margin-top: 90px;
+        position: relative;
+        z-index: 2;
     }
 
     .chat-conversation-list{
@@ -294,6 +303,126 @@
             border-radius: 3px;
             box-shadow: $box-shadow;
 
+            &.github-repo-msg {
+                padding: 0;
+                background-color: transparent;
+                box-shadow: none;
+            }
+
+            &.voice-only{
+                padding: 0;
+                background-color: transparent;
+                box-shadow: none;
+            }
+
+            .voice-message-wrap{
+                padding: 0;
+                border: 0;
+                margin: 0;
+            }
+
+            .voice-note{
+                min-width: 430px;
+                max-width: 560px;
+                background: rgba(var(--bs-primary-rgb), 1);
+                border-radius: 18px;
+                padding: 12px 14px;
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                color: rgba($white, 0.95);
+                box-shadow: none;
+
+                @media (max-width: 575.98px) {
+                    min-width: 280px;
+                    max-width: calc(100vw - 100px);
+                    padding: 10px;
+                    gap: 10px;
+                }
+
+                audio{
+                    display: none;
+                }
+
+                &__avatar{
+                    width: 56px;
+                    height: 56px;
+                    border-radius: 50%;
+                    object-fit: cover;
+                    border: 2px solid rgba($white, 0.25);
+
+                    @media (max-width: 575.98px) {
+                        width: 46px;
+                        height: 46px;
+                    }
+                }
+
+                &__play{
+                    width: 36px;
+                    height: 36px;
+                    border-radius: 50%;
+                    border: 0;
+                    background: $white;
+                    color: rgba(var(--bs-primary-rgb), 1);
+                    display: inline-flex;
+                    align-items: center;
+                    justify-content: center;
+                    flex-shrink: 0;
+                    font-size: 22px;
+                    line-height: 1;
+                    padding: 0;
+                }
+
+                &__center{
+                    min-width: 0;
+                    flex: 1;
+                }
+
+                &__wave{
+                    display: flex;
+                    align-items: center;
+                    gap: 3px;
+                    height: 30px;
+                    opacity: 0.95;
+                    overflow: hidden;
+
+                    span{
+                        width: 4px;
+                        border-radius: 999px;
+                        background: rgba($white, 0.35);
+                        flex-shrink: 0;
+                        transition: background-color 120ms linear, opacity 120ms linear;
+                        opacity: 0.65;
+                    }
+
+                    span.is-active{
+                        background: rgba($white, 0.95);
+                        opacity: 1;
+                    }
+                }
+
+                &__meta{
+                    margin-top: 8px;
+                    display: flex;
+                    justify-content: space-between;
+                    align-items: center;
+                    font-size: 12px;
+                    color: rgba($white, 0.86);
+                }
+
+                &__duration{
+                    font-weight: 600;
+                    letter-spacing: 0.01em;
+                }
+
+                &__stamp{
+                    display: inline-flex;
+                    align-items: center;
+                    gap: 2px;
+                    font-weight: 500;
+                }
+            }
+
             .attached-file{
                 @media (max-width: 575.98px) {
                     .attached-file-avatar{
@@ -394,11 +523,16 @@
                 justify-content: flex-end;
 
                 .ctext-wrap-content {
-                    order: 2;
-                    background-color: $chat-secondary-bg;
+                    // order: 2;
+                    // background-color: $chat-secondary-bg;
                     // color: #466751;
-                    text-align: right;
-                    box-shadow: none;
+                    // text-align: right;
+                    // box-shadow: none;
+
+                    .voice-note{
+                        background: rgba(var(--bs-primary-rgb), 1);
+                        margin-left: auto;
+                    }
 
                     .replymessage-block{
                         background-color: rgba($white,0.5);
@@ -582,6 +716,63 @@
     }
 }
 
+.repo-mention-menu {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: calc(100% + 8px);
+    z-index: 20;
+    background: var(--#{$prefix}secondary-bg);
+    border: 1px solid var(--#{$prefix}border-color);
+    border-radius: 10px;
+    max-height: 220px;
+    overflow-y: auto;
+}
+
+.repo-mention-item {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    border: 0;
+    background: transparent;
+    padding: 8px 10px;
+    transition: background-color 0.2s ease;
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.12);
+    }
+}
+
+.repo-mention-name {
+    font-size: 13px;
+    color: var(--#{$prefix}body-color);
+    font-weight: 600;
+}
+
+.repo-mention-meta {
+    font-size: 12px;
+    color: var(--#{$prefix}secondary-color);
+}
+
+.chat-repo-mention {
+    display: inline-flex;
+    align-items: center;
+    padding: 10px 20px;
+    margin: 0 1px;
+    border-radius: 999px;
+    background: rgba(var(--bs-primary-rgb), 0.15);
+    color: var(--#{$prefix}primary);
+    text-decoration: none;
+    font-weight: 600;
+
+    &:hover {
+        background: rgba(var(--bs-primary-rgb), 0.22);
+        color: var(--#{$prefix}primary);
+        text-decoration: underline;
+    }
+}
+
 .animate-typing {
 	.dot {
 		display: inline-block;
@@ -613,6 +804,303 @@
 	}
 }
 
+// Pinned-in-chat modal: translucent backdrop + frosted dialog
+.pinnedtab-modal-backdrop.modal-backdrop {
+    background-color: rgba(0, 0, 0, 0.28);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+
+.modal.pinnedtabModal {
+    .modal-content.pinnedtab-modal-content {
+        overflow: hidden;
+        background-color: rgba(var(--#{$prefix}body-bg-rgb), 0.62);
+        backdrop-filter: saturate(150%) blur(20px);
+        -webkit-backdrop-filter: saturate(150%) blur(20px);
+        border: 1px solid rgba(var(--#{$prefix}body-color-rgb), 0.1);
+        box-shadow:
+            0 0 0 1px rgba(var(--#{$prefix}body-color-rgb), 0.04),
+            0 1rem 3rem rgba(0, 0, 0, 0.22);
+    }
+
+    .modal-header.pinnedtab-modal-header {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+        background-color: rgba(var(--#{$prefix}primary-rgb), 0.78) !important;
+        backdrop-filter: blur(12px);
+        -webkit-backdrop-filter: blur(12px);
+        border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+        --bs-modal-header-padding-y: 1rem;
+
+        .btn-close {
+            filter: brightness(0) invert(1);
+            opacity: 0.85;
+        }
+
+        .modal-title-custom {
+            color: #fff;
+        }
+    }
+
+    .modal-body .modal-body {
+        background-color: transparent;
+    }
+}
+
+// GitHub workspace (fills main pane when GitHub tab is active)
+.github-main-workspace {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    min-height: 0;
+    background-color: var(--#{$prefix}body-bg);
+}
+
+.github-ws-body {
+    min-height: 0;
+}
+
+.github-ws-rail {
+    width: min(360px, 42vw);
+    flex-shrink: 0;
+    background-color: var(--#{$prefix}secondary-bg);
+
+    // Branch / compare selects: keep a visible edge off the rail (especially dark mode).
+    .form-select {
+        border: 1px solid var(--#{$prefix}border-color);
+        background-color: var(--#{$prefix}body-bg);
+        color: var(--#{$prefix}body-color);
+    }
+}
+
+body[data-bs-theme="dark"] .github-main-workspace .github-ws-rail .form-select,
+body[data-bs-theme="dark"] .github-main-workspace .github-ws-rail .github-ws-summary.border {
+    border-color: rgba(255, 255, 255, 0.22) !important;
+}
+
+body[data-bs-theme="dark"] .github-main-workspace .github-ws-rail .form-select {
+    background-color: rgba(var(--#{$prefix}body-bg-rgb), 0.55);
+}
+
+.github-ws-list-item:hover {
+    background-color: rgba(var(--bs-primary-rgb), 0.06);
+}
+
+.github-ws-file-pill {
+    border: 1px solid var(--#{$prefix}border-color-translucent);
+
+    &.github-ws-file-pill--active {
+        border-color: rgba(var(--bs-primary-rgb), 0.5);
+        background-color: rgba(var(--bs-primary-rgb), 0.1);
+    }
+}
+
+.github-ws-main {
+    flex: 1;
+    min-width: 0;
+    background-color: var(--#{$prefix}body-bg);
+}
+
+.github-ws-summary {
+    background-color: var(--#{$prefix}tertiary-bg);
+}
+
+// Diff preview: light-mode friendly shell + GitHub-like line colors; dark overrides below
+.github-diff-panel {
+    background-color: #f6f8fa;
+    border-color: var(--#{$prefix}border-color);
+    color: #1f2328;
+
+    .github-diff-panel__header {
+        background-color: #eef1f4;
+        border-color: var(--#{$prefix}border-color);
+    }
+
+    .github-diff-panel__body,
+    .github-diff-panel__pad {
+        background-color: #f6f8fa;
+    }
+
+    .github-diff-panel__pad {
+        min-height: 12px;
+    }
+
+    .github-diff-panel__gh-icon {
+        font-size: 1.35rem;
+        color: #24292f;
+        line-height: 1;
+    }
+
+    .github-diff-panel__filename {
+        color: #24292f;
+    }
+
+    .github-diff-panel__meta {
+        color: #57606a;
+        font-weight: 500;
+    }
+
+    .github-diff-panel__action.btn {
+        color: #24292f;
+        border: 1px solid rgba(31, 35, 40, 0.22);
+        background-color: #ffffff;
+        font-weight: 500;
+
+        &:hover {
+            color: #1f2328;
+            border-color: rgba(31, 35, 40, 0.38);
+            background-color: #f3f5f7;
+        }
+
+        &:focus-visible {
+            box-shadow: 0 0 0 0.2rem rgba(9, 105, 218, 0.25);
+        }
+    }
+
+    .github-diff-table .github-diff-table__lineno {
+        width: 3.25rem;
+        font-size: 11px;
+        vertical-align: top;
+        color: #6e7781;
+        background-color: rgba(175, 184, 193, 0.14);
+    }
+
+    .github-diff-table .github-diff-table__code pre {
+        font-size: 12px;
+        line-height: 1.45;
+        white-space: pre-wrap;
+        word-break: break-word;
+        margin: 0;
+    }
+
+    tr.github-diff-line.github-diff-line--ctx .github-diff-table__code {
+        color: #24292f;
+        background-color: transparent;
+    }
+
+    tr.github-diff-line.github-diff-line--add td {
+        color: #054d29;
+        background-color: #dafbe1 !important;
+    }
+
+    tr.github-diff-line.github-diff-line--add .github-diff-table__lineno {
+        background-color: #c9f3d7;
+        color: #05603a;
+    }
+
+    tr.github-diff-line.github-diff-line--del td {
+        color: #82071e;
+        background-color: #ffebe9 !important;
+    }
+
+    tr.github-diff-line.github-diff-line--del .github-diff-table__lineno {
+        background-color: #ffc9c9;
+        color: #a40e26;
+    }
+
+    tr.github-diff-line.github-diff-line--hunk td {
+        color: #0550ae;
+        background-color: #ddf4ff !important;
+    }
+
+    tr.github-diff-line.github-diff-line--hunk .github-diff-table__lineno {
+        background-color: #b6e3ff;
+        color: #0969da;
+    }
+}
+
+body[data-bs-theme="dark"] .github-diff-panel {
+    background-color: #0d1117;
+    border-color: #30363d;
+    color: #e6edf3;
+
+    .github-diff-panel__header {
+        background-color: rgba(0, 0, 0, 0.35);
+        border-color: #30363d;
+    }
+
+    .github-diff-panel__body,
+    .github-diff-panel__pad {
+        background-color: #0d1117;
+    }
+
+    .github-diff-panel__gh-icon {
+        color: #f0f6fc;
+    }
+
+    .github-diff-panel__filename {
+        color: #f0f6fc;
+    }
+
+    .github-diff-panel__meta {
+        color: #b1bac4;
+    }
+
+    .github-diff-panel__action.btn {
+        color: #e6edf3;
+        border: 1px solid rgba(230, 237, 243, 0.45);
+        background-color: rgba(255, 255, 255, 0.06);
+
+        &:hover {
+            color: #ffffff;
+            border-color: rgba(255, 255, 255, 0.65);
+            background-color: rgba(255, 255, 255, 0.14);
+        }
+
+        &:focus-visible {
+            box-shadow: 0 0 0 0.2rem rgba(88, 166, 255, 0.35);
+        }
+    }
+
+    .github-diff-table .github-diff-table__lineno {
+        color: rgba(230, 237, 243, 0.55);
+        background-color: rgba(255, 255, 255, 0.06);
+    }
+
+    tr.github-diff-line.github-diff-line--ctx .github-diff-table__code {
+        color: #d8e6ff;
+        background-color: transparent;
+    }
+
+    tr.github-diff-line.github-diff-line--add td {
+        color: #aff5b4;
+        background-color: rgba(46, 160, 67, 0.22) !important;
+    }
+
+    tr.github-diff-line.github-diff-line--add .github-diff-table__lineno {
+        background-color: rgba(46, 160, 67, 0.28);
+        color: #7ee787;
+    }
+
+    tr.github-diff-line.github-diff-line--del td {
+        color: #ffb3ad;
+        background-color: rgba(248, 81, 73, 0.22) !important;
+    }
+
+    tr.github-diff-line.github-diff-line--del .github-diff-table__lineno {
+        background-color: rgba(248, 81, 73, 0.28);
+        color: #ff9d97;
+    }
+
+    tr.github-diff-line.github-diff-line--hunk td {
+        color: #a6ceff;
+        background-color: rgba(56, 139, 253, 0.22) !important;
+    }
+
+    tr.github-diff-line.github-diff-line--hunk .github-diff-table__lineno {
+        background-color: rgba(56, 139, 253, 0.3);
+        color: #79c0ff;
+    }
+}
+
+.github-diff-table {
+    --bs-table-bg: transparent;
+    --bs-table-color: inherit;
+
+    td {
+        border: none;
+    }
+}
 
 // only for firefox browser
 @-moz-document url-prefix() {

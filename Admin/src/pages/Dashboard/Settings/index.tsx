@@ -6,7 +6,7 @@ import { createSelector } from "reselect";
 import { useRedux } from "../../../hooks/index";
 
 // actions
-import { getSettings, updateSettings } from "../../../redux/actions";
+import { getSettings, updateSettings, setSettingsFromAuthUser } from "../../../redux/actions";
 
 // constants
 import { SETTINGS_COLLAPSES } from "../../../constants";
@@ -23,7 +23,16 @@ function getInitialSettings(reduxSettings: SettingsTypes): SettingsTypes {
     if (saved) {
       const parsed = JSON.parse(saved);
       if (parsed && typeof parsed === "object") {
-        const basicDetails = { ...(reduxSettings?.basicDetails || {}), ...parsed };
+        const apiBd = reduxSettings?.basicDetails || {};
+        const basicDetails = { ...apiBd, ...parsed };
+        const p = apiBd.profile;
+        if (p != null && String(p).trim() !== "") {
+          basicDetails.profile = p;
+        }
+        const c = apiBd.coverImage;
+        if (c != null && String(c).trim() !== "") {
+          basicDetails.coverImage = c;
+        }
         if (authUser?.photoURL) {
           const isDefaultAvatar = !basicDetails.profile || /avatar-?1|avatar1\.(jpg|jpeg|png)/i.test(String(basicDetails.profile));
           if (isDefaultAvatar) basicDetails.profile = authUser.profileImage || authUser.photoURL;
@@ -153,6 +162,11 @@ const Index = (props: IndexProps) => {
   api calling
   */
   const onChangeData = (field: string, value: any) => {
+    // Persist basicDetails immediately in localStorage so refresh keeps changes,
+    // even if the legacy settings API isn't implemented on the PHP backend.
+    if (field === "basicDetails" && value && typeof value === "object") {
+      dispatch(setSettingsFromAuthUser(value));
+    }
     dispatch(updateSettings(field, value));
   };
 
@@ -230,7 +244,7 @@ const Index = (props: IndexProps) => {
   return (
     <div className="position-relative">
       {getSettingsLoading && <Loader />}
-      <UserCoverImage basicDetails={settings.basicDetails} />
+      <UserCoverImage basicDetails={settings.basicDetails} onChangeData={onChangeData} />
 
       <UserProfile
         basicDetails={settings.basicDetails}

@@ -12,6 +12,7 @@ import {
 // api
 import {
   getBookmarks as getBookmarksApi,
+  createBookmark as createBookmarkApi,
   updateBookmark as updateBookmarkApi,
   deleteBookmark as deleteBookmarkApi,
 } from "../../api/index";
@@ -31,6 +32,25 @@ function* getBookmarks() {
   } catch (error: any) {
     yield put(
       bookmarksApiResponseError(BookmarksActionTypes.GET_BOOKMARKS, error)
+    );
+  }
+}
+
+function* createBookmark({ payload: data }: any) {
+  try {
+    const response: Promise<any> = yield call(createBookmarkApi, data);
+    yield put(
+      bookmarksApiResponseSuccess(
+        BookmarksActionTypes.CREATE_BOOKMARK,
+        response
+      )
+    );
+    const msg = (response as any)?.message || "Bookmark created";
+    yield call(showSuccessNotification, msg);
+  } catch (error: any) {
+    yield call(showErrorNotification, error);
+    yield put(
+      bookmarksApiResponseError(BookmarksActionTypes.CREATE_BOOKMARK, error)
     );
   }
 }
@@ -78,12 +98,16 @@ export function* watchGetCalls() {
 export function* watchUpdateBookmark() {
   yield takeEvery(BookmarksActionTypes.UPDATE_BOOKMARK, updateBookmark);
 }
+export function* watchCreateBookmark() {
+  yield takeEvery(BookmarksActionTypes.CREATE_BOOKMARK, createBookmark);
+}
 export function* watchDeleteBookmark() {
   yield takeEvery(BookmarksActionTypes.DELETE_BOOKMARK, deleteBookmark);
 }
 function* bookmarksSaga() {
   yield all([
     fork(watchGetCalls),
+    fork(watchCreateBookmark),
     fork(watchUpdateBookmark),
     fork(watchDeleteBookmark),
   ]);

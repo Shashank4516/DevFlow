@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useRef, useState } from "react";
 import {
   DropdownToggle,
   DropdownMenu,
@@ -32,9 +32,21 @@ interface MenuProps {
   onDelete: () => any;
   onReply: () => any;
   onForward: () => void;
+  onTogglePin: () => void;
+  isPinned: boolean;
+  canAddBookmark?: boolean;
+  onAddBookmark?: () => void;
 }
 
-const Menu = ({ onDelete, onReply, onForward }: MenuProps) => {
+const Menu = ({
+  onDelete,
+  onReply,
+  onForward,
+  onTogglePin,
+  isPinned,
+  canAddBookmark = false,
+  onAddBookmark,
+}: MenuProps) => {
   return (
     <UncontrolledDropdown className="align-self-start message-box-drop">
       <DropdownToggle className="btn btn-toggle" role="button" tag={"a"}>
@@ -64,8 +76,10 @@ const Menu = ({ onDelete, onReply, onForward }: MenuProps) => {
         <DropdownItem
           className="d-flex align-items-center justify-content-between"
           to="#"
+          onClick={onTogglePin}
         >
-          Bookmark <i className="bx bx-bookmarks text-muted ms-2"></i>
+          {isPinned ? "Unpin" : "Pin"}{" "}
+          <i className={classnames("text-muted", "ms-2", isPinned ? "ri-pushpin-fill" : "ri-pushpin-line")}></i>
         </DropdownItem>
         <DropdownItem
           className="d-flex align-items-center justify-content-between"
@@ -73,6 +87,15 @@ const Menu = ({ onDelete, onReply, onForward }: MenuProps) => {
         >
           Mark as Unread <i className="bx bx-message-error text-muted ms-2"></i>
         </DropdownItem>
+        {canAddBookmark && onAddBookmark && (
+          <DropdownItem
+            className="d-flex align-items-center justify-content-between"
+            to="#"
+            onClick={onAddBookmark}
+          >
+            Add to Bookmarks <i className="bx bx-bookmarks text-muted ms-2"></i>
+          </DropdownItem>
+        )}
         <DropdownItem
           className="d-flex align-items-center justify-content-between delete-item"
           onClick={onDelete}
@@ -87,8 +110,10 @@ interface ImageMoreMenuProps {
   imagelink: any,
   onReply: () => any;
   onDelete: () => void;
+  onTogglePin: () => void;
+  isPinned: boolean;
 }
-const ImageMoreMenu = ({ imagelink,onReply, onDelete }: ImageMoreMenuProps) => {
+const ImageMoreMenu = ({ imagelink,onReply, onDelete, onTogglePin, isPinned }: ImageMoreMenuProps) => {
   return (
     <div className="message-img-link">
       <ul className="list-inline mb-0">
@@ -129,8 +154,10 @@ const ImageMoreMenu = ({ imagelink,onReply, onDelete }: ImageMoreMenuProps) => {
               tag="a"
               className=" d-flex align-items-center justify-content-between"
               href="#"
+              onClick={onTogglePin}
             >
-              Bookmark <i className="bx bx-bookmarks text-muted ms-2"></i>
+              {isPinned ? "Unpin" : "Pin"}{" "}
+              <i className={classnames("text-muted", "ms-2", isPinned ? "ri-pushpin-fill" : "ri-pushpin-line")}></i>
             </DropdownItem>
             <DropdownItem
               tag="a"
@@ -154,8 +181,9 @@ interface ImageProps {
   index: number;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   onDeleteImg: (imageId: string | number) => void;
+  onTogglePin: (messageId: string | number) => void;
 }
-const Image = ({ message ,image, onImageClick, index,onSetReplyData, onDeleteImg }: ImageProps) => {
+const Image = ({ message ,image, onImageClick, index,onSetReplyData, onDeleteImg, onTogglePin }: ImageProps) => {
   const onDelete = () => {
     onDeleteImg(image.id);
   };
@@ -170,6 +198,9 @@ const Image = ({ message ,image, onImageClick, index,onSetReplyData, onDeleteImg
     onSetReplyData(message);
 
   };
+  const onTogglePinMessage = () => {
+    onTogglePin(message.mId);
+  };
   return (
     <React.Fragment>
       <div className="message-img-list">
@@ -182,7 +213,13 @@ const Image = ({ message ,image, onImageClick, index,onSetReplyData, onDeleteImg
             <img src={image.downloadLink} alt="" className="rounded border" />
           </Link>
         </div>
-        <ImageMoreMenu imagelink={image.downloadLink} onReply={onClickReply} onDelete={onDelete} />
+        <ImageMoreMenu
+          imagelink={image.downloadLink}
+          onReply={onClickReply}
+          onDelete={onDelete}
+          onTogglePin={onTogglePinMessage}
+          isPinned={!!message.isPinned}
+        />
       </div>
     </React.Fragment>
   );
@@ -192,8 +229,9 @@ interface ImagesProps {
   images: ImageTypes[];
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   onDeleteImg: (imageId: string | number) => void;
+  onTogglePin: (messageId: string | number) => void;
 }
-const Images = ({ message,images,onSetReplyData, onDeleteImg }: ImagesProps) => {
+const Images = ({ message,images,onSetReplyData, onDeleteImg, onTogglePin }: ImagesProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [selected, setSelected] = useState(0);
   const onImageClick = (id: number) => {
@@ -216,6 +254,7 @@ const Images = ({ message,images,onSetReplyData, onDeleteImg }: ImagesProps) => 
               onImageClick={onImageClick}
               onSetReplyData={onSetReplyData}
               onDeleteImg={onDeleteImg}
+              onTogglePin={onTogglePin}
             />
         ))}
       </div>
@@ -233,47 +272,181 @@ const Images = ({ message,images,onSetReplyData, onDeleteImg }: ImagesProps) => 
 
 interface AttachmentsProps {
   attachments: AttachmentTypes[] | undefined;
+  isFromMe: boolean;
+  avatar: string;
+  messageTime: string;
+  isRead: boolean;
 }
-const Attachments = ({ attachments }: AttachmentsProps) => {
+const formatVoiceTime = (seconds: number) => {
+  if (!Number.isFinite(seconds) || seconds <= 0) return "0:00";
+  const mins = Math.floor(seconds / 60);
+  const secs = Math.floor(seconds % 60);
+  return `${mins}:${secs.toString().padStart(2, "0")}`;
+};
+
+interface VoiceMessageProps {
+  attachment: AttachmentTypes;
+  avatar: string;
+  isFromMe: boolean;
+  messageTime: string;
+  isRead: boolean;
+}
+
+const VoiceMessage = ({
+  attachment,
+  avatar,
+  isFromMe,
+  messageTime,
+  isRead,
+}: VoiceMessageProps) => {
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [duration, setDuration] = useState<number>(attachment.duration || 0);
+  const [currentTime, setCurrentTime] = useState(0);
+
+  const bars = Array.from({ length: 34 }, (_, i) => {
+    const h = 6 + ((i * 7) % 18);
+    return h;
+  });
+  const progress =
+    duration > 0 ? Math.max(0, Math.min(1, currentTime / duration)) : 0;
+
+  const onTogglePlay = async () => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    if (isPlaying) {
+      audio.pause();
+      setIsPlaying(false);
+      return;
+    }
+    try {
+      await audio.play();
+      setIsPlaying(true);
+    } catch {
+      setIsPlaying(false);
+    }
+  };
+
+  return (
+    <div className={classnames("voice-note", { "voice-note--me": isFromMe })}>
+      <img src={avatar} alt="" className="voice-note__avatar" />
+      <button
+        type="button"
+        className="voice-note__play"
+        onClick={onTogglePlay}
+        aria-label={isPlaying ? "Pause voice message" : "Play voice message"}
+      >
+        <i className={isPlaying ? "ri-pause-fill" : "ri-play-fill"} />
+      </button>
+      <div className="voice-note__center">
+        <div className="voice-note__wave">
+          {bars.map((height, idx) => (
+                    <span
+                      key={`${idx}-${height}`}
+                      className={classnames({ "is-active": idx / bars.length <= progress })}
+                      style={{ height }}
+                    />
+          ))}
+        </div>
+        <div className="voice-note__meta">
+          <span className="voice-note__duration">
+            {formatVoiceTime(isPlaying ? currentTime : duration || currentTime)}
+          </span>
+          <span className="voice-note__stamp">
+            {messageTime}
+            {isFromMe && (
+              <i className={classnames("bx", "ms-1", { "bx-check-double": isRead }, { "bx-check": !isRead })}></i>
+            )}
+          </span>
+        </div>
+      </div>
+      <audio
+        ref={audioRef}
+        preload="metadata"
+        src={attachment.downloadLink}
+        onEnded={() => {
+          setIsPlaying(false);
+          setCurrentTime(0);
+        }}
+        onLoadedMetadata={e => {
+          const next = e.currentTarget.duration || attachment.duration || 0;
+          setDuration(next);
+        }}
+        onTimeUpdate={e => setCurrentTime(e.currentTarget.currentTime || 0)}
+      />
+    </div>
+  );
+};
+
+const Attachments = ({
+  attachments,
+  isFromMe,
+  avatar,
+  messageTime,
+  isRead,
+}: AttachmentsProps) => {
   return (
     <>
-      {(attachments || []).map((attachment: AttachmentTypes, key: number) => (
-        <div
-          key={key}
-          className={classnames("p-3", "border-primary", "border rounded-3", {
-            "mt-2": key !== 0,
-          })}
-        >
-          <div className="d-flex align-items-center attached-file">
-            <div className="flex-shrink-0 avatar-sm me-3 ms-0 attached-file-avatar">
-              <div className="avatar-title bg-primary-subtle text-primary rounded-circle font-size-20">
-                <i className="ri-attachment-2"></i>
-              </div>
-            </div>
-            <div className="flex-grow-1 overflow-hidden">
-              <div className="text-start">
-                <h5 className="font-size-14 mb-1">{attachment.name}</h5>
-                <p className="text-muted text-truncate font-size-13 mb-0">
-                  {attachment.desc}
-                </p>
-              </div>
-            </div>
-            <div className="flex-shrink-0 ms-4">
-              <div className="d-flex gap-2 font-size-20 d-flex align-items-start">
-                <div>
-                  <a
-                    href={attachment.downloadLink ? attachment.downloadLink : "#"}
-                    className="text-muted"
-                    download
-                  >
-                    <i className="bx bxs-download"></i>
-                  </a>
+      {(attachments || []).map((attachment: AttachmentTypes, key: number) => {
+        const isVoice = attachment.type === "voice";
+        return (
+          <div
+            key={key}
+            className={classnames(
+              {
+                "voice-message-wrap": isVoice,
+              },
+              {
+                "p-3 border-primary border rounded-3": !isVoice,
+              },
+              {
+              "mt-2": key !== 0,
+              }
+            )}
+          >
+            {isVoice ? (
+              <VoiceMessage
+                attachment={attachment}
+                avatar={avatar}
+                isFromMe={isFromMe}
+                messageTime={messageTime}
+                isRead={isRead}
+              />
+            ) : (
+              <div className="d-flex align-items-center attached-file">
+                <div className="flex-shrink-0 avatar-sm me-3 ms-0 attached-file-avatar">
+                  <div className="avatar-title bg-primary-subtle text-primary rounded-circle font-size-20">
+                    <i className="ri-attachment-2"></i>
+                  </div>
+                </div>
+                <div className="flex-grow-1 overflow-hidden">
+                  <div className="text-start">
+                    <h5 className="font-size-14 mb-1">{attachment.name}</h5>
+                    <p className="text-muted text-truncate font-size-13 mb-0">
+                      {attachment.desc}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex-shrink-0 ms-4">
+                  <div className="d-flex gap-2 font-size-20 d-flex align-items-start">
+                    <div>
+                      <a
+                        href={attachment.downloadLink ? attachment.downloadLink : "#"}
+                        className="text-muted"
+                        download
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        <i className="bx bxs-download"></i>
+                      </a>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
+            )}
           </div>
-        </div>
-      ))}
+        );
+      })}
     </>
   );
 };
@@ -290,31 +463,69 @@ const Typing = () => {
     </p>
   );
 };
+
+const GITHUB_REPO_MENTION_SEGMENT =
+  /^(@[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)(\s+@[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)*$/;
+
+const isGithubRepoOnlyText = (text: string | undefined) => {
+  if (!text) return false;
+  return GITHUB_REPO_MENTION_SEGMENT.test(text.trim());
+};
+
+const renderTextWithRepoMentions = (text: string) => {
+  const mentionPattern = /(@[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)/g;
+  const parts = text.split(mentionPattern);
+  return parts.map((part, index) => {
+    const match = part.match(/^@([a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)$/);
+    if (!match) {
+      return <React.Fragment key={`text-${index}`}>{part}</React.Fragment>;
+    }
+    const repoFullName = match[1];
+    return (
+      <a
+        key={`repo-${repoFullName}-${index}`}
+        href={`https://github.com/${repoFullName}`}
+        target="_blank"
+        rel="noreferrer"
+        className="chat-repo-mention"
+      >
+        {part}
+      </a>
+    );
+  });
+};
 interface MessageProps {
   message: MessagesTypes;
   chatUserDetails: any;
   onDelete: (messageId: string | number) => any;
+  onTogglePin: (messageId: string | number) => void;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   isFromMe: boolean;
   onOpenForward: (message: MessagesTypes) => void;
   isChannel: boolean;
   onDeleteImage: (messageId: string | number, imageId: string | number) => void;
+  onAddBookmark: (message: MessagesTypes) => void;
   // onSetReplyImageData: () => void;
 }
 const Message = ({
   message,
   chatUserDetails,
   onDelete,
+  onTogglePin,
   onSetReplyData,
   isFromMe,
   onOpenForward,
   isChannel,
   onDeleteImage,
+  onAddBookmark,
 }: MessageProps) => {
   const { userProfile } = useProfile();
   const hasImages = message.image && message.image.length;
   const hasAttachments = message.attachments && message.attachments.length;
   const hasText = message.text;
+  const hasOnlyVoiceAttachment =
+    !!message.attachments?.length &&
+    message.attachments.every((attachment: AttachmentTypes) => attachment.type === "voice");
   const isTyping = false;
 
   const chatUserFullName = chatUserDetails?.firstName
@@ -337,6 +548,7 @@ const Message = ({
   const isReceived = message.meta.received;
   const isRead = message.meta.read;
   const isForwarded = message.meta.isForwarded;
+  const isPinned = !!message.isPinned;
   const channdelSenderFullname = message.meta.userData
     ? `${message.meta.userData.firstName} ${message.meta.userData.lastName}`
     : "-";
@@ -357,6 +569,12 @@ const Message = ({
   const onDeleteImg = (imageId: number | string) => {
     onDeleteImage(message.mId, imageId);
   };
+  const onTogglePinMessage = () => {
+    onTogglePin(message.mId);
+  };
+  const onAddBookmarkFromMessage = () => {
+    onAddBookmark(message);
+  };
   return (
     <li
       className={classnames(
@@ -373,8 +591,14 @@ const Message = ({
         <div className="user-chat-content">
           {hasImages && message.text && (
             <div className="ctext-wrap">
-              <div className="ctext-wrap-content">
-                <p className="mb-0 ctext-content">{message.text}</p>
+              <div
+                className={classnames("ctext-wrap-content", {
+                  "github-repo-msg": isGithubRepoOnlyText(message.text),
+                })}
+              >
+                <p className="mb-0 ctext-content">
+                  {renderTextWithRepoMentions(message.text || "")}
+                </p>
               </div>
             </div>
           )}
@@ -399,6 +623,22 @@ const Message = ({
               Forwarded
             </span>
           )}
+          {isPinned && (
+            <span
+              className={classnames(
+                "badge",
+                "bg-light",
+                "text-body",
+                "border",
+                "mb-2",
+                "d-inline-flex",
+                "align-items-center",
+              )}
+            >
+              <i className="ri-pushpin-fill me-1"></i>
+              Pinned
+            </span>
+          )}
 
           <div className="ctext-wrap">
             {/* text message end */}
@@ -406,11 +646,26 @@ const Message = ({
             {/* image message start */}
             {hasImages ? (
               <>
-                <Images images={message.image!} message={message} onSetReplyData={onSetReplyData} onDeleteImg={onDeleteImg} />
+                <Images
+                  images={message.image!}
+                  message={message}
+                  onSetReplyData={onSetReplyData}
+                  onDeleteImg={onDeleteImg}
+                  onTogglePin={onTogglePin}
+                />
               </>
             ) : (
               <>
-                <div className="ctext-wrap-content">
+                <div
+                  className={classnames("ctext-wrap-content", {
+                    "voice-only": hasOnlyVoiceAttachment,
+                    "github-repo-msg":
+                      hasText &&
+                      !isRepliedMessage &&
+                      !hasAttachments &&
+                      isGithubRepoOnlyText(message.text),
+                  })}
+                >
                   {isRepliedMessage && (
                     <RepliedMessage
                       fullName={fullName}
@@ -420,7 +675,9 @@ const Message = ({
                   )}
 
                   {hasText && (
-                    <p className="mb-0 ctext-content">{message.text}</p>
+                    <p className="mb-0 ctext-content">
+                      {renderTextWithRepoMentions(message.text || "")}
+                    </p>
                   )}
 
                   {/* typing start */}
@@ -429,7 +686,13 @@ const Message = ({
                   {/* typing end */}
                   {/* files message start */}
                   {hasAttachments && (
-                    <Attachments attachments={message.attachments} />
+                    <Attachments
+                      attachments={message.attachments}
+                      isFromMe={isFromMe}
+                      avatar={isFromMe ? myProfile : profile}
+                      messageTime={date}
+                      isRead={isRead}
+                    />
                   )}
                   {/* files message end */}
                 </div>
@@ -437,6 +700,10 @@ const Message = ({
                   onForward={onForwardMessage}
                   onDelete={onDeleteMessage}
                   onReply={onClickReply}
+                  onTogglePin={onTogglePinMessage}
+                  isPinned={isPinned}
+                  canAddBookmark={!!hasAttachments}
+                  onAddBookmark={onAddBookmarkFromMessage}
                 />
               </>
             )}

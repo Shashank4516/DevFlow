@@ -1,0 +1,19 @@
+# Copy Admin production build into XAMPP htdocs.
+# 1. Rename this file to copy-build-to-xampp.ps1
+# 2. Edit $Dest if your folder name differs
+# 3. Run: npm run build
+# 4. Run: powershell -ExecutionPolicy Bypass -File .\scripts\copy-build-to-xampp.ps1
+
+$ErrorActionPreference = "Stop"
+$Root = Split-Path -Parent (Split-Path -Parent $MyInvocation.MyCommand.Path)
+$Src = Join-Path $Root "build"
+$Dest = "C:\xampp\htdocs\devflow-admin"
+
+if (-not (Test-Path $Src)) {
+    Write-Host "Missing build folder. Run: npm run build" -ForegroundColor Red
+    exit 1
+}
+
+New-Item -ItemType Directory -Force -Path $Dest | Out-Null
+Copy-Item -Path (Join-Path $Src "*") -Destination $Dest -Recurse -Force
+Write-Host "Copied $Src -> $Dest" -ForegroundColor Green

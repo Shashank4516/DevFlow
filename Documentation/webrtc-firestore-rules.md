@@ -3,10 +3,18 @@
 Add these rules to your Firebase project (Firestore rules) to lock down the signaling
 documents so **only the two participants** can read/write.
 
+The current PHP-login video call MVP uses MySQL user IDs in `participants` and
+signs into Firebase anonymously for signaling. For cross-device production-build
+testing, use the temporary `webrtcCalls` rule below with Firebase Anonymous Auth
+enabled. For a fully locked-down production rule, add a backend Firebase custom
+token endpoint so `request.auth.uid` equals the PHP/MySQL user ID.
+
 This app uses:
 
 - `webrtcSignals/{signalId}` (doc) with `participants: [uidA, uidB]`
 - subcollections: `offers`, `answers`, `candidates`
+- `webrtcCalls/{callId}` (doc) for 1-to-1 video calls with `participants: [uidA, uidB]`
+- subcollections: `callerCandidates`, `receiverCandidates`
 
 ### Rules
 
@@ -32,6 +40,16 @@ service cloud.firestore {
 
       match /{subCollection}/{docId} {
         allow read, write: if isParticipant(get(/databases/$(database)/documents/webrtcSignals/$(signalId)));
+      }
+    }
+
+    match /webrtcCalls/{callId} {
+      // Temporary for deployed cross-device testing with anonymous Firebase auth.
+      // Replace with `isParticipant(...)` after Firebase custom tokens are added.
+      allow read, create, update, delete: if request.auth != null;
+
+      match /{subCollection}/{docId} {
+        allow read, write: if request.auth != null;
       }
     }
   }

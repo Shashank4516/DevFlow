@@ -10,6 +10,10 @@
   border-right: 0px ;
 }
 
+body[data-bs-theme="light"] .side-menu {
+  border-left-color: var(--#{$prefix}border-color-translucent);
+}
+
 .side-menu-nav {
   .nav-item {
     .nav-link{

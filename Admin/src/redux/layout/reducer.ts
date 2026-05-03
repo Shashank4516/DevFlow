@@ -17,6 +17,7 @@ function getDeviceLayoutMode(): LayoutState["layoutMode"] {
 export const INIT_STATE: LayoutState = {
   activeTab: TABS.CHAT,
   layoutMode: getDeviceLayoutMode(),
+  stackProjectId: null,
 };
 
 const Layout = (state = INIT_STATE, action: any) => {
@@ -31,7 +32,14 @@ const Layout = (state = INIT_STATE, action: any) => {
       return {
         ...state,
         layoutMode: action.payload.layoutMode,
-      }
+      };
+
+    case LayoutActionTypes.SET_STACK_PROJECT:
+      return {
+        ...state,
+        stackProjectId: action.payload,
+      };
+
     default:
       return { ...state };
   }

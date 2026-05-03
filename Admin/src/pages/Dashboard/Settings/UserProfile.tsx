@@ -11,6 +11,7 @@ import classnames from "classnames";
 // interface
 import { BasicDetailsTypes } from "../../../data/settings";
 import avatar1 from "../../../assets/images/users/avatar-1.jpg";
+import { updateProfileImagesDataUrls } from "../../../api/profile";
 
 // CONSTANTS
 import { STATUS_TYPES } from "../../../constants";
@@ -43,9 +44,17 @@ const UserProfile = ({ basicDetails, status, onChangeData }: UserProfileProps) =
       reader.onload = () => {
         const src = reader.result as string;
         setImage(src);
-        if (onChangeData && basicDetails) {
-          onChangeData("basicDetails", { ...basicDetails, profile: src });
-        }
+        // JSON body → saved in Railway MySQL (LONGTEXT), not ephemeral disk.
+        updateProfileImagesDataUrls({ avatar: src })
+          .then((res: any) => {
+            const saved = res?.profile_image;
+            if (saved && onChangeData && basicDetails) {
+              onChangeData("basicDetails", { ...basicDetails, profile: saved });
+            }
+          })
+          .catch(() => {
+            // Keep optimistic preview; the user can retry by selecting again.
+          });
       };
       reader.readAsDataURL(file);
     }
@@ -85,7 +94,7 @@ const UserProfile = ({ basicDetails, status, onChangeData }: UserProfileProps) =
             id="profile-img-file-input"
             type="file"
             className="profile-img-file-input"
-            accept="image/png, image/jpeg"
+            accept="image/png, image/jpeg, image/webp"
           />
           <Label
             htmlFor="profile-img-file-input"
@@ -99,6 +108,9 @@ const UserProfile = ({ basicDetails, status, onChangeData }: UserProfileProps) =
       </div>
 
       <h5 className="font-size-16 mb-1 text-truncate">{fullName}</h5>
+      {basicDetails?.profileTag ? (
+        <p className="text-muted font-size-13 mb-2 font-monospace">{basicDetails.profileTag}</p>
+      ) : null}
 
       <Dropdown
         className="d-inline-block"

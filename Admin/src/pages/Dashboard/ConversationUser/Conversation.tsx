@@ -22,15 +22,19 @@ interface ConversationProps {
   chatUserConversations: any;
   chatUserDetails: any;
   onDelete: (messageId: string | number) => any;
+  onTogglePin: (messageId: string | number) => void;
   onSetReplyData: (reply: null | MessagesTypes | undefined) => void;
   isChannel: boolean;
+  onAddBookmark: (message: MessagesTypes) => void;
 }
 const Conversation = ({
   chatUserDetails,
   chatUserConversations,
   onDelete,
+  onTogglePin,
   onSetReplyData,
   isChannel,
+  onAddBookmark,
 }: ConversationProps) => {
   // global store
   const { dispatch, useAppSelector } = useRedux();
@@ -51,33 +55,71 @@ const Conversation = ({
     chatUserConversations.messages && chatUserConversations.messages.length
       ? chatUserConversations.messages
       : [];
+  const pinnedMessages = messages.filter((message: MessagesTypes) => message.isPinned);
 
   const ref = useRef<any>();
-  const scrollElement = useCallback(() => {
-    if (ref && ref.current) {
-      const listEle = document.getElementById("chat-conversation-list");
-      let offsetHeight = 0;
-      if (listEle) {
-        offsetHeight = listEle.scrollHeight - window.innerHeight + 250;
-      }
-      if (offsetHeight) {
-        ref.current
-          .getScrollElement()
-          .scrollTo({ top: offsetHeight, behavior: "smooth" });
-      }
-    }
-  }, [ref]);
+  const shouldStickToBottomRef = useRef(true);
+  const previousMessageCountRef = useRef(0);
+
+  const getScrollHost = useCallback(() => {
+    return ref?.current?.getScrollElement?.() as HTMLElement | undefined;
+  }, []);
+
+  const isNearBottom = useCallback((el: HTMLElement, threshold = 100) => {
+    const distanceFromBottom = el.scrollHeight - el.scrollTop - el.clientHeight;
+    return distanceFromBottom <= threshold;
+  }, []);
+
+  const scrollToBottom = useCallback((behavior: ScrollBehavior = "smooth") => {
+    const host = getScrollHost();
+    if (!host) return;
+    host.scrollTo({ top: host.scrollHeight, behavior });
+  }, [getScrollHost]);
 
   useEffect(() => {
     if (ref && ref.current) {
       ref.current.recalculate();
     }
   }, []);
+
   useEffect(() => {
-    if (chatUserConversations.messages) {
-      scrollElement();
+    const host = getScrollHost();
+    if (!host) return;
+
+    const onScroll = () => {
+      shouldStickToBottomRef.current = isNearBottom(host);
+    };
+
+    // Initialize from current viewport position.
+    onScroll();
+    host.addEventListener("scroll", onScroll);
+    return () => {
+      host.removeEventListener("scroll", onScroll);
+    };
+  }, [getScrollHost, isNearBottom]);
+
+  useEffect(() => {
+    if (!chatUserConversations.messages) return;
+    if (ref?.current) {
+      ref.current.recalculate();
     }
-  }, [chatUserConversations.messages, scrollElement]);
+
+    const currentCount = messages.length;
+    const hasNewMessage = currentCount > previousMessageCountRef.current;
+    const lastMessage = currentCount > 0 ? messages[currentCount - 1] : null;
+    const myId = userProfile?.id ?? userProfile?.uid;
+    const lastMessageFromMe =
+      !!lastMessage && myId != null && String(lastMessage.meta.sender) === String(myId);
+
+    if (
+      previousMessageCountRef.current === 0 ||
+      (hasNewMessage && (shouldStickToBottomRef.current || lastMessageFromMe))
+    ) {
+      scrollToBottom(previousMessageCountRef.current === 0 ? "auto" : "smooth");
+    }
+
+    previousMessageCountRef.current = currentCount;
+  }, [chatUserConversations.messages, messages, scrollToBottom, userProfile?.id, userProfile?.uid]);
 
   /*
   forward message
@@ -123,6 +165,24 @@ const Conversation = ({
       className="chat-conversation p-3 p-lg-4 positin-relative"
     >
       {getUserConversationsLoading && <Loader />}
+      {pinnedMessages.length > 0 && (
+        <div className="mb-3 pinned-messages-wrap">
+          <h6 className="text-uppercase text-muted font-size-11 mb-2">
+            <i className="ri-pushpin-2-line me-1"></i>
+            Pinned Messages
+          </h6>
+          <div className="d-flex flex-column gap-2">
+            {pinnedMessages.map((message: MessagesTypes) => (
+              <div key={`pin-${message.mId}`} className="border rounded px-3 py-2 bg-light-subtle">
+                <div className="font-size-13 text-muted">#{message.mId}</div>
+                <div className="font-size-13 text-truncate">
+                  {message.text || (message.image?.length ? "Image message" : "Attachment message")}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
       <ul
         className="list-unstyled chat-conversation-list"
         id="chat-conversation-list"
@@ -136,11 +196,13 @@ const Conversation = ({
               key={key}
               chatUserDetails={chatUserDetails}
               onDelete={onDelete}
+              onTogglePin={onTogglePin}
               onSetReplyData={onSetReplyData}
               isFromMe={isFromMe}
               onOpenForward={onOpenForward}
               isChannel={isChannel}
               onDeleteImage={onDeleteImage}
+              onAddBookmark={onAddBookmark}
             />
           );
         })}

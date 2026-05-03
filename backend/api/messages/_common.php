@@ -1,5 +1,5 @@
 <?php
-require dirname(__DIR__) . '/friends/_common.php';
+require_once dirname(__DIR__) . '/friends/_common.php';
 
 function ensure_chat_tables(mysqli $conn): void
 {
@@ -20,13 +20,37 @@ function ensure_chat_tables(mysqli $conn): void
         sender_id BIGINT UNSIGNED NOT NULL,
         receiver_id BIGINT UNSIGNED NOT NULL,
         body TEXT NOT NULL,
+        attachments_json LONGTEXT NULL,
         is_read TINYINT(1) NOT NULL DEFAULT 0,
+        is_pinned TINYINT(1) NOT NULL DEFAULT 0,
+        pinned_at TIMESTAMP NULL DEFAULT NULL,
         created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
         KEY idx_conv_created (conversation_id, created_at),
         KEY idx_receiver_created (receiver_id, created_at),
         CONSTRAINT fk_messages_conversation
           FOREIGN KEY (conversation_id) REFERENCES conversations(id) ON DELETE CASCADE
     )");
+
+    $colRes = mysqli_query($conn, "SHOW COLUMNS FROM messages LIKE 'attachments_json'");
+    $hasAttachmentsJson = $colRes && mysqli_num_rows($colRes) > 0;
+    if ($colRes) mysqli_free_result($colRes);
+    if (!$hasAttachmentsJson) {
+        @mysqli_query($conn, "ALTER TABLE messages ADD COLUMN attachments_json LONGTEXT NULL AFTER body");
+    }
+
+    $colPinned = mysqli_query($conn, "SHOW COLUMNS FROM messages LIKE 'is_pinned'");
+    $hasPinned = $colPinned && mysqli_num_rows($colPinned) > 0;
+    if ($colPinned) mysqli_free_result($colPinned);
+    if (!$hasPinned) {
+        @mysqli_query($conn, "ALTER TABLE messages ADD COLUMN is_pinned TINYINT(1) NOT NULL DEFAULT 0 AFTER is_read");
+    }
+
+    $colPinnedAt = mysqli_query($conn, "SHOW COLUMNS FROM messages LIKE 'pinned_at'");
+    $hasPinnedAt = $colPinnedAt && mysqli_num_rows($colPinnedAt) > 0;
+    if ($colPinnedAt) mysqli_free_result($colPinnedAt);
+    if (!$hasPinnedAt) {
+        @mysqli_query($conn, "ALTER TABLE messages ADD COLUMN pinned_at TIMESTAMP NULL DEFAULT NULL AFTER is_pinned");
+    }
 
     // Friendship table is shared with the friends APIs.
     mysqli_query($conn, "CREATE TABLE IF NOT EXISTS friend_requests (
@@ -108,8 +132,9 @@ function format_dm_message(array $row, int $me): array
     $sender = (string)($row['sender_id'] ?? '');
     $receiver = (string)($row['receiver_id'] ?? '');
     $isFromMe = $sender === (string)$me;
+    $isRead = ((int)($row['is_read'] ?? 0) === 1);
 
-    return [
+    $payload = [
         'mId' => (string)($row['id'] ?? ''),
         'text' => (string)($row['body'] ?? ''),
         'time' => isset($row['created_at']) ? gmdate('c', strtotime((string)$row['created_at'])) : gmdate('c'),
@@ -118,7 +143,60 @@ function format_dm_message(array $row, int $me): array
             'receiver' => $receiver,
             'sent' => true,
             'received' => true,
-            'read' => $isFromMe ? true : ((int)($row['is_read'] ?? 0) === 1),
+            // Only mark read when receiver has read it (is_read=1), even on sender side.
+            'read' => $isRead,
         ],
+        'isPinned' => ((int)($row['is_pinned'] ?? 0) === 1),
+        'pinnedAt' => !empty($row['pinned_at']) ? gmdate('c', strtotime((string)$row['pinned_at'])) : null,
     ];
+
+    $attachmentsRaw = (string)($row['attachments_json'] ?? '');
+    if ($attachmentsRaw !== '') {
+        $decoded = json_decode($attachmentsRaw, true);
+        if (is_array($decoded)) {
+            $images = [];
+            $attachments = [];
+            foreach ($decoded as $idx => $item) {
+                if (!is_array($item)) continue;
+                $type = (string)($item['type'] ?? 'file');
+                $url = (string)($item['url'] ?? $item['downloadLink'] ?? '');
+                if ($url === '') continue;
+                $common = [
+                    'id' => (int)($idx + 1),
+                    'name' => (string)($item['name'] ?? basename(parse_url($url, PHP_URL_PATH) ?: 'file')),
+                    'downloadLink' => $url,
+                    'desc' => isset($item['size']) ? format_file_size((int)$item['size']) : '',
+                    'type' => $type,
+                    'mimeType' => (string)($item['mimeType'] ?? ''),
+                    'duration' => isset($item['duration']) ? (float)$item['duration'] : null,
+                ];
+                if ($type === 'image') {
+                    $images[] = [
+                        'id' => $common['id'],
+                        'downloadLink' => $url,
+                    ];
+                } else {
+                    $attachments[] = $common;
+                }
+            }
+            if ($images) $payload['image'] = $images;
+            if ($attachments) $payload['attachments'] = $attachments;
+        }
+    }
+
+    return $payload;
+}
+
+function format_file_size(int $bytes): string
+{
+    if ($bytes < 1024) return $bytes . ' B';
+    $units = ['KB', 'MB', 'GB'];
+    $size = $bytes / 1024;
+    foreach ($units as $unit) {
+        if ($size < 1024) {
+            return round($size, 1) . ' ' . $unit;
+        }
+        $size /= 1024;
+    }
+    return round($size, 1) . ' TB';
 }

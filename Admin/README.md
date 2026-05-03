@@ -39,6 +39,13 @@ Instead, it will copy all the configuration files and the transitive dependencie
 
 You don’t have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn’t feel obligated to use this feature. However we understand that this tool wouldn’t be useful if you couldn’t customize it when you are ready for it.
 
+## DevFlow Admin (this repo)
+
+- **Backend URL:** set `VITE_BACKEND_URL` in `.env` (see `backend/README.md` for XAMPP paths).
+- **Stack dashboard (Kanban):** `src/pages/Dashboard/Stack/` — projects API under `backend/api/projects/`.
+- **Deploy Admin to XAMPP `htdocs`:** [docs/XAMPP-DASHBOARD.md](docs/XAMPP-DASHBOARD.md) — build, `VITE_PUBLIC_BASE` for a subfolder, copy `build/` to e.g. `C:\xampp\htdocs\devflow-admin\`.
+- **Dashboard changelog / file list:** [DASHBOARD-UPDATE.md](DASHBOARD-UPDATE.md).
+
 ## Learn More
 
 You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).

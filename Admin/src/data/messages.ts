@@ -8,6 +8,9 @@ export interface AttachmentTypes {
   name: string;
   downloadLink: string;
   desc: string;
+  type?: "file" | "voice" | string;
+  mimeType?: string;
+  duration?: number | null;
 }
 
 export interface ImageTypes {
@@ -18,6 +21,8 @@ export interface MessagesTypes {
   mId: number;
   text?: string;
   time: string;
+  isPinned?: boolean;
+  pinnedAt?: string | null;
   meta: {
     receiver: string | number;
     sender: string | number;

@@ -33,8 +33,27 @@ const getChatUserConversations = (id: string | number) => {
   });
 };
 
-const sendMessage = (data: { to_user_id: string | number; text: string }) => {
+const sendMessage = (data: {
+  to_user_id: string | number;
+  text?: string;
+  attachments?: Array<any>;
+}) => {
   return api.create(url.POST_DM_MESSAGE, data);
+};
+
+const uploadMessageAttachment = (data: {
+  file: File | Blob;
+  kind: "image" | "file" | "voice";
+  name?: string;
+  duration?: number;
+}) => {
+  const formData = new FormData();
+  formData.append("file", data.file, data.name || "attachment");
+  formData.append("kind", data.kind);
+  if (data.duration != null) {
+    formData.append("duration", String(data.duration));
+  }
+  return api.create(url.POST_DM_UPLOAD, formData);
 };
 
 const receiveMessage = (id: string | number) => {
@@ -62,18 +81,46 @@ const forwardMessage = (data: object) => {
 };
 
 const deleteUserMessages = (userId: number | string) => {
-  return api.delete(url.DELETE_USER_MESSAGES + "/" + userId, {
-    params: { userId },
+  return api.create(url.DELETE_USER_MESSAGES, {
+    with_user_id: Number(userId),
   });
 };
 
 const getChannelDetails = (id: string | number) => {
-  return api.get(url.GET_CHANNEL_DETAILS + "/" + id, { params: { id } });
+  return api.get(url.GET_CHANNEL_DETAILS, { params: { id } });
+};
+
+const getChannelMessages = (channelId: string | number, limit: number = 200) => {
+  return api.get(url.GET_CHANNEL_MESSAGES, {
+    params: { channel_id: channelId, limit },
+  });
+};
+
+const sendChannelMessage = (data: {
+  channel_id: string | number;
+  text?: string;
+  attachments?: Array<any>;
+}) => {
+  return api.create(url.POST_CHANNEL_MESSAGE, data);
+};
+
+const toggleMessagePin = (data: {
+  with_user_id: string | number;
+  message_id: string | number;
+}) => {
+  return api.create(url.POST_DM_TOGGLE_PIN, data);
+};
+
+const toggleChannelMessagePin = (data: {
+  channel_id: string | number;
+  message_id: string | number;
+}) => {
+  return api.create(url.POST_CHANNEL_TOGGLE_PIN, data);
 };
 
 const toggleFavouriteContact = (id: string | number) => {
-  return api.update(url.TOGGLE_FAVOURITE_CONTACT + "/" + id, {
-    params: { id },
+  return api.create(url.TOGGLE_FAVOURITE_CONTACT, {
+    target_user_id: Number(id),
   });
 };
 
@@ -85,7 +132,9 @@ const getArchiveContact = () => {
 };
 
 const toggleArchiveContact = (id: string | number) => {
-  return api.update(url.TOGGLE_ARCHIVE_CONTACT + "/" + id, { params: { id } });
+  return api.create(url.TOGGLE_ARCHIVE_CONTACT, {
+    target_user_id: Number(id),
+  });
 };
 
 const readConversation = (id: string | number) => {
@@ -111,6 +160,7 @@ export {
   getChatUserDetails,
   getChatUserConversations,
   sendMessage,
+  uploadMessageAttachment,
   receiveMessage,
   readMessage,
   receiveMessageFromUser,
@@ -118,6 +168,10 @@ export {
   forwardMessage,
   deleteUserMessages,
   getChannelDetails,
+  getChannelMessages,
+  sendChannelMessage,
+  toggleMessagePin,
+  toggleChannelMessagePin,
   toggleFavouriteContact,
   getArchiveContact,
   toggleArchiveContact,

@@ -1,18 +1,14 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createSelector } from "reselect";
-import { Button, Form, Input, UncontrolledTooltip } from "reactstrap";
 import { Link } from "react-router-dom";
 // hooks
 import { useRedux } from "../../../hooks/index";
 
 // actions
 import {
-  inviteContact,
-  resetContacts,
   getFavourites,
   getDirectMessages,
   getChannels,
-  addContacts,
   createChannel,
   changeSelectedChat,
   getChatUserDetails,
@@ -21,6 +17,7 @@ import {
   getChannelDetails,
   getArchiveContact,
   readConversation,
+  toggleFavouriteContact,
 } from "../../../redux/actions";
 
 // interfaces
@@ -29,9 +26,6 @@ import { CreateChannelPostData } from "../../../redux/actions";
 // components
 import AppSimpleBar from "../../../components/AppSimpleBar";
 import AddGroupModal from "../../../components/AddGroupModal";
-import InviteContactModal from "../../../components/InviteContactModal";
-import AddButton from "../../../components/AddButton";
-import ContactModal from "../../../components/ContactModal";
 
 import Favourites from "./Favourites";
 import DirectMessages from "./DirectMessages";
@@ -48,11 +42,9 @@ const Index = (props: IndexProps) => {
     (state : any) => state.Contacts,
     (props : any) => props.Chats,
     (state,props) => ({
-      isContactInvited: state.isContactInvited,
         favourites: props.favourites,
         directMessages: props.directMessages,
         channels: props.channels,
-        isContactsAdded: props.isContactsAdded,
         isChannelCreated: props.isChannelCreated,
         selectedChat: props.selectedChat,
         isFavouriteContactToggled: props.isFavouriteContactToggled,
@@ -63,7 +55,7 @@ const Index = (props: IndexProps) => {
   );
 
   // Inside your component
-  const {isContactInvited, favourites, directMessages, channels, isContactsAdded, isChannelCreated, selectedChat, isFavouriteContactToggled,
+  const {favourites, directMessages, channels, isChannelCreated, selectedChat, isFavouriteContactToggled,
     archiveContacts, isContactArchiveToggled, chatUserDetails} = useAppSelector(errorData);
   
   // get data
@@ -79,53 +71,6 @@ const Index = (props: IndexProps) => {
       dispatch(getDirectMessages());
     }
   }, [dispatch, isFavouriteContactToggled]);
-
-  /*
-  invite contact modal handeling
-  */
-  const [isOpen, setIsOpen] = useState<boolean>(false);
-  const openModal = () => {
-    setIsOpen(true);
-  };
-
-  const closeModal = () => {
-    setIsOpen(false);
-  };
-
-  /*
-  onInvite handeling
-  */
-  const onInviteContact = (data: any) => {
-    dispatch(inviteContact(data));
-  };
-  useEffect(() => {
-    if (isContactInvited) {
-      setIsOpen(false);
-      setTimeout(() => {
-        dispatch(resetContacts("isContactInvited", false));
-      }, 1000);
-    }
-  }, [dispatch, isContactInvited]);
-
-  /*
-  contact add handeling
-  */
-  const [isOpenAddContact, setIsOpenAddContact] = useState<boolean>(false);
-  const openAddContactModal = () => {
-    setIsOpenAddContact(true);
-  };
-  const closeAddContactModal = () => {
-    setIsOpenAddContact(false);
-  };
-  const onAddContact = (contacts: Array<string | number>) => {
-    dispatch(addContacts(contacts));
-  };
-  useEffect(() => {
-    if (isContactsAdded) {
-      setIsOpenAddContact(false);
-      dispatch(getDirectMessages());
-    }
-  }, [dispatch, isContactsAdded]);
 
   /*
   channel creation handeling
@@ -157,6 +102,8 @@ const Index = (props: IndexProps) => {
   const onSelectChat = (id: string | number, isChannel?: boolean) => {
     if (isChannel) {
       dispatch(getChannelDetails(id));
+      dispatch(changeSelectedChat(id));
+      return;
     } else {
       // Prefer using the already-loaded user object so the header has profileImage immediately.
       const allUsers = [...(favourites || []), ...(directMessages || [])];
@@ -211,6 +158,38 @@ const Index = (props: IndexProps) => {
       }
   };
 
+  const groupFriends = useMemo(() => {
+    const merged = [...(directMessages || []), ...(favourites || [])];
+    const friendsById = new Map<string, any>();
+    merged.forEach((friend: any) => {
+      if (!friend?.id) return;
+      const key = String(friend.id);
+      if (!friendsById.has(key)) {
+        friendsById.set(key, friend);
+      }
+    });
+    return Array.from(friendsById.values());
+  }, [directMessages, favourites]);
+
+  // Set of favourite user IDs for quick lookup in the DirectMessages list
+  const favouriteIds = useMemo<Set<string>>(
+    () => new Set<string>((favourites || []).map((u: any) => String(u.id))),
+    [favourites]
+  );
+
+  // Hide users from Direct Messages once they are in Favourites.
+  const directMessagesOnly = useMemo(
+    () =>
+      (directMessages || []).filter(
+        (u: any) => !favouriteIds.has(String(u.id))
+      ),
+    [directMessages, favouriteIds]
+  );
+
+  const onToggleFavourite = (id: number | string) => {
+    dispatch(toggleFavouriteContact(id));
+  };
+
   return (
     <>
       <div>
@@ -218,15 +197,6 @@ const Index = (props: IndexProps) => {
           <div className="d-flex align-items-start">
             <div className="flex-grow-1">
               <h4 className="mb-4">Chats</h4>
-            </div>
-            <div className="flex-shrink-0">
-              <div id="add-contact">
-                {/* Button trigger modal */}
-                <AddButton onClick={openModal} />
-              </div>
-              <UncontrolledTooltip target="add-contact" placement="bottom">
-                Add Contact
-              </UncontrolledTooltip>
             </div>
           </div>
         </div>{" "}
@@ -240,14 +210,16 @@ const Index = (props: IndexProps) => {
                 users={favourites}
                 selectedChat={selectedChat}
                 onSelectChat={onSelectChat}
+                onToggleFavourite={onToggleFavourite}
               />
 
               {/* direct messages */}
               <DirectMessages
-                users={directMessages}
-                openAddContact={openAddContactModal}
+                users={directMessagesOnly}
                 selectedChat={selectedChat}
                 onSelectChat={onSelectChat}
+                onToggleFavourite={onToggleFavourite}
+                favouriteIds={favouriteIds}
               />
 
               {/* channels list */}
@@ -297,25 +269,10 @@ const Index = (props: IndexProps) => {
           isOpen={isOpenCreateChannel}
           onClose={closeCreateChannelModal}
           onCreateChannel={onCreateChannel}
+          friends={groupFriends}
         />
       )}
 
-      {/* add contact modal */}
-      {isOpen && (
-        <InviteContactModal
-          isOpen={isOpen}
-          onClose={closeModal}
-          onInvite={onInviteContact}
-        />
-      )}
-
-      {isOpenAddContact && (
-        <ContactModal
-          isOpen={isOpenAddContact}
-          onClose={closeAddContactModal}
-          onAddContact={onAddContact}
-        />
-      )}
     </>
   );
 };

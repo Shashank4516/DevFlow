@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
   DndContext,
   DragOverlay,
@@ -12,6 +12,35 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
+import {
+  Button,
+  Form,
+  Input,
+  Modal,
+  ModalBody,
+  ModalFooter,
+  ModalHeader,
+} from "reactstrap";
+import { createSelector } from "reselect";
+
+import { useRedux, useProfile } from "../../../hooks";
+import {
+  createProjectTask,
+  getProjectBoard,
+  getProjectMembers,
+  getSuggestedAssignee,
+  moveProjectTask,
+  updateProjectTask,
+  getTaskTodos,
+  createTaskTodo,
+  toggleTaskTodo,
+  type StackBoardTask,
+  type StackMember,
+  type StackTaskTodo,
+  type TaskAssignee,
+} from "../../../api";
+import { STACK_COUNTS_REFRESH } from "./stackEvents";
+import ProjectWorkGraph from "./ProjectWorkGraph";
 
 /* ─── Types ───────────────────────────────────────────────── */
 interface Badge {
@@ -25,6 +54,7 @@ interface Card {
   progress: { done: number; total: number };
   files: number;
   comments: number;
+  assignee: TaskAssignee | null;
 }
 interface Column {
   id: string;
@@ -38,9 +68,13 @@ interface Column {
   cards: Card[];
 }
 
-/* ─── Kanban data (exact from Figma) ─────────────────────── */
-const INITIAL_COLUMNS: Column[] = [
-  {
+const COLUMN_ORDER = ["todo", "inprogress", "review", "complete"] as const;
+
+const COLUMN_STYLES: Record<
+  (typeof COLUMN_ORDER)[number],
+  Omit<Column, "cards">
+> = {
+  todo: {
     id: "todo",
     label: "To Do",
     dotColor: "#FC736F",
@@ -49,40 +83,8 @@ const INITIAL_COLUMNS: Column[] = [
     badgeBg: "rgba(252,115,111,0.2)",
     badgeText: "#FF9996",
     barColor: "#FC736F",
-    cards: [
-      {
-        id: "c1",
-        title: "Homepage UI Design Draft",
-        description:
-          "Building the first version of homepage layout focusing on usability and flow.",
-        badges: [{ label: "Design UI/UX" }, { label: "Frontend" }],
-        progress: { done: 0, total: 4 },
-        files: 3,
-        comments: 1,
-      },
-      {
-        id: "c2",
-        title: "Product Detail Wireframe",
-        description:
-          "Wireframing the product detail page with focus on images and description.",
-        badges: [{ label: "UX" }, { label: "Research" }],
-        progress: { done: 0, total: 4 },
-        files: 2,
-        comments: 3,
-      },
-      {
-        id: "c3",
-        title: "Shopping Cart Structure",
-        description:
-          "Planning the shopping cart page to ensure user-friendly checkout flow.",
-        badges: [{ label: "Backend" }, { label: "API" }],
-        progress: { done: 0, total: 4 },
-        files: 3,
-        comments: 5,
-      },
-    ],
   },
-  {
+  inprogress: {
     id: "inprogress",
     label: "In Progress",
     dotColor: "#3B78F5",
@@ -91,40 +93,8 @@ const INITIAL_COLUMNS: Column[] = [
     badgeBg: "rgba(59,120,245,0.2)",
     badgeText: "#8BB1FF",
     barColor: "#3B78F5",
-    cards: [
-      {
-        id: "c4",
-        title: "User Registration Flow",
-        description:
-          "Building user account creation system with secure authentication.",
-        badges: [{ label: "Frontend" }, { label: "Auth" }],
-        progress: { done: 1, total: 4 },
-        files: 3,
-        comments: 8,
-      },
-      {
-        id: "c5",
-        title: "Payment Gateway Setup",
-        description:
-          "Integrating payment gateway API to support multiple methods.",
-        badges: [{ label: "Backend" }, { label: "API" }],
-        progress: { done: 3, total: 4 },
-        files: 2,
-        comments: 9,
-      },
-      {
-        id: "c6",
-        title: "Product Catalog Layout",
-        description:
-          "Creating responsive product grid for better shopping experience.",
-        badges: [{ label: "Design UI/UX" }, { label: "Frontend" }],
-        progress: { done: 2, total: 4 },
-        files: 3,
-        comments: 11,
-      },
-    ],
   },
-  {
+  review: {
     id: "review",
     label: "Review",
     dotColor: "#F5BD4F",
@@ -133,40 +103,8 @@ const INITIAL_COLUMNS: Column[] = [
     badgeBg: "rgba(245,189,79,0.2)",
     badgeText: "#FCCB6B",
     barColor: "#F5BD4F",
-    cards: [
-      {
-        id: "c7",
-        title: "Homepage Responsive Check",
-        description:
-          "Testing homepage layout across devices to ensure responsiveness.",
-        badges: [{ label: "QA" }, { label: "Frontend" }],
-        progress: { done: 2, total: 4 },
-        files: 2,
-        comments: 18,
-      },
-      {
-        id: "c8",
-        title: "Product Image Optimization",
-        description:
-          "Checking optimized images for clarity and performance balance.",
-        badges: [{ label: "Media" }, { label: "Performance" }],
-        progress: { done: 3, total: 4 },
-        files: 3,
-        comments: 16,
-      },
-      {
-        id: "c9",
-        title: "Checkout Flow Testing",
-        description:
-          "Reviewing checkout process to ensure smooth user experience.",
-        badges: [{ label: "QA" }, { label: "Backend" }],
-        progress: { done: 3, total: 4 },
-        files: 2,
-        comments: 5,
-      },
-    ],
   },
-  {
+  complete: {
     id: "complete",
     label: "Complete",
     dotColor: "#22BD73",
@@ -175,30 +113,55 @@ const INITIAL_COLUMNS: Column[] = [
     badgeBg: "rgba(34,189,115,0.2)",
     badgeText: "#44D992",
     barColor: "#22BD73",
-    cards: [
-      {
-        id: "c10",
-        title: "Login Page Interface",
-        description:
-          "Finished building login interface including input validation.",
-        badges: [{ label: "Design UI/UX" }, { label: "Frontend" }],
-        progress: { done: 4, total: 4 },
-        files: 1,
-        comments: 8,
-      },
-      {
-        id: "c11",
-        title: "Database Schema Setup",
-        description:
-          "Delivered database setup with tables for users, orders, and items.",
-        badges: [{ label: "Backend" }, { label: "Database" }],
-        progress: { done: 4, total: 4 },
-        files: 3,
-        comments: 19,
-      },
-    ],
   },
-];
+};
+
+function taskToCard(t: StackBoardTask): Card {
+  const badges =
+    t.badges && t.badges.length > 0 ? t.badges : [{ label: "Task" }];
+  return {
+    id: t.id,
+    title: t.title,
+    description: t.description || "",
+    badges,
+    progress: {
+      done: t.progress?.done ?? 0,
+      total: t.progress?.total ?? 0,
+    },
+    files: t.files ?? 0,
+    comments: t.comments ?? 0,
+    assignee: t.assignee ?? null,
+  };
+}
+
+function buildColumnsFromTasks(
+  tasks: StackBoardTask[],
+  filterByUserId: number | null
+): Column[] {
+  const list =
+    filterByUserId != null
+      ? tasks.filter(
+          t =>
+            t.assignee != null && Number(t.assignee.user_id) === filterByUserId
+        )
+      : tasks;
+  const byCol: Record<string, Card[]> = {
+    todo: [],
+    inprogress: [],
+    review: [],
+    complete: [],
+  };
+  for (const t of list) {
+    const key = t.column_key as keyof typeof byCol;
+    if (byCol[key]) {
+      byCol[key].push(taskToCard(t));
+    }
+  }
+  return COLUMN_ORDER.map(id => ({
+    ...COLUMN_STYLES[id],
+    cards: byCol[id] || [],
+  }));
+}
 
 function findCardInColumns(
   columns: Column[],
@@ -211,9 +174,38 @@ function findCardInColumns(
   return null;
 }
 
-/* ─── Avatar initials ────────────────────────────────────── */
+function patchTaskProgress(
+  tasks: StackBoardTask[],
+  taskId: string,
+  progress: { done: number; total: number }
+): StackBoardTask[] {
+  return tasks.map(t =>
+    t.id === taskId
+      ? { ...t, progress: { done: progress.done, total: progress.total } }
+      : t
+  );
+}
+
+/* ─── Avatar helpers ─────────────────────────────────────── */
 const AVATAR_COLORS = ["#594DED", "#3B78F5", "#22BD73", "#F5BD4F"];
-const AVATAR_INITIALS = ["MK", "SC", "DJ"];
+
+function userInitials(u: { firstName?: string; lastName?: string; displayName?: string; email?: string }): string {
+  const fn = (u.firstName || "").trim();
+  const ln = (u.lastName || "").trim();
+  if (fn || ln) {
+    return (fn.charAt(0) + ln.charAt(0)).toUpperCase() || fn.slice(0, 2).toUpperCase() || "?";
+  }
+  const dn = (u.displayName || "").trim();
+  if (dn) {
+    const parts = dn.split(/\s+/).filter(Boolean);
+    if (parts.length >= 2) {
+      return (parts[0].charAt(0) + parts[1].charAt(0)).toUpperCase();
+    }
+    return dn.slice(0, 2).toUpperCase();
+  }
+  const em = (u.email || "").trim();
+  return em ? em.slice(0, 2).toUpperCase() : "?";
+}
 
 /* ─── Inline SVG atoms ───────────────────────────────────── */
 const PlusIcon = ({ size = 16 }: { size?: number }) => (
@@ -256,17 +248,6 @@ const SearchIcon = () => (
     <circle cx="7" cy="7" r="4.5" stroke="currentColor" strokeWidth="1.4" />
     <path
       d="M10.5 10.5L14 14"
-      stroke="currentColor"
-      strokeWidth="1.4"
-      strokeLinecap="round"
-    />
-  </svg>
-);
-
-const FilterIcon = () => (
-  <svg width="16" height="16" viewBox="0 0 16 16" fill="none" aria-hidden>
-    <path
-      d="M2 4h12M4 8h8M6 12h4"
       stroke="currentColor"
       strokeWidth="1.4"
       strokeLinecap="round"
@@ -339,15 +320,32 @@ const ProgressBar = ({
   total: number;
   color: string;
 }) => {
-  const pct = total === 0 ? 0 : Math.round((done / total) * 100);
+  if (total <= 0) {
+    return (
+      <div
+        className="tm-progress tm-progress--empty"
+        title="Open the checklist on this card to add items. The bar reflects completed checklist items only."
+      >
+        <div className="tm-progress__header">
+          <span className="tm-progress__label">Checklist</span>
+        </div>
+        <p className="tm-progress__hint">No checklist items yet</p>
+      </div>
+    );
+  }
+
+  const pct = Math.round((done / total) * 100);
   const safeTotal = Math.max(1, total);
   const clampedPct = Math.max(0, Math.min(100, pct));
   const activeSegments = Math.floor((clampedPct / 100) * safeTotal);
   const remainderPct = ((clampedPct / 100) * safeTotal - activeSegments) * 100;
   return (
-    <div className="tm-progress">
+    <div
+      className="tm-progress"
+      title="Progress reflects completed checklist items for this task."
+    >
       <div className="tm-progress__header">
-        <span className="tm-progress__label">Progress</span>
+        <span className="tm-progress__label">Checklist progress</span>
         <span className="tm-progress__count">
           {done}/{total}
         </span>
@@ -375,69 +373,157 @@ const ProgressBar = ({
   );
 };
 
-/* ─── Kanban Card ─────────────────────────────────────────── */
-const KanbanCard = ({ card, col }: { card: Card; col: Column }) => (
-  <div className="tm-card">
-    <div className="tm-card__header">
-      <div className="tm-card__badges">
-        {card.badges.map(b => (
-          <span
-            key={b.label}
-            className="tm-card__badge"
-            style={{ background: col.badgeBg, color: col.badgeText }}
-          >
-            {b.label}
-          </span>
-        ))}
-      </div>
-      <button
-        type="button"
-        className="tm-card__menu-btn"
-        aria-label="Card options"
-        onPointerDown={e => e.stopPropagation()}
-      >
-        <DotsIcon />
-      </button>
-    </div>
-    <div className="tm-card__body">
-      <h4 className="tm-card__title">{card.title}</h4>
-      <p className="tm-card__desc">{card.description}</p>
-    </div>
-    <div className="tm-card__footer">
-      <ProgressBar
-        done={card.progress.done}
-        total={card.progress.total}
-        color={col.barColor}
-      />
-      <div className="tm-card__meta">
-        <div className="tm-card__avatars">
-          {AVATAR_INITIALS.slice(0, 2).map((ini, i) => (
-            <span
-              key={i}
-              className="tm-card__avatar"
-              style={{ background: AVATAR_COLORS[i], zIndex: 2 - i }}
-            >
-              {ini}
-            </span>
-          ))}
-        </div>
-        <div className="tm-card__tags">
-          <span className="tm-card__tag">
-            <FolderSmIcon />
-            <span>{card.files}</span>
-          </span>
-          <span className="tm-card__tag">
-            <ChatBubbleIcon />
-            <span>{card.comments}</span>
-          </span>
-        </div>
-      </div>
-    </div>
-  </div>
+const TodoCheckIcon = ({ checked }: { checked: boolean }) => (
+  <span
+    style={{
+      width: 18,
+      height: 18,
+      borderRadius: 5,
+      border: `1px solid ${checked ? "#22BD73" : "#5A5668"}`,
+      background: checked ? "rgba(34,189,115,0.25)" : "transparent",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      marginRight: 10,
+      flex: "0 0 auto",
+    }}
+    aria-hidden
+  >
+    {checked ? (
+      <span style={{ color: "#22BD73", fontSize: 12, fontWeight: 700 }}>
+        ✓
+      </span>
+    ) : null}
+  </span>
 );
 
+/* ─── Kanban Card ─────────────────────────────────────────── */
+const KanbanCard = ({
+  card,
+  col,
+  onOpenChecklist,
+  onOpenAssign,
+}: {
+  card: Card;
+  col: Column;
+  onOpenChecklist: (card: Card) => void;
+  onOpenAssign: (card: Card) => void;
+}) => {
+  const a = card.assignee;
+  return (
+    <div className="tm-card">
+      <div className="tm-card__header">
+        <div className="tm-card__badges">
+          {card.badges.map(b => (
+            <span
+              key={b.label}
+              className="tm-card__badge"
+              style={{ background: col.badgeBg, color: col.badgeText }}
+            >
+              {b.label}
+            </span>
+          ))}
+          <span
+            className="tm-card__badge tm-card__badge--id"
+            title="Use this ID in commit messages or PR titles to automate task movement"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              color: "#9A97A8",
+              fontFamily: "monospace",
+              letterSpacing: "0.02em",
+            }}
+          >
+            DF-{card.id}
+          </span>
+        </div>
+        <div className="tm-card__header-actions">
+          <button
+            type="button"
+            className="tm-card__menu-btn"
+            aria-label="Assign or reassign"
+            title="Assign"
+            onPointerDown={e => e.stopPropagation()}
+            onClick={e => {
+              e.stopPropagation();
+              onOpenAssign(card);
+            }}
+          >
+            <i className="bx bx-user-plus" style={{ fontSize: 16 }} aria-hidden />
+          </button>
+          <button
+            type="button"
+            className="tm-card__menu-btn"
+            aria-label="Open checklist editor"
+            title="Checklist"
+            onPointerDown={e => e.stopPropagation()}
+            onClick={() => onOpenChecklist(card)}
+          >
+            <DotsIcon />
+          </button>
+        </div>
+      </div>
+      <div className="tm-card__body">
+        <h4 className="tm-card__title">{card.title}</h4>
+        <p className="tm-card__desc">{card.description}</p>
+      </div>
+      <div className="tm-card__footer">
+        <ProgressBar
+          done={card.progress.done}
+          total={card.progress.total}
+          color={col.barColor}
+        />
+        <div className="tm-card__meta">
+          <div className="tm-card__avatars tm-card__avatars--assignee">
+            {a ? (
+              a.profileImage ? (
+                <img
+                  src={a.profileImage}
+                  alt=""
+                  className="tm-card__avatar tm-card__avatar--img"
+                />
+              ) : (
+                <span
+                  className="tm-card__avatar"
+                  style={{ background: AVATAR_COLORS[0] }}
+                  title={a.name}
+                >
+                  {(a.initials || "?").slice(0, 2)}
+                </span>
+              )
+            ) : (
+              <span className="tm-card__avatar tm-card__avatar--empty" title="Unassigned">
+                ?
+              </span>
+            )}
+          </div>
+          <div className="tm-card__tags">
+            <span className="tm-card__tag">
+              <FolderSmIcon />
+              <span>{card.files}</span>
+            </span>
+            <span className="tm-card__tag">
+              <ChatBubbleIcon />
+              <span>{card.comments}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 /* ─── Draggable card ──────────────────────────────────────── */
-const DraggableKanbanCard = ({ card, col }: { card: Card; col: Column }) => {
+const DraggableKanbanCard = ({
+  card,
+  col,
+  onOpenChecklist,
+  onOpenAssign,
+}: {
+  card: Card;
+  col: Column;
+  onOpenChecklist: (card: Card) => void;
+  onOpenAssign: (card: Card) => void;
+}) => {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: card.id,
     data: { columnId: col.id },
@@ -456,14 +542,27 @@ const DraggableKanbanCard = ({ card, col }: { card: Card; col: Column }) => {
       {isDragging ? (
         <div className="tm-card tm-card--drop-placeholder" aria-hidden />
       ) : (
-        <KanbanCard card={card} col={col} />
+        <KanbanCard
+          card={card}
+          col={col}
+          onOpenChecklist={onOpenChecklist}
+          onOpenAssign={onOpenAssign}
+        />
       )}
     </div>
   );
 };
 
 /* ─── Kanban Column ───────────────────────────────────────── */
-const KanbanColumn = ({ col }: { col: Column }) => {
+const KanbanColumn = ({
+  col,
+  onOpenChecklist,
+  onOpenAssign,
+}: {
+  col: Column;
+  onOpenChecklist: (card: Card) => void;
+  onOpenAssign: (card: Card) => void;
+}) => {
   const { setNodeRef, isOver } = useDroppable({ id: col.id });
   return (
     <div className={`tm-column tm-column--${col.id}`}>
@@ -496,7 +595,13 @@ const KanbanColumn = ({ col }: { col: Column }) => {
         className={`tm-column__cards${isOver ? " is-over" : ""}`}
       >
         {col.cards.map(card => (
-          <DraggableKanbanCard key={card.id} card={card} col={col} />
+          <DraggableKanbanCard
+            key={card.id}
+            card={card}
+            col={col}
+            onOpenChecklist={onOpenChecklist}
+            onOpenAssign={onOpenAssign}
+          />
         ))}
       </div>
     </div>
@@ -505,11 +610,83 @@ const KanbanColumn = ({ col }: { col: Column }) => {
 
 /* ─── Main KanbanBoard ────────────────────────────────────── */
 const KanbanBoard = () => {
-  const [activeTab, setActiveTab] = useState<"Dashboard">("Dashboard");
-  const [columns, setColumns] = useState<Column[]>(() =>
-    INITIAL_COLUMNS.map(c => ({ ...c, cards: [...c.cards] }))
+  const { useAppSelector } = useRedux();
+  const { userProfile } = useProfile();
+
+  const layoutSel = createSelector(
+    (state: any) => state.Layout,
+    (l: any) => ({ stackProjectId: l.stackProjectId as number | null })
   );
+  const { stackProjectId } = useAppSelector(layoutSel);
+
+  const [activeTab, setActiveTab] = useState<"Dashboard">("Dashboard");
+  const [boardTasks, setBoardTasks] = useState<StackBoardTask[]>([]);
+  const [filterMyTasks, setFilterMyTasks] = useState(false);
   const [activeDragId, setActiveDragId] = useState<string | null>(null);
+  const [projectName, setProjectName] = useState("");
+  const [boardLoading, setBoardLoading] = useState(false);
+  const [members, setMembers] = useState<StackMember[]>([]);
+  const [taskModal, setTaskModal] = useState(false);
+  const [newTaskTitle, setNewTaskTitle] = useState("");
+  const [newTaskDesc, setNewTaskDesc] = useState("");
+  const [newTaskAssignee, setNewTaskAssignee] = useState<number | "">("");
+  const [assignModal, setAssignModal] = useState(false);
+  const [assignCard, setAssignCard] = useState<Card | null>(null);
+  const [assignSelect, setAssignSelect] = useState<number | "">("");
+  const [checklistOpen, setChecklistOpen] = useState(false);
+  const [checklistCard, setChecklistCard] = useState<Card | null>(null);
+  const [checklistLoading, setChecklistLoading] = useState(false);
+  const [todos, setTodos] = useState<StackTaskTodo[]>([]);
+  const [newTodoText, setNewTodoText] = useState("");
+  const [completeConfirmOpen, setCompleteConfirmOpen] = useState(false);
+  const [completeConfirmPending, setCompleteConfirmPending] = useState<{
+    cardId: string;
+  } | null>(null);
+
+  const hasBackend = !!import.meta.env.VITE_BACKEND_URL;
+
+  const myUserId = useMemo(() => {
+    const raw = userProfile?.id ?? (userProfile as { uid?: string | number })?.uid;
+    if (raw === undefined || raw === null || raw === "") return null;
+    const n = Number(raw);
+    return Number.isFinite(n) ? n : null;
+  }, [userProfile]);
+
+  const columns = useMemo(
+    () =>
+      buildColumnsFromTasks(
+        boardTasks,
+        filterMyTasks && myUserId != null ? myUserId : null
+      ),
+    [boardTasks, filterMyTasks, myUserId]
+  );
+
+  const loadBoard = useCallback(async () => {
+    if (stackProjectId == null || !hasBackend) {
+      setBoardTasks([]);
+      setProjectName("");
+      return;
+    }
+    setBoardLoading(true);
+    try {
+      const [board, mem] = await Promise.all([
+        getProjectBoard(stackProjectId),
+        getProjectMembers(stackProjectId),
+      ]);
+      setProjectName(board.project.name);
+      setBoardTasks(board.tasks || []);
+      setMembers(mem.members || []);
+    } catch {
+      setBoardTasks([]);
+      setProjectName("");
+    } finally {
+      setBoardLoading(false);
+    }
+  }, [stackProjectId, hasBackend]);
+
+  useEffect(() => {
+    loadBoard();
+  }, [loadBoard]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -526,10 +703,33 @@ const KanbanBoard = () => {
     setActiveDragId(String(event.active.id));
   };
 
-  const handleDragEnd = (event: DragEndEvent) => {
+  const performMoveToColumn = useCallback(
+    async (cardId: string, targetColumnKey: string) => {
+      if (stackProjectId == null || !hasBackend) return;
+      const prevTasks = boardTasks;
+      setBoardTasks(p =>
+        p.map(t =>
+          t.id === cardId ? { ...t, column_key: targetColumnKey } : t
+        )
+      );
+      try {
+        await moveProjectTask({
+          project_id: stackProjectId,
+          task_id: parseInt(cardId, 10),
+          column_key: targetColumnKey,
+        });
+        window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
+      } catch {
+        setBoardTasks(prevTasks);
+      }
+    },
+    [stackProjectId, hasBackend, boardTasks]
+  );
+
+  const handleDragEnd = async (event: DragEndEvent) => {
     const { active, over } = event;
     setActiveDragId(null);
-    if (!over) return;
+    if (!over || stackProjectId == null || !hasBackend) return;
     const cardId = String(active.id);
     const overId = String(over.id);
     const source = findCardInColumns(columns, cardId);
@@ -540,96 +740,284 @@ const KanbanBoard = () => {
     if (!targetCol) return;
     if (source.col.id === targetCol.id) return;
 
-    setColumns(prev =>
-      prev.map(col => {
-        if (col.id === source.col.id) {
-          return { ...col, cards: col.cards.filter(c => c.id !== cardId) };
+    if (targetCol.id === "complete") {
+      try {
+        const todosRes = await getTaskTodos({
+          project_id: stackProjectId,
+          task_id: parseInt(cardId, 10),
+        });
+        setBoardTasks(prev =>
+          patchTaskProgress(prev, cardId, {
+            done: todosRes.progress?.done ?? 0,
+            total: todosRes.progress?.total ?? 0,
+          })
+        );
+        const list = todosRes.todos || [];
+        const incomplete = list.filter(t => !t.is_done).length;
+        if (list.length > 0 && incomplete > 0) {
+          setCompleteConfirmPending({ cardId });
+          setCompleteConfirmOpen(true);
+          return;
         }
-        if (col.id === targetCol.id) {
-          return { ...col, cards: [...col.cards, source.card] };
-        }
-        return col;
-      })
-    );
+      } catch {
+        /* If checklist fails to load, allow moving without prompting. */
+      }
+    }
+
+    await performMoveToColumn(cardId, targetCol.id);
   };
 
   const handleDragCancel = () => {
     setActiveDragId(null);
   };
 
+  const onOpenChecklist = useCallback(
+    async (card: Card) => {
+      if (!stackProjectId || !hasBackend) return;
+      setChecklistCard(card);
+      setChecklistOpen(true);
+      setChecklistLoading(true);
+      setTodos([]);
+      setNewTodoText("");
+      try {
+        const res = await getTaskTodos({
+          project_id: stackProjectId,
+          task_id: parseInt(card.id, 10),
+        });
+        setTodos(res.todos || []);
+        setBoardTasks(prev =>
+          patchTaskProgress(prev, card.id, {
+            done: res.progress?.done ?? 0,
+            total: res.progress?.total ?? 0,
+          })
+        );
+      } finally {
+        setChecklistLoading(false);
+      }
+    },
+    [stackProjectId, hasBackend]
+  );
+
+  const handleAddTodo = useCallback(
+    async (e: React.FormEvent) => {
+      e.preventDefault();
+      if (!stackProjectId || !checklistCard) return;
+      const text = newTodoText.trim();
+      if (!text) return;
+      setChecklistLoading(true);
+      try {
+        const res = await createTaskTodo({
+          project_id: stackProjectId,
+          task_id: parseInt(checklistCard.id, 10),
+          text,
+        });
+        if (res.todo) {
+          setTodos(prev => [...prev, res.todo]);
+        }
+        setNewTodoText("");
+        setBoardTasks(prev =>
+          patchTaskProgress(prev, checklistCard.id, {
+            done: res.progress?.done ?? 0,
+            total: res.progress?.total ?? 0,
+          })
+        );
+        window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
+      } finally {
+        setChecklistLoading(false);
+      }
+    },
+    [stackProjectId, checklistCard, newTodoText]
+  );
+
+  const handleToggleTodo = useCallback(
+    async (todo: StackTaskTodo) => {
+      if (!stackProjectId || !checklistCard) return;
+      const next = !todo.is_done;
+      setTodos(prev =>
+        prev.map(t => (t.id === todo.id ? { ...t, is_done: next } : t))
+      );
+      try {
+        const res = await toggleTaskTodo({
+          project_id: stackProjectId,
+          task_id: parseInt(checklistCard.id, 10),
+          todo_id: parseInt(todo.id, 10),
+          is_done: next,
+        });
+        setBoardTasks(prev =>
+          patchTaskProgress(prev, checklistCard.id, {
+            done: res.progress?.done ?? 0,
+            total: res.progress?.total ?? 0,
+          })
+        );
+      } catch {
+        // revert on failure
+        setTodos(prev =>
+          prev.map(t => (t.id === todo.id ? { ...t, is_done: !next } : t))
+        );
+      }
+    },
+    [stackProjectId, checklistCard]
+  );
+
+  const onOpenAssign = useCallback(
+    (card: Card) => {
+      if (!stackProjectId) return;
+      setAssignCard(card);
+      setAssignSelect(
+        card.assignee ? card.assignee.user_id : ""
+      );
+      setAssignModal(true);
+    },
+    [stackProjectId]
+  );
+
+  const handleSaveAssign = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stackProjectId || !assignCard) return;
+    const v = assignSelect === "" ? null : Number(assignSelect);
+    if (v !== null && (Number.isNaN(v) || v <= 0)) {
+      return;
+    }
+    try {
+      const res = await updateProjectTask({
+        project_id: stackProjectId,
+        task_id: parseInt(assignCard.id, 10),
+        assignee_user_id: v,
+      });
+      if (res.task) {
+        setBoardTasks(prev =>
+          prev.map(t => (t.id === assignCard.id ? res.task : t))
+        );
+      }
+      setAssignModal(false);
+      setAssignCard(null);
+    } catch {
+      /* ignore */
+    }
+  };
+
+  const applySuggestedAssignee = useCallback(async () => {
+    if (stackProjectId == null) return;
+    try {
+      const s = await getSuggestedAssignee(stackProjectId);
+      if (s.suggested_user_id != null) {
+        setNewTaskAssignee(s.suggested_user_id);
+      }
+    } catch {
+      /* ignore */
+    }
+  }, [stackProjectId]);
+
+  const handleCreateTask = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!stackProjectId || !newTaskTitle.trim() || !hasBackend) return;
+    try {
+      const res = await createProjectTask({
+        project_id: stackProjectId,
+        title: newTaskTitle.trim(),
+        description: newTaskDesc.trim(),
+        column_key: "todo",
+        assignee_user_id:
+          newTaskAssignee === "" ? undefined : Number(newTaskAssignee),
+      });
+      if (res.task) {
+        setBoardTasks(prev => [...prev, res.task]);
+      }
+      setNewTaskTitle("");
+      setNewTaskDesc("");
+      setNewTaskAssignee("");
+      setTaskModal(false);
+      window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
+    } catch {
+      /* ignore */
+    }
+  };
+
+  if (!hasBackend) {
+    return (
+      <div className="tm-main d-flex align-items-center justify-content-center p-4">
+        <p className="text-muted text-center mb-0">
+          Configure <code>VITE_BACKEND_URL</code> in Admin/.env to use Stack with your projects.
+        </p>
+      </div>
+    );
+  }
+
+  if (stackProjectId == null) {
+    return (
+      <div className="tm-main d-flex align-items-center justify-content-center p-4">
+        <p className="text-muted text-center mb-0">
+          {boardLoading ? "Loading…" : "Create or select a project in the Stack sidebar."}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="tm-main">
-      {/* ── Top header row (breadcrumb + notifications + profile) ── */}
       <div className="tm-topbar">
         <nav className="tm-breadcrumb" aria-label="breadcrumb">
           <span className="tm-breadcrumb__item tm-breadcrumb__item--muted">
             Project
           </span>
           <ChevronRightSm />
-          <span className="tm-breadcrumb__item tm-breadcrumb__item--muted">
-            Website
-          </span>
-          <ChevronRightSm />
-          <span className="tm-breadcrumb__item">E-Commerce Website</span>
+          <span className="tm-breadcrumb__item">{projectName || "…"}</span>
         </nav>
         <div className="tm-topbar__right">
-          <button className="tm-topbar__icon-btn" aria-label="Notifications">
+          <button type="button" className="tm-topbar__icon-btn" aria-label="Notifications">
             <BellIcon />
           </button>
-          <div className="tm-topbar__divider" />
-          <div className="tm-topbar__profile">
-            <span
-              className="tm-topbar__avatar"
-              style={{ background: "#594DED" }}
-            >
-              S
-            </span>
-            <div className="tm-topbar__profile-info">
-              <span className="tm-topbar__profile-name">Shahsank</span>
-              <span className="tm-topbar__profile-email">
-                jeno.sonn@gmail.com
-              </span>
-            </div>
-            <ChevronRightSm />
-          </div>
         </div>
       </div>
 
-      {/* ── Secondary header (title + actions + tabs + search) ── */}
       <div className="tm-subheader">
         <div className="tm-subheader__top">
           <div className="tm-subheader__left">
-            <h1 className="tm-subheader__title">E-Commerce Website</h1>
+            <h1 className="tm-subheader__title">{projectName || "Project"}</h1>
           </div>
           <div className="tm-subheader__actions">
             <div className="tm-avatar-group">
-              {AVATAR_COLORS.slice(0, 3).map((c, i) => (
+              {members.slice(0, 3).map((m, i) => (
                 <span
-                  key={i}
+                  key={m.user_id}
                   className="tm-avatar-group__item"
-                  style={{ background: c, zIndex: 3 - i }}
+                  style={{ background: AVATAR_COLORS[i % AVATAR_COLORS.length], zIndex: 3 - i }}
+                  title={m.name}
                 >
-                  {AVATAR_INITIALS[i] || "+9"}
+                  {(m.initials || "?").slice(0, 2)}
                 </span>
               ))}
-              <span
-                className="tm-avatar-group__item tm-avatar-group__item--overflow"
-                style={{ background: "#2E2B3B" }}
-              >
-                +9
-              </span>
+              {members.length > 3 && (
+                <span
+                  className="tm-avatar-group__item tm-avatar-group__item--overflow"
+                  style={{ background: "#2E2B3B" }}
+                >
+                  +{members.length - 3}
+                </span>
+              )}
             </div>
-            <button className="tm-btn-primary">
+            <button
+              type="button"
+              className="tm-btn-primary"
+              onClick={() => {
+                setNewTaskAssignee("");
+                setTaskModal(true);
+              }}
+            >
               <PlusIcon size={14} />
               <span>New Task</span>
             </button>
           </div>
         </div>
+
+        <ProjectWorkGraph projectId={stackProjectId} />
+
         <div className="tm-subheader__bottom">
           <div className="tm-tabs">
             {(["Dashboard"] as const).map(t => (
               <button
                 key={t}
+                type="button"
                 className={`tm-tabs__tab ${activeTab === t ? "is-active" : ""}`}
                 onClick={() => setActiveTab(t)}
               >
@@ -641,17 +1029,25 @@ const KanbanBoard = () => {
           <div className="tm-filters">
             <div className="tm-search">
               <SearchIcon />
-              <span className="tm-search__placeholder">Search...</span>
+              <span className="tm-search__placeholder">Search…</span>
             </div>
-            <button className="tm-filter-btn">
-              <FilterIcon />
-              <span>Filter</span>
+            <button
+              type="button"
+              className={`tm-filter-btn${filterMyTasks ? " is-active" : ""}`}
+              onClick={() => setFilterMyTasks(f => !f)}
+              title="Show only tasks assigned to you"
+            >
+              <i className="bx bx-user-check" aria-hidden />
+              <span>My tasks</span>
             </button>
           </div>
         </div>
       </div>
 
-      {/* ── Kanban board ──────────────────────────────────── */}
+      {boardLoading && (
+        <p className="px-4 py-2 small text-muted mb-0">Loading board…</p>
+      )}
+
       <DndContext
         sensors={sensors}
         collisionDetection={closestCorners}
@@ -661,17 +1057,229 @@ const KanbanBoard = () => {
       >
         <div className="tm-board">
           {columns.map(col => (
-            <KanbanColumn key={col.id} col={col} />
+            <KanbanColumn
+              key={col.id}
+              col={col}
+              onOpenChecklist={onOpenChecklist}
+              onOpenAssign={onOpenAssign}
+            />
           ))}
         </div>
         <DragOverlay dropAnimation={null}>
           {activeDragPayload ? (
             <div className="tm-drag-overlay-card">
-              <KanbanCard card={activeDragPayload.card} col={activeDragPayload.col} />
+              <KanbanCard
+                card={activeDragPayload.card}
+                col={activeDragPayload.col}
+                onOpenChecklist={onOpenChecklist}
+                onOpenAssign={() => {}}
+              />
             </div>
           ) : null}
         </DragOverlay>
       </DndContext>
+
+      <Modal isOpen={taskModal} toggle={() => setTaskModal(false)} centered>
+        <ModalHeader toggle={() => setTaskModal(false)}>New task</ModalHeader>
+        <ModalBody>
+          <Form onSubmit={handleCreateTask}>
+            <Input
+              className="mb-2"
+              placeholder="Title"
+              value={newTaskTitle}
+              onChange={e => setNewTaskTitle(e.target.value)}
+              autoFocus
+            />
+            <Input
+              type="textarea"
+              className="mb-2"
+              placeholder="Description (optional)"
+              value={newTaskDesc}
+              onChange={e => setNewTaskDesc(e.target.value)}
+              rows={3}
+            />
+            <div className="d-flex flex-wrap gap-2 align-items-end mb-3">
+              <div className="flex-grow-1" style={{ minWidth: 180 }}>
+                <div className="text-muted small mb-1">Assign to</div>
+                <Input
+                  type="select"
+                  value={newTaskAssignee === "" ? "" : String(newTaskAssignee)}
+                  onChange={e => {
+                    const v = e.target.value;
+                    setNewTaskAssignee(v === "" ? "" : Number(v));
+                  }}
+                >
+                  <option value="">Unassigned</option>
+                  {members.map(m => (
+                    <option key={m.user_id} value={m.user_id}>
+                      {m.name}
+                    </option>
+                  ))}
+                </Input>
+              </div>
+              <Button
+                type="button"
+                color="secondary"
+                outline
+                size="sm"
+                onClick={() => void applySuggestedAssignee()}
+              >
+                Suggest
+              </Button>
+            </div>
+            <Button color="primary" type="submit" disabled={!newTaskTitle.trim()}>
+              Add to To Do
+            </Button>
+          </Form>
+        </ModalBody>
+      </Modal>
+
+      <Modal isOpen={assignModal} toggle={() => setAssignModal(false)} centered>
+        <ModalHeader toggle={() => setAssignModal(false)}>Assign task</ModalHeader>
+        <ModalBody>
+          {assignCard && (
+            <p className="small text-muted mb-2">{assignCard.title}</p>
+          )}
+          <Form onSubmit={handleSaveAssign}>
+            <Input
+              type="select"
+              className="mb-3"
+              value={assignSelect === "" ? "" : String(assignSelect)}
+              onChange={e => {
+                const v = e.target.value;
+                setAssignSelect(v === "" ? "" : Number(v));
+              }}
+            >
+              <option value="">Unassigned</option>
+              {members.map(m => (
+                <option key={m.user_id} value={m.user_id}>
+                  {m.name}
+                </option>
+              ))}
+            </Input>
+            <Button color="primary" type="submit">
+              Save
+            </Button>
+          </Form>
+        </ModalBody>
+      </Modal>
+
+      <Modal
+        isOpen={completeConfirmOpen}
+        toggle={() => {
+          setCompleteConfirmOpen(false);
+          setCompleteConfirmPending(null);
+        }}
+        centered
+      >
+        <ModalHeader
+          toggle={() => {
+            setCompleteConfirmOpen(false);
+            setCompleteConfirmPending(null);
+          }}
+        >
+          Move to Complete?
+        </ModalHeader>
+        <ModalBody>
+          <p className="small text-muted mb-0">
+            This task still has unchecked checklist items. You can finish them
+            later, or move to Complete anyway.
+          </p>
+        </ModalBody>
+        <ModalFooter className="border-0 pt-0">
+          <Button
+            color="secondary"
+            outline
+            type="button"
+            onClick={() => {
+              setCompleteConfirmOpen(false);
+              setCompleteConfirmPending(null);
+            }}
+          >
+            Cancel
+          </Button>
+          <Button
+            color="primary"
+            type="button"
+            onClick={() => {
+              const p = completeConfirmPending;
+              setCompleteConfirmOpen(false);
+              setCompleteConfirmPending(null);
+              if (p) void performMoveToColumn(p.cardId, "complete");
+            }}
+          >
+            Move anyway
+          </Button>
+        </ModalFooter>
+      </Modal>
+
+      <Modal
+        isOpen={checklistOpen}
+        toggle={() => setChecklistOpen(false)}
+        centered
+      >
+        <ModalHeader toggle={() => setChecklistOpen(false)}>
+          Subtasks checklist{checklistCard ? ` — ${checklistCard.title}` : ""}
+        </ModalHeader>
+        <ModalBody>
+          {checklistLoading ? (
+            <p className="small text-muted mb-3">Loading…</p>
+          ) : null}
+
+          {todos.length === 0 && !checklistLoading ? (
+            <p className="small text-muted mb-3">
+              No items yet. Add subtasks below; they define checklist progress on
+              the card.
+            </p>
+          ) : (
+            <div className="mb-3">
+              {todos.filter((t): t is StackTaskTodo => t != null).map(t => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => handleToggleTodo(t)}
+                  className="w-100 text-start"
+                  style={{
+                    background: "transparent",
+                    border: "none",
+                    padding: "8px 6px",
+                    display: "flex",
+                    alignItems: "center",
+                    color: "#EDEDED",
+                  }}
+                >
+                  <TodoCheckIcon checked={!!t.is_done} />
+                  <span
+                    style={{
+                      textDecoration: t.is_done ? "line-through" : "none",
+                      opacity: t.is_done ? 0.7 : 1,
+                    }}
+                  >
+                    {t.text}
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          <Form onSubmit={handleAddTodo}>
+            <Input
+              className="mb-2"
+              placeholder="Add a checklist item…"
+              value={newTodoText}
+              onChange={e => setNewTodoText(e.target.value)}
+              disabled={!checklistCard}
+            />
+            <Button
+              color="primary"
+              type="submit"
+              disabled={!checklistCard || !newTodoText.trim()}
+            >
+              Add item
+            </Button>
+          </Form>
+        </ModalBody>
+      </Modal>
     </div>
   );
 };

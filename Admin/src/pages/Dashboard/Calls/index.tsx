@@ -1,64 +1,72 @@
 import React, { useEffect, useState } from "react";
 
 // hooks
-import { useRedux } from "../../../hooks/index";
-import { createSelector } from "reselect";
+import { useProfile } from "../../../hooks";
 // components
-import Loader from "../../../components/Loader";
 import AppSimpleBar from "../../../components/AppSimpleBar";
 import LeftbarTitle from "../../../components/LeftbarTitle";
 import Call from "./Call";
 
-// actions
-import { getCalls } from "../../../redux/actions";
+import { subscribeVideoCallHistory } from "../../../helpers/webrtc_video_call";
 
 // interface
 import { CallItem } from "../../../data/calls";
 
 interface IndexProps {}
 const Index = (props: IndexProps) => {
-  // global store
-  const { dispatch, useAppSelector } = useRedux();
+  const { userProfile } = useProfile();
+  const currentUserId = userProfile?.id || userProfile?.uid || "";
 
-  // const { calls, getCallsLoading } = useAppSelector((state: any) => ({
-  //   calls: state.Calls.calls,
-  //   getCallsLoading: state.Calls.getCallsLoading,
-  // }));
-
-  const errorData = createSelector(
-    (state : any) => state.Calls,
-    (state) => ({
-      calls: state.calls,
-      getCallsLoading: state.getCallsLoading,
-    })
-  );
-  // Inside your component
-  const { calls,getCallsLoading} = useAppSelector(errorData);
-
-
-
-  // get user calls
-  useEffect(() => {
-    dispatch(getCalls());
-  }, [dispatch]);
-
-  const [callsList, setCallsList] = useState([]);
+  const [callsList, setCallsList] = useState<CallItem[]>([]);
+  const [historyError, setHistoryError] = useState<string | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   useEffect(() => {
-    setCallsList(calls);
-  }, [calls]);
+    if (!currentUserId) {
+      setCallsList([]);
+      setHistoryLoading(false);
+      return;
+    }
+    setHistoryLoading(true);
+    setHistoryError(null);
+    const unsubscribe = subscribeVideoCallHistory(
+      currentUserId,
+      calls => {
+        setCallsList(calls);
+        setHistoryLoading(false);
+      },
+      message => {
+        setHistoryError(message);
+        setHistoryLoading(false);
+      },
+    );
+    return unsubscribe;
+  }, [currentUserId]);
 
   return (
     <div className="position-relative">
-      {getCallsLoading && <Loader />}
       <LeftbarTitle title="Calls" />
-      {/* end p-4 */}
+      {historyLoading && (
+        <div className="px-4 py-2 text-muted font-size-13">Loading call history…</div>
+      )}
+      {historyError && !historyLoading && (
+        <div className="px-4 py-2 text-danger font-size-13">
+          {historyError}
+          <div className="text-muted small mt-1">
+            Create the Firestore composite index suggested in the browser console (or deploy{" "}
+            <code className="small">Admin/firestore.indexes.json</code>).
+          </div>
+        </div>
+      )}
+      {!historyLoading && !historyError && callsList.length === 0 && (
+        <div className="px-4 py-3 text-muted font-size-13">No video calls yet.</div>
+      )}
 
       {/* Start contact lists */}
       <AppSimpleBar className="chat-message-list chat-call-list">
         <ul className="list-unstyled chat-list">
-          {(callsList || []).map((call: CallItem, key: number) => (
-            <Call call={call} key={key} />
+          {callsList.map(call => (
+            <Call call={call} key={String(call.callId)} currentUser={userProfile} />
           ))}
         </ul>
       </AppSimpleBar>

@@ -1,6 +1,12 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import classnames from "classnames";
+import {
+  UncontrolledDropdown,
+  DropdownToggle,
+  DropdownMenu,
+  DropdownItem,
+} from "reactstrap";
 
 // interface
 import { UserTypes } from "../../../data/chat";
@@ -10,8 +16,17 @@ interface ChatUserProps {
   user: UserTypes;
   selectedChat: string | number;
   onSelectChat: (id: number | string) => void;
+  onToggleFavourite?: (id: number | string) => void;
+  isFavourite?: boolean;
 }
-const ChatUser = ({ user, selectedChat, onSelectChat }: ChatUserProps) => {
+
+const ChatUser = ({
+  user,
+  selectedChat,
+  onSelectChat,
+  onToggleFavourite,
+  isFavourite = false,
+}: ChatUserProps) => {
   const fullName = `${user.firstName} ${user.lastName}`;
   const shortName = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`;
 
@@ -30,12 +45,17 @@ const ChatUser = ({ user, selectedChat, onSelectChat }: ChatUserProps) => {
 
   const isSelectedChat: boolean =
     selectedChat && selectedChat === user.id ? true : false;
-  const onClick = () => {
-    onSelectChat(user.id);
-  };
+
   return (
-    <li className={classnames({ active: isSelectedChat })} onClick={onClick}>
-      <Link to="#" className={classnames({ "unread-msg-user": unRead })}>
+    <li
+      className={classnames({ active: isSelectedChat }, "chat-user-item")}
+      style={{ position: "relative" }}
+    >
+      <Link
+        to="#"
+        className={classnames({ "unread-msg-user": unRead })}
+        onClick={() => onSelectChat(user.id)}
+      >
         <div className="d-flex align-items-center">
           <div
             className={classnames(
@@ -84,6 +104,35 @@ const ChatUser = ({ user, selectedChat, onSelectChat }: ChatUserProps) => {
           ) : null}
         </div>
       </Link>
+
+      {/* 3-dot context menu — only rendered when a favourite handler is provided */}
+      {onToggleFavourite && (
+        <UncontrolledDropdown className="chat-user-menu">
+          <DropdownToggle
+            tag="button"
+            className="btn btn-ghost-secondary btn-icon btn-sm"
+            onClick={e => e.stopPropagation()}
+          >
+            <i className="bx bx-dots-vertical-rounded" />
+          </DropdownToggle>
+          <DropdownMenu end>
+            <DropdownItem
+              onClick={e => {
+                e.stopPropagation();
+                onToggleFavourite(user.id);
+              }}
+            >
+              <i
+                className={classnames(
+                  "me-2",
+                  isFavourite ? "bx bxs-star text-warning" : "bx bx-star"
+                )}
+              />
+              {isFavourite ? "Remove from Favourites" : "Add to Favourites"}
+            </DropdownItem>
+          </DropdownMenu>
+        </UncontrolledDropdown>
+      )}
     </li>
   );
 };

@@ -3,26 +3,9 @@ require dirname(__DIR__, 2) . '/session_init.php';
 
 header('Content-Type: application/json');
 
-$config       = require dirname(__DIR__, 2) . '/config.php';
-$frontendBase = rtrim($config['frontend_base_url'], '/');
-$origin       = isset($_SERVER['HTTP_ORIGIN']) ? trim($_SERVER['HTTP_ORIGIN']) : '';
-
-if ($origin !== '') {
-    $originNormalized = rtrim($origin, '/');
-    $allow = ($originNormalized === $frontendBase);
-
-    // Dev: allow any localhost:* origin when the configured frontend is also localhost.
-    $fb = parse_url($frontendBase);
-    $og = parse_url($originNormalized);
-    if (!$allow && ($fb['host'] ?? '') === 'localhost' && ($og['host'] ?? '') === 'localhost') {
-        $allow = true;
-    }
-
-    if ($allow) {
-        header('Access-Control-Allow-Origin: ' . $origin);
-        header('Vary: Origin');
-    }
-}
+$config = require dirname(__DIR__, 2) . '/config.php';
+require_once dirname(__DIR__, 2) . '/cors_helpers.php';
+devflow_cors_set_allow_origin($config);
 header('Access-Control-Allow-Credentials: true');
 header('Access-Control-Allow-Headers: Content-Type');
 

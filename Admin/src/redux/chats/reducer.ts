@@ -20,14 +20,14 @@ const Chats = (state = INIT_STATE, action: any) => {
         case ChatsActionTypes.GET_FAVOURITES:
           return {
             ...state,
-            favourites: action.payload.data,
+            favourites: Array.isArray(action.payload.data) ? action.payload.data : [],
             isFavouritesFetched: true,
             getFavouritesLoading: false,
           };
         case ChatsActionTypes.GET_DIRECT_MESSAGES:
           return {
             ...state,
-            directMessages: action.payload.data,
+            directMessages: Array.isArray(action.payload.data) ? action.payload.data : [],
             isDirectMessagesFetched: true,
             getDirectMessagesLoading: false,
             isContactsAdded: false,
@@ -35,7 +35,7 @@ const Chats = (state = INIT_STATE, action: any) => {
         case ChatsActionTypes.GET_CHANNELS:
           return {
             ...state,
-            channels: action.payload.data,
+            channels: Array.isArray(action.payload.data) ? action.payload.data : [],
             isChannelsFetched: true,
             getChannelsLoading: false,
             isChannelCreated: false,
@@ -96,11 +96,29 @@ const Chats = (state = INIT_STATE, action: any) => {
             ...state,
             isMessageForwarded: true,
           };
-        case ChatsActionTypes.DELETE_USER_MESSAGES:
+        case ChatsActionTypes.DELETE_USER_MESSAGES: {
+          const uid = action.payload?.data?.userId;
+          const cid = state.chatUserDetails && (state.chatUserDetails as any).id;
+          const clearConversation =
+            uid != null &&
+            cid != null &&
+            String(cid) === String(uid);
           return {
             ...state,
             isUserMessagesDeleted: true,
+            ...(clearConversation
+              ? {
+                  chatUserConversations: {
+                    ...(typeof state.chatUserConversations === "object" &&
+                    state.chatUserConversations !== null
+                      ? state.chatUserConversations
+                      : {}),
+                    messages: [],
+                  },
+                }
+              : {}),
           };
+        }
         case ChatsActionTypes.GET_CHANNEL_DETAILS:
           return {
             ...state,
@@ -116,15 +134,36 @@ const Chats = (state = INIT_STATE, action: any) => {
         case ChatsActionTypes.GET_ARCHIVE_CONTACT:
           return {
             ...state,
-            archiveContacts: action.payload.data,
+            archiveContacts: Array.isArray(action.payload.data) ? action.payload.data : [],
             isArchiveContactFetched: true,
             isContactArchiveToggled: false,
           };
-        case ChatsActionTypes.TOGGLE_ARCHIVE_CONTACT:
+        case ChatsActionTypes.TOGGLE_ARCHIVE_CONTACT: {
+          const toggleId = action.payload?.data?.userId;
+          const details = state.chatUserDetails as { id?: string | number; isArchived?: boolean };
+          const fromApi = action.payload?.data?.isArchived;
+          const idsMatch =
+            toggleId != null &&
+            details?.id != null &&
+            String(details.id) === String(toggleId);
+          const nextArchived =
+            idsMatch && typeof fromApi === "boolean"
+              ? fromApi
+              : idsMatch
+                ? !(details?.isArchived === true)
+                : undefined;
           return {
             ...state,
             isContactArchiveToggled: true,
+            chatUserDetails:
+              idsMatch && typeof nextArchived === "boolean"
+                ? {
+                    ...(state.chatUserDetails as object),
+                    isArchived: nextArchived,
+                  }
+                : state.chatUserDetails,
           };
+        }
         case ChatsActionTypes.DELETE_IMAGE:
           return {
             ...state,

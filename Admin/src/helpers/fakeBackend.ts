@@ -275,6 +275,26 @@ const fakeBackend = () => {
     });
   });
 
+  mock.onPost(url.CREATE_BOOKMARK).reply(config => {
+    const data = JSON.parse(config["data"]);
+    return new Promise((resolve, reject) => {
+      if (data && data.title) {
+        const nextId =
+          (bookmarks || []).reduce((max, b: any) => Math.max(max, Number(b.id) || 0), 0) + 1;
+        const newBookmark = {
+          id: nextId,
+          icon: data.icon || "bx bx-pin",
+          title: data.title,
+          desc: data.desc || "",
+        };
+        onChangeBookmark([newBookmark, ...bookmarks]);
+        resolve([200, { ...newBookmark, message: "Bookmark created" }]);
+      } else {
+        reject(["Bookmark title is required"]);
+      }
+    });
+  });
+
   mock.onDelete(new RegExp(`${url.DELETE_BOOKMARK}/*`)).reply(config => {
     const { params } = config;
 
@@ -314,15 +334,16 @@ const fakeBackend = () => {
   /*
   settings
   */
-  mock.onGet(url.GET_USER_SETTINGS).reply(config => {
-    return new Promise((resolve, reject) => {
-      if (settings) {
-        resolve([200, settings]);
-      } else {
-        reject(["Some thing went wrong!"]);
-      }
-    });
+  const settingsReply = (config: any): Promise<any[]> => new Promise((resolve, reject) => {
+    if (settings) {
+      resolve([200, settings]);
+    } else {
+      reject(["Some thing went wrong!"]);
+    }
   });
+  mock.onGet(url.GET_USER_SETTINGS).reply(settingsReply);
+  // Also intercept the old path (without .php) if still referenced somewhere
+  mock.onGet("/user-settings").reply(settingsReply);
 
   /*
   chats
@@ -330,35 +351,8 @@ const fakeBackend = () => {
   /*
    settings
    */
-  mock.onGet(url.GET_FAVOURITES).reply(config => {
-    return new Promise((resolve, reject) => {
-      if (favourites) {
-        resolve([200, favourites]);
-      } else {
-        reject(["Some thing went wrong!"]);
-      }
-    });
-  });
-
-  mock.onGet(url.GET_DIRECT_MESSAGES).reply(config => {
-    return new Promise((resolve, reject) => {
-      if (directMessages) {
-        resolve([200, directMessages]);
-      } else {
-        reject(["Some thing went wrong!"]);
-      }
-    });
-  });
-
-  mock.onGet(url.GET_CHANNELS).reply(config => {
-    return new Promise((resolve, reject) => {
-      if (channels) {
-        resolve([200, channels]);
-      } else {
-        reject(["Some thing went wrong!"]);
-      }
-    });
-  });
+  // GET_FAVOURITES, GET_DIRECT_MESSAGES, GET_CHANNELS and CREATE_CHANNEL are all handled
+  // by the real PHP backend — no mocks needed here.
 
   mock.onPost(url.ADD_CONTACTS).reply(config => {
     const data = JSON.parse(config["data"]);
@@ -377,25 +371,6 @@ const fakeBackend = () => {
         resolve([200, "Contacts Added!"]);
       } else {
         reject(["Some thing went wrong!"]);
-      }
-    });
-  });
-
-  mock.onPost(url.CREATE_CHANNEL).reply(config => {
-    const data = JSON.parse(config["data"]);
-    return new Promise((resolve, reject) => {
-      if (data) {
-        const newC = {
-          id:
-            channels[channels.length - 1].id + new Date().getTime().toString(),
-          name: data.name,
-          description: data.description,
-          members: data.members,
-        };
-        onChangeChannels([...channels, newC]);
-        resolve([200, "Channel Created!"]);
-      } else {
-        reject([400, "Some thing went wrong!"]);
       }
     });
   });
@@ -762,17 +737,26 @@ const fakeBackend = () => {
     });
   });
 
-  mock.onDelete(new RegExp(`${url.DELETE_USER_MESSAGES}/*`)).reply(config => {
-    const { params } = config;
+  mock.onPost(url.DELETE_USER_MESSAGES).reply(config => {
+    let parsed: any = {};
+    try {
+      parsed =
+        typeof config.data === "string"
+          ? JSON.parse(config.data || "{}")
+          : config.data || {};
+    } catch {
+      parsed = {};
+    }
+    const userId = parsed.with_user_id;
 
     return new Promise((resolve, reject) => {
-      if (params.userId) {
+      if (userId != null && userId !== "") {
         let modifiedC = [...conversations];
         modifiedC = (modifiedC || []).filter(
-          (c: any) => c.userId + "" !== params.userId + ""
+          (c: any) => c.userId + "" !== userId + ""
         );
         onChangeConversations(modifiedC);
-        resolve([200, "Messages are Deleted!"]);
+        resolve([200, { message: "Messages are Deleted!" }]);
       } else {
         reject(["Your id is not found"]);
       }
@@ -852,8 +836,17 @@ const fakeBackend = () => {
     });
   });
 
-  mock.onPut(new RegExp(`${url.TOGGLE_ARCHIVE_CONTACT}/*`)).reply(config => {
-    const data = JSON.parse(config["data"]);
+  mock.onPost(url.TOGGLE_ARCHIVE_CONTACT).reply(config => {
+    let data: any = {};
+    try {
+      data =
+        typeof config.data === "string"
+          ? JSON.parse(config.data || "{}")
+          : config.data || {};
+    } catch {
+      data = {};
+    }
+    const targetId = data.target_user_id;
 
     let message = "User has been added to your archives";
     let modifiedC = [...contacts];
@@ -861,27 +854,31 @@ const fakeBackend = () => {
     let modifiedD = [...directMessages];
     let modifiedChannels = [...userChannels];
     let modifiedChatChannels = [...channels];
-    if (data.params.id && contacts.length !== 0) {
+    if (
+      targetId != null &&
+      targetId !== "" &&
+      ((contacts?.length ?? 0) > 0 || (userChannels?.length ?? 0) > 0)
+    ) {
       const contactIdx = (modifiedC || []).findIndex(
-        (c: any) => c.id + "" === data.params.id + ""
+        (c: any) => c.id + "" === targetId + ""
       );
       const channelIdx = (modifiedChannels || []).findIndex(
-        (c: any) => c.id + "" === data.params.id + ""
+        (c: any) => c.id + "" === targetId + ""
       );
       if (contactIdx > -1) {
         if (contacts[contactIdx].isArchived) {
           contacts[contactIdx].isArchived = false;
-          modifiedA = modifiedA.filter((f: any) => f.id !== data.params.id);
+          modifiedA = modifiedA.filter((f: any) => f.id !== targetId);
           message = "User has been removed to your archives";
         } else {
           contacts[contactIdx].isArchived = true;
           modifiedA = [...modifiedA, contacts[contactIdx]];
-          modifiedD = modifiedD.filter((c: any) => c.id !== data.params.id);
+          modifiedD = modifiedD.filter((c: any) => c.id !== targetId);
         }
       } else if (channelIdx > -1) {
         if (userChannels[channelIdx].isArchived) {
           userChannels[channelIdx].isArchived = false;
-          modifiedA = modifiedA.filter((f: any) => f.id !== data.params.id);
+          modifiedA = modifiedA.filter((f: any) => f.id !== targetId);
           message = "User has been removed to your archives";
         } else {
           userChannels[channelIdx].isArchived = true;
@@ -890,10 +887,10 @@ const fakeBackend = () => {
             { ...userChannels[channelIdx], isChannel: true },
           ];
           modifiedChannels = modifiedChannels.filter(
-            (c: any) => c.id !== data.params.id
+            (c: any) => c.id !== targetId
           );
           modifiedChatChannels = modifiedChatChannels.filter(
-            (c: any) => c.id !== data.params.id
+            (c: any) => c.id !== targetId
           );
         }
       }
@@ -905,9 +902,28 @@ const fakeBackend = () => {
     onChangeChannels(modifiedChatChannels);
 
     return new Promise((resolve, reject) => {
-      if (data.params.id) {
+      if (targetId != null && targetId !== "") {
+        const contactIdx = (contacts || []).findIndex(
+          (c: any) => c.id + "" === targetId + ""
+        );
+        const channelIx = (userChannels || []).findIndex(
+          (c: any) => c.id + "" === targetId + ""
+        );
+        const isArchived =
+          contactIdx > -1
+            ? !!contacts[contactIdx].isArchived
+            : channelIx > -1
+              ? !!userChannels[channelIx].isArchived
+              : false;
         setTimeout(() => {
-          resolve([200, message]);
+          resolve([
+            200,
+            {
+              message,
+              isArchived,
+              friend_id: targetId,
+            },
+          ]);
         });
       } else {
         reject(["Internal Error!"]);
@@ -998,7 +1014,7 @@ const fakeBackend = () => {
     });
   });
 
-  mock.onPut(new RegExp(`${url.UPDATE_ETTINGS}/*`)).reply(config => {
+  const updateSettingsReply = (config: any): Promise<any[]> => {
     const data = JSON.parse(config["data"]);
     const { field, value } = data;
     const modifiedS: any = { ...settings };
@@ -1018,7 +1034,10 @@ const fakeBackend = () => {
         reject(["Something went wrong!"]);
       }
     });
-  });
+  };
+  mock.onPut(new RegExp(`${url.UPDATE_ETTINGS}/*`)).reply(updateSettingsReply);
+  // Also intercept the old path (without .php) if still referenced somewhere
+  mock.onPut(new RegExp("/update-user-settings/*")).reply(updateSettingsReply);
 };
 
 export default fakeBackend;
