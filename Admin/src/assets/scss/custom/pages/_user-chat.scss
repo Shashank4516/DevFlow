@@ -324,7 +324,7 @@
             .voice-note{
                 min-width: 430px;
                 max-width: 560px;
-                background: #1f4f45;
+                background: rgba(var(--bs-primary-rgb), 1);
                 border-radius: 18px;
                 padding: 12px 14px;
                 display: flex;
@@ -363,7 +363,7 @@
                     border-radius: 50%;
                     border: 0;
                     background: $white;
-                    color: #1f4f45;
+                    color: rgba(var(--bs-primary-rgb), 1);
                     display: inline-flex;
                     align-items: center;
                     justify-content: center;
