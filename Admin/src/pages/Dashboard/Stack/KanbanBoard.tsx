@@ -423,6 +423,18 @@ const KanbanCard = ({
               {b.label}
             </span>
           ))}
+          <span
+            className="tm-card__badge tm-card__badge--id"
+            title="Use this ID in commit messages or PR titles to automate task movement"
+            style={{
+              background: "rgba(255,255,255,0.06)",
+              color: "#9A97A8",
+              fontFamily: "monospace",
+              letterSpacing: "0.02em",
+            }}
+          >
+            DF-{card.id}
+          </span>
         </div>
         <div className="tm-card__header-actions">
           <button
