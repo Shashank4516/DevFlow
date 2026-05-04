@@ -55,7 +55,13 @@ if ($method === 'GET') {
         ];
     }
     mysqli_stmt_close($stmt);
-    json_ok(['repos' => $list, 'can_edit' => project_user_can_manage_repos($conn, $me, $projectId)]);
+    $ghToken = isset($_SESSION['github_token']) ? (string) $_SESSION['github_token'] : '';
+    $githubConnected = $ghToken !== '';
+    json_ok([
+        'repos'             => $list,
+        'can_edit'          => project_user_can_manage_repos($conn, $me, $projectId),
+        'github_connected'  => $githubConnected,
+    ]);
     exit;
 }
 

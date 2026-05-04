@@ -179,7 +179,7 @@ export type ProjectRepoLink = {
 
 export const getProjectReposConfig = (
   projectId: number
-): Promise<{ repos: ProjectRepoLink[]; can_edit: boolean }> => {
+): Promise<{ repos: ProjectRepoLink[]; can_edit: boolean; github_connected: boolean }> => {
   return asData(
     api.get(url.GET_PROJECT_REPOS_CONFIG, { params: { project_id: projectId } })
   );

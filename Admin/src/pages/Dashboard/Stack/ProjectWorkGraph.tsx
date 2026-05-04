@@ -1,14 +1,13 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { Button, Form, Input, Modal, ModalBody, ModalHeader, Spinner } from "reactstrap";
 import { useSelector } from "react-redux";
 import { createSelector } from "reselect";
 
 import config from "../../../config";
 import {
-  getProjectWorkgraph,
+  getProjectReposConfig,
   saveProjectReposConfig,
   type ProjectRepoLink,
-  type WorkgraphRepoState,
 } from "../../../api";
 
 const BACKEND = (import.meta.env.VITE_BACKEND_URL as string) || config.API_URL;
@@ -36,42 +35,17 @@ type GhRepo = { full_name: string; default_branch: string };
 
 type Props = { projectId: number | null };
 
-function formatCiPill(
-  ci: WorkgraphRepoState["ci"]
-): { label: string; className: string } {
-  if (!ci) {
-    return { label: "No checks", className: "is-muted" };
-  }
-  if (ci.source === "deployments") {
-    const c = (ci.conclusion || "").toLowerCase();
-    if (c === "success") return { label: "Deploy OK", className: "is-success" };
-    if (c === "failure" || c === "error") return { label: "Deploy failed", className: "is-danger" };
-    if (c === "pending" || c === "in_progress" || c === "queued")
-      return { label: "Deploying…", className: "is-pending" };
-    return { label: c || "Deploy", className: "is-muted" };
-  }
-  const st = (ci.status || "").toLowerCase();
-  const cl = (ci.conclusion || "").toLowerCase();
-  if (st === "in_progress" || st === "queued" || (cl === "" && st !== "completed")) {
-    return { label: "Running", className: "is-pending" };
-  }
-  if (cl === "success" || (st === "completed" && cl === "success")) {
-    return { label: "Passing", className: "is-success" };
-  }
-  if (cl === "failure" || cl === "timed_out" || cl === "cancelled" || cl === "action_required") {
-    return { label: "Failing", className: "is-danger" };
-  }
-  if (cl === "neutral" || cl === "skipped") {
-    return { label: "Skipped", className: "is-muted" };
-  }
-  return { label: "Checks", className: "is-muted" };
-}
+type RepoBarData = {
+  repos: ProjectRepoLink[];
+  can_edit: boolean;
+  github_connected: boolean;
+};
 
 const ProjectWorkGraph = ({ projectId }: Props) => {
   const { connected: reduxGitHub } = useSelector(githubSel);
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState<string | null>(null);
-  const [data, setData] = useState<Awaited<ReturnType<typeof getProjectWorkgraph>> | null>(null);
+  const [data, setData] = useState<RepoBarData | null>(null);
 
   const load = useCallback(async () => {
     if (projectId == null) {
@@ -81,11 +55,15 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
     setLoading(true);
     setErr(null);
     try {
-      const w = await getProjectWorkgraph(projectId);
-      setData(w);
+      const w = await getProjectReposConfig(projectId);
+      setData({
+        repos: w.repos ?? [],
+        can_edit: !!w.can_edit,
+        github_connected: !!w.github_connected,
+      });
     } catch (e) {
       setData(null);
-      setErr("Couldn’t load work graph.");
+      setErr("Couldn’t load repository links.");
     } finally {
       setLoading(false);
     }
@@ -98,7 +76,6 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
   const canEdit = data?.can_edit;
   const githubOk = data?.github_connected;
   const repos = data?.repos ?? [];
-  const byRepo = data?.by_repo ?? {};
   const githubLinked = !!githubOk || !!reduxGitHub;
 
   const [modal, setModal] = useState(false);
@@ -207,111 +184,6 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
     );
   };
 
-  const track = useMemo(() => {
-    if (!githubOk || !repos.length) return null;
-    return (
-      <div className="tm-workgraph__track">
-        {repos.map(l => {
-          const s = byRepo[l.repo_full_name] as WorkgraphRepoState | undefined;
-          if (!s) {
-            return (
-              <div key={l.repo_full_name} className="tm-wg-card">
-                <div className="tm-wg-card__name">{l.repo_full_name}</div>
-                <p className="tm-wg-card__empty small">No data for this link.</p>
-              </div>
-            );
-          }
-          const pill = formatCiPill(s.ci);
-          return (
-            <div key={l.repo_full_name} className="tm-wg-card">
-              <div className="tm-wg-card__row">
-                <a
-                  className="tm-wg-card__name"
-                  href={`https://github.com/${l.repo_full_name}`}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  {l.repo_full_name}
-                </a>
-                <span className="tm-wg-card__branch">{l.default_branch}</span>
-                <a
-                  className={`tm-wg-pill ${pill.className}`}
-                  href={s.ci?.html_url || `https://github.com/${l.repo_full_name}/actions`}
-                  target="_blank"
-                  rel="noreferrer"
-                  title="CI or deployments on GitHub"
-                >
-                  {pill.label}
-                </a>
-              </div>
-
-              {s.error && <p className="tm-wg-card__err small">Branch or repo not reachable on GitHub.</p>}
-
-              {s.diff && !s.diff.message && s.diff.file_count > 0 && (
-                <a
-                  className="tm-wg-card__diff"
-                  href={s.diff.compare_url}
-                  target="_blank"
-                  rel="noreferrer"
-                >
-                  <span>Latest diff</span>
-                  <span className="tm-wg-card__diff-stat">
-                    {s.diff.file_count} file{s.diff.file_count === 1 ? "" : "s"} ·
-                    <span className="tm-wg__add">+{s.diff.additions}</span>{" "}
-                    <span className="tm-wg__sub">−{s.diff.deletions}</span>
-                  </span>
-                </a>
-              )}
-              {s.diff?.message === "single_commit" && (
-                <p className="tm-wg-card__meta small">First commit on this branch in view.</p>
-              )}
-
-              <ul className="tm-wg-card__list">
-                {s.commits.slice(0, 3).map(c => (
-                  <li key={c.sha}>
-                    <a
-                      href={c.html_url}
-                      className="tm-wg-card__link"
-                      target="_blank"
-                      rel="noreferrer"
-                    >
-                      <code>{c.short_sha}</code>
-                      <span className="text-truncate">{c.title || "—"}</span>
-                    </a>
-                  </li>
-                ))}
-              </ul>
-
-              {s.open_prs.length > 0 && (
-                <div className="tm-wg-card__prs">
-                  <div className="tm-wg-card__pr-head">
-                    <span>Pull requests</span>
-                    <span className="tm-wg-card__pr-count">{s.open_prs.length} open</span>
-                  </div>
-                  <ul>
-                    {s.open_prs.slice(0, 3).map(pr => (
-                      <li key={pr.number}>
-                        <a
-                          href={pr.html_url}
-                          target="_blank"
-                          rel="noreferrer"
-                          className="tm-wg-card__pr-link"
-                        >
-                          #{pr.number} {pr.draft && <em className="text-muted">(draft) </em>}
-                          {pr.title}
-                        </a>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          );
-        })}
-      </div>
-    );
-  }, [byRepo, githubOk, repos]);
-
   if (projectId == null) {
     return null;
   }
@@ -320,8 +192,8 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
     <div className="tm-workgraph">
       <div className="tm-workgraph__head">
         <div className="tm-workgraph__head-left">
-          <span className="tm-workgraph__title">Work graph</span>
-          <span className="tm-workgraph__hint">Project ↔ Git ↔ team chat</span>
+          <span className="tm-workgraph__title">Repositories</span>
+          <span className="tm-workgraph__hint">Link repos for GitHub automation (DF-… in commits / PRs)</span>
         </div>
         <div className="tm-workgraph__head-actions">
           {canEdit && (
@@ -335,7 +207,7 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
             onClick={() => void load()}
             title="Refresh"
             disabled={loading}
-            aria-label="Refresh work graph"
+            aria-label="Refresh linked repositories"
           >
             {loading ? <Spinner size="sm" /> : <RefreshIcon />}
           </button>
@@ -344,13 +216,13 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
 
       {err && <p className="tm-workgraph__err small mb-0">{err}</p>}
 
-      {loading && !data && <p className="tm-workgraph__loading small">Loading work graph…</p>}
+      {loading && !data && <p className="tm-workgraph__loading small">Loading…</p>}
 
       {!githubOk && !loading && data && (
         <div className="tm-workgraph__callout">
           <GitIcon />
           <div>
-            <p className="mb-1">Connect GitHub to see commits, PRs, and checks for linked repos.</p>
+            <p className="mb-1">Connect GitHub to pick repos from your account or add them manually.</p>
             <a className="tm-workgraph__a" href={GITHUB_OAUTH}>
               Connect GitHub
             </a>
@@ -360,7 +232,7 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
 
       {githubOk && !repos.length && !loading && canEdit && (
         <div className="tm-workgraph__empty">
-          <p className="mb-2">Link one or more repositories and a default branch. Activity shows up here for the whole team.</p>
+          <p className="mb-2">Link one or more repositories and a default branch so webhooks can move tasks on this board.</p>
           <button type="button" className="tm-btn-primary" onClick={() => openModal()}>
             Add repositories
           </button>
@@ -371,7 +243,12 @@ const ProjectWorkGraph = ({ projectId }: Props) => {
         <p className="tm-workgraph__empty small">No repositories linked yet. Ask a project owner to add them.</p>
       )}
 
-      {track}
+      {githubOk && repos.length > 0 && (
+        <p className="tm-workgraph__empty small mb-0">
+          Linked:{" "}
+          {repos.map(r => r.repo_full_name).join(", ")}
+        </p>
+      )}
 
       <Modal isOpen={modal} toggle={() => setModal(false)} size="lg" centered>
         <ModalHeader toggle={() => setModal(false)}>Repositories for this project</ModalHeader>
