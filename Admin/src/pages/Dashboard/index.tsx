@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import classnames from "classnames";
 
 // hooks
@@ -17,6 +17,8 @@ import KanbanBoard from "./Stack/KanbanBoard";
 import Github from "./Github/index";
 import VideoCallModal from "../../components/VideoCallModal";
 import GroupVideoCallModal from "../../components/GroupVideoCallModal";
+import FriendSearchPanel from "../../components/FriendSearchPanel";
+import { toggleUserDetailsTab } from "../../redux/actions";
 import { useProfile } from "../../hooks";
 import {
   IncomingVideoCall,
@@ -28,8 +30,9 @@ import {
 interface IndexProps {}
 const Index = (props: IndexProps) => {
   // global store
-  const { useAppSelector } = useRedux();
+  const { dispatch, useAppSelector } = useRedux();
   const { userProfile } = useProfile();
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [incomingCall, setIncomingCall] = useState<IncomingVideoCall | null>(null);
   const [incomingGroupCall, setIncomingGroupCall] = useState<IncomingGroupVideoCall | null>(null);
 
@@ -40,6 +43,7 @@ const Index = (props: IndexProps) => {
     (state : any) => state.Chats,
     (state) => ({
       selectedChat: state.selectedChat,
+      isOpenUserDetails: state.isOpenUserDetails,
     })
   );
   const layoutData = createSelector(
@@ -49,12 +53,25 @@ const Index = (props: IndexProps) => {
     })
   );
   // Inside your component
-  const { selectedChat} = useAppSelector(errorData);
+  const { selectedChat, isOpenUserDetails } = useAppSelector(errorData);
   const { activeTab } = useAppSelector(layoutData);
 
 
   const { isChannel } = useConversationUserType();
   const currentUserId = userProfile?.id || userProfile?.uid || "";
+
+  const onCloseSearch = useCallback(() => setIsSearchOpen(false), []);
+  const onOpenSearch = () => {
+    // Both panels live on the right, so only one is open at a time.
+    dispatch(toggleUserDetailsTab(false));
+    setIsSearchOpen(true);
+  };
+  useEffect(() => {
+    if (isOpenUserDetails) setIsSearchOpen(false);
+  }, [isOpenUserDetails]);
+  useEffect(() => {
+    if (activeTab === TABS.STACK || activeTab === TABS.GITHUB) setIsSearchOpen(false);
+  }, [activeTab]);
 
   useEffect(() => {
     if (!currentUserId) return;
@@ -88,11 +105,14 @@ const Index = (props: IndexProps) => {
 
   return (
     <>
-      <Leftbar />
+      <Leftbar onOpenSearch={onOpenSearch} />
 
       <div
         className={classnames("user-chat", "w-100", "overflow-hidden", {
-          "user-chat-show": selectedChat,
+          // GitHub has no left sidebar, so its pane must stay visible on small screens.
+          "user-chat-show": selectedChat || activeTab === TABS.GITHUB,
+          "user-chat--github": activeTab === TABS.GITHUB,
+          "is-search-open": isSearchOpen,
         })}
         id="user-chat"
       >
@@ -114,6 +134,7 @@ const Index = (props: IndexProps) => {
           <Welcome />
         )}
       </div>
+      <FriendSearchPanel isOpen={isSearchOpen} onClose={onCloseSearch} />
       {incomingCall && (
         <VideoCallModal
           isOpen={!!incomingCall}

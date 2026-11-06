@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Link } from "react-router-dom";
 import classnames from "classnames";
 import {
@@ -11,6 +11,7 @@ import {
 // interface
 import { UserTypes } from "../../../data/chat";
 import { STATUS_TYPES } from "../../../constants";
+import { ChatLastMessage, chatPreviewText, shortChatTime } from "./chatRow";
 
 interface ChatUserProps {
   user: UserTypes;
@@ -30,79 +31,39 @@ const ChatUser = ({
   const fullName = `${user.firstName} ${user.lastName}`;
   const shortName = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`;
 
-  const colors = [
-    "bg-primary",
-    "bg-danger",
-    "bg-info",
-    "bg-warning",
-    "bg-secondary",
-    "bg-pink",
-    "bg-purple",
-  ];
-  const [color] = useState(Math.floor(Math.random() * colors.length));
-  const isOnline = user.status && user.status === STATUS_TYPES.ACTIVE;
-  const unRead = user.meta && user.meta.unRead;
+  const isOnline = user.status === STATUS_TYPES.ACTIVE;
+  const unRead = Number(user.meta?.unRead || 0);
+  const isSelectedChat = !!selectedChat && selectedChat === user.id;
 
-  const isSelectedChat: boolean =
-    selectedChat && selectedChat === user.id ? true : false;
+  const lastMessage: ChatLastMessage | undefined = (user as any).lastMessage;
+  const subtitle = chatPreviewText(lastMessage) || user.status || "Offline";
 
   return (
     <li
-      className={classnames({ active: isSelectedChat }, "chat-user-item")}
-      style={{ position: "relative" }}
+      className={classnames("chat-user-item chat-row", {
+        active: isSelectedChat,
+        "is-unread": unRead > 0,
+      })}
     >
-      <Link
-        to="#"
-        className={classnames({ "unread-msg-user": unRead })}
-        onClick={() => onSelectChat(user.id)}
-      >
-        <div className="d-flex align-items-center">
-          <div
-            className={classnames(
-              "chat-user-img",
-              "align-self-center",
-              "me-2",
-              "ms-0",
-              { online: isOnline }
-            )}
-          >
-            {user.profileImage ? (
-              <>
-                <img
-                  src={user.profileImage}
-                  className="rounded-circle avatar-xs"
-                  alt=""
-                />
-                {isOnline && <span className="user-status"></span>}
-              </>
-            ) : (
-              <div className="avatar-xs">
-                <span
-                  className={classnames(
-                    "avatar-title",
-                    "rounded-circle",
-                    "text-uppercase",
-                    "text-white",
-                    colors[color]
-                  )}
-                >
-                  <span className="username">{shortName}</span>
-                  <span className="user-status"></span>
-                </span>
-              </div>
-            )}
-          </div>
-          <div className="overflow-hidden">
-            <p className="text-truncate mb-0">{fullName}</p>
-          </div>
-          {unRead && unRead !== 0 ? (
-            <div className="ms-auto">
-              <span className="badge badge-soft-dark rounded p-1">
-                {unRead}
-              </span>
-            </div>
-          ) : null}
-        </div>
+      <Link to="#" className="chat-row__link" onClick={() => onSelectChat(user.id)}>
+        <span className="chat-row__avatar">
+          {user.profileImage ? (
+            <img src={user.profileImage} alt="" />
+          ) : (
+            <span className="chat-row__initials">{shortName.toUpperCase()}</span>
+          )}
+          {isOnline && <span className="chat-row__online" aria-label="Online" />}
+        </span>
+        <span className="chat-row__body">
+          <span className="chat-row__top">
+            <span className="chat-row__name">{fullName}</span>
+            <span className="chat-row__time">{shortChatTime(lastMessage?.time)}</span>
+          </span>
+          <span className="chat-row__bottom">
+            <span className="chat-row__preview">{subtitle}</span>
+            {unRead > 0 && <span className="chat-row__unread">{unRead}</span>}
+          </span>
+        </span>
       </Link>
 
       {/* 3-dot context menu — only rendered when a favourite handler is provided */}

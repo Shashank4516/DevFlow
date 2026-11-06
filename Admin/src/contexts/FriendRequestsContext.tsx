@@ -7,6 +7,8 @@ import React, {
   useState,
 } from "react";
 
+import { isDemoMode } from "../demo";
+
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
 
 export type FriendPendingItem = {
@@ -59,7 +61,7 @@ export function FriendRequestsProvider({ children }: { children: React.ReactNode
   useEffect(() => {
     const id = window.setInterval(() => {
       refresh();
-    }, 60_000);
+    }, isDemoMode ? 4_000 : 60_000);
     return () => window.clearInterval(id);
   }, [refresh]);
 

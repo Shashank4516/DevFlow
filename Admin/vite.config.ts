@@ -9,6 +9,17 @@ export default defineConfig(({ mode }) => {
   return {
     base,
     plugins: [react()],
+    resolve: {
+      alias:
+        mode === "demo"
+          ? []
+          : [
+              {
+                find: /^.*\/demo\/videoCallSamples$/,
+                replacement: `${process.cwd()}/src/demo/videoCallSamples.stub.ts`,
+              },
+            ],
+    },
     css: {
       preprocessorOptions: {
         scss: {

@@ -130,7 +130,7 @@ const ProfileImage = ({
                     "rounded-circle",
                     "text-uppercase",
                     "text-white",
-                    colors[color]
+                    isChannel ? "imsg-channel-avatar" : colors[color]
                   )}
                 >
                   <span className="username"> {shortName}</span>

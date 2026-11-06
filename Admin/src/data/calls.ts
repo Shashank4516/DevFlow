@@ -23,6 +23,10 @@ export interface CallItem {
   peoples?: Array<any>;
   /** Remote party id (for callbacks / new call from Calls tab). */
   peerUserId?: string;
+  /** False when nobody ever picked up. Left out while the call may still be answered. */
+  wasConnected?: boolean;
+  /** Someone turned the call down, so it wasn't missed. */
+  wasDeclined?: boolean;
 }
 const calls: CallItem[] = [
   {

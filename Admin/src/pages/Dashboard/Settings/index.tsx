@@ -53,6 +53,7 @@ import PersonalInfo from "./PersonalInfo";
 import ThemeSettings from "./ThemeSettings";
 import Privacy from "./Privacy";
 import Security from "./Security";
+import Sounds from "./Sounds";
 import Help from "./Help";
 
 interface CollapseItemTypes {
@@ -61,7 +62,8 @@ interface CollapseItemTypes {
     | SETTINGS_COLLAPSES.HELP
     | SETTINGS_COLLAPSES.PRIVACY
     | SETTINGS_COLLAPSES.SECURITY
-    | SETTINGS_COLLAPSES.THEME;
+    | SETTINGS_COLLAPSES.THEME
+    | SETTINGS_COLLAPSES.SOUNDS;
   label: string;
   icon: string;
   component: any;
@@ -77,6 +79,7 @@ interface AccordianItemProps {
       | SETTINGS_COLLAPSES.PRIVACY
       | SETTINGS_COLLAPSES.SECURITY
       | SETTINGS_COLLAPSES.THEME
+    | SETTINGS_COLLAPSES.SOUNDS
   ) => void;
   selectedMenu:
     | null
@@ -84,7 +87,8 @@ interface AccordianItemProps {
     | SETTINGS_COLLAPSES.HELP
     | SETTINGS_COLLAPSES.PRIVACY
     | SETTINGS_COLLAPSES.SECURITY
-    | SETTINGS_COLLAPSES.THEME;
+    | SETTINGS_COLLAPSES.THEME
+    | SETTINGS_COLLAPSES.SOUNDS;
 }
 const AccordianItem = ({
   item,
@@ -180,6 +184,7 @@ const Index = (props: IndexProps) => {
     | SETTINGS_COLLAPSES.PRIVACY
     | SETTINGS_COLLAPSES.SECURITY
     | SETTINGS_COLLAPSES.THEME
+    | SETTINGS_COLLAPSES.SOUNDS
   >(null);
 
   const collapseItems: CollapseItemTypes[] = [
@@ -222,6 +227,12 @@ const Index = (props: IndexProps) => {
       ),
     },
     {
+      value: SETTINGS_COLLAPSES.SOUNDS,
+      label: "Sounds",
+      icon: "bx bxs-volume-full",
+      component: <Sounds />,
+    },
+    {
       value: SETTINGS_COLLAPSES.HELP,
       label: "Help",
       icon: "bx bxs-help-circle",
@@ -237,6 +248,7 @@ const Index = (props: IndexProps) => {
       | SETTINGS_COLLAPSES.PRIVACY
       | SETTINGS_COLLAPSES.SECURITY
       | SETTINGS_COLLAPSES.THEME
+    | SETTINGS_COLLAPSES.SOUNDS
   ) => {
     setSelectedMenu(id);
   };

@@ -1,0 +1,1444 @@
+//
+// Video call screen. Figma: Video Call Apps, node 20:129, at 1728 x 1117.
+// .vc-canvas is laid out in design pixels and scaled to fit the window.
+//
+
+.vc-screen {
+    position: fixed;
+    inset: 0;
+    z-index: 1060;
+    overflow: hidden;
+    background-color: #f1f0f0;
+    font-family: "Inter", sans-serif;
+    color: #25293b;
+
+    button {
+        padding: 0;
+        border: 0;
+        background: none;
+        font-family: inherit;
+        cursor: pointer;
+    }
+
+    img {
+        display: block;
+    }
+
+    h1, h2, p {
+        margin: 0;
+    }
+
+    .is-hidden {
+        visibility: hidden;
+    }
+}
+
+.vc-canvas {
+    position: relative;
+    width: 1728px;
+    height: 1117px;
+    overflow: hidden;
+    transform-origin: 0 0;
+}
+
+// Header
+
+.vc-header {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 140px;
+    background-color: #fff;
+    border: 1.5px solid rgba(217, 217, 217, 0.29);
+    border-right: 0;
+
+    > * {
+        position: absolute;
+    }
+
+    &__logo {
+        top: 36.5px;
+        left: 43.5px;
+        width: 65px;
+        height: 65px;
+        object-fit: contain;
+    }
+
+    &__line {
+        top: -1.5px;
+        left: 148.5px;
+    }
+
+    &__meeting {
+        top: 41px;
+        left: 186px;
+    }
+
+    &__title {
+        font-size: 24px;
+        font-weight: 500;
+        line-height: normal;
+        color: #373131;
+        white-space: nowrap;
+    }
+
+    &__date {
+        position: relative;
+        top: 10px;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: normal;
+        color: #acacac;
+    }
+
+    &__people {
+        top: 40.5px;
+        right: 444px;
+        display: flex;
+        align-items: flex-start;
+    }
+
+    &__avatars {
+        display: flex;
+        margin-right: 18.34px;
+
+        > img,
+        .vc-header__more {
+            flex-shrink: 0;
+            width: 55px;
+            height: 55px;
+            margin-left: -20px;
+            border-radius: 50%;
+
+            &:first-child {
+                margin-left: 0;
+            }
+        }
+
+        > img {
+            object-fit: cover;
+        }
+
+        .vc-header__more {
+            position: relative;
+            margin-left: -20.34px;
+
+            img {
+                position: absolute;
+            }
+
+            span {
+                position: absolute;
+                top: 15.4px;
+                left: 16.39px;
+                width: 22px;
+                font-size: 16px;
+                font-weight: 600;
+                line-height: 22px;
+                color: #0060ff;
+            }
+        }
+    }
+
+    button.vc-header__room {
+        position: relative;
+        width: 211.316px;
+        height: 55px;
+        border-radius: 115.404px;
+        background-color: #dfebff;
+
+        > * {
+            position: absolute;
+        }
+
+        img {
+            top: 11.13px;
+            left: 17.37px;
+        }
+    }
+
+    &__room-divider {
+        top: 17.37px;
+        left: 62.24px;
+        width: 1.447px;
+        height: 20.263px;
+        background-color: #0060ff;
+    }
+
+    &__room-code {
+        top: 16.92px;
+        left: 73.82px;
+        width: 118.67px;
+        overflow: hidden;
+        font-size: 16.685px;
+        font-weight: 500;
+        line-height: normal;
+        text-align: left;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #0060ff;
+    }
+
+    &__me {
+        top: 28.5px;
+        right: 27px;
+        width: 366px;
+        height: 80px;
+        border-radius: 83px;
+        background-color: #f6f6f6;
+
+        > * {
+            position: absolute;
+        }
+    }
+
+    &__me-avatar {
+        top: 12px;
+        left: 17px;
+        width: 55px;
+        height: 55px;
+        border: 3px solid #fff;
+        border-radius: 27px;
+        object-fit: cover;
+    }
+
+    &__me-name {
+        top: 15px;
+        left: 89px;
+        max-width: 220px;
+        overflow: hidden;
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 32.667px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #25293b;
+    }
+
+    &__me-role {
+        top: 48.27px;
+        left: 89px;
+        font-size: 13px;
+        font-weight: 500;
+        line-height: 4.458px;
+        letter-spacing: 0.39px;
+        color: #9e9e9e;
+    }
+
+    button.vc-header__kebab {
+        top: 31.3px;
+        left: 327px;
+        width: 4.53px;
+        height: 19.64px;
+
+        img {
+            position: absolute;
+            top: 7.55px;
+            left: -7.55px;
+            transform: rotate(-90deg);
+        }
+    }
+}
+
+// Stage: main video, participant strip and its scroll bar
+
+.vc-stage {
+    position: absolute;
+    top: 168px;
+    left: 30px;
+    width: calc(100% - 482px);
+    bottom: 140px;
+    display: flex;
+    flex-direction: column;
+
+    &.is-full {
+        width: calc(100% - 60px);
+    }
+}
+
+// The frame is 1px larger than the stage on every side in the design.
+.vc-main-tile {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+    margin: -1px;
+    overflow: hidden;
+    border-radius: 16px;
+    background-color: #d0d0d0;
+
+    &__timer {
+        position: absolute;
+        top: 19px;
+        left: 20px;
+        width: 166px;
+        height: 51px;
+        border-radius: 76px;
+        background-color: rgba(15, 14, 14, 0.3);
+        backdrop-filter: blur(7.5px);
+
+        img {
+            position: absolute;
+            top: 10.44px;
+            left: 10.44px;
+        }
+
+        span {
+            position: absolute;
+            top: 11px;
+            left: 53px;
+            font-size: 20px;
+            font-weight: 500;
+            font-variant-numeric: tabular-nums;
+            line-height: 32.667px;
+            color: #fff;
+        }
+    }
+
+    &__maximize {
+        top: 19px;
+        right: 22px;
+    }
+
+    &__sound {
+        right: 17px;
+        bottom: 23px;
+
+        img {
+            top: 11px !important;
+            left: 11px !important;
+        }
+
+        &.is-off img {
+            opacity: 0.45;
+        }
+    }
+
+    &__status {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 20px;
+        background-color: rgba(15, 14, 14, 0.45);
+        font-size: 22px;
+        font-weight: 500;
+        color: #fff;
+    }
+
+    &__prompt {
+        display: flex;
+        gap: 16px;
+
+        button {
+            width: 145px;
+            height: 60px;
+            border-radius: 73px;
+            font-size: 18px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .is-accept {
+            background-color: #0060ff;
+        }
+
+        .is-decline {
+            background-color: #eb5757;
+        }
+    }
+
+    &__waiting {
+        font-size: 20px;
+        font-weight: 500;
+        color: #58617b;
+    }
+}
+
+.vc-tile__video,
+.vc-tile__sample {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    max-width: none;
+}
+
+.vc-tile__video-slot {
+    position: absolute;
+    inset: 0;
+}
+
+// Your own camera is mirrored, as in WhatsApp, so moving left moves left on screen.
+.vc-tile__video.is-mirrored {
+    transform: scaleX(-1);
+}
+
+.vc-tile__video.is-hidden {
+    visibility: hidden;
+}
+
+.vc-tile__no-video {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #2c2f3a;
+
+    img {
+        width: 96px;
+        height: 96px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+}
+
+.vc-main-tile .vc-tile__no-video img {
+    width: 180px;
+    height: 180px;
+}
+
+.vc-round-glass {
+    position: absolute;
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background-color: rgba(0, 0, 0, 0.3) !important;
+    backdrop-filter: blur(5.25px);
+
+    img {
+        position: absolute;
+        top: 16px;
+        left: 16px;
+    }
+}
+
+.vc-name-pill {
+    position: absolute;
+    z-index: 1;
+    top: 135.5px;
+    left: 10.3px;
+    max-width: 222px;
+    overflow: hidden;
+    padding: 5.538px 19.935px;
+    border-radius: 60.914px;
+    background-color: rgba(0, 0, 0, 0.3);
+    backdrop-filter: blur(2.769px);
+    font-size: 16px;
+    font-weight: 500;
+    line-height: 23px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    color: #fff;
+
+    &--main {
+        top: auto;
+        bottom: 22.67px;
+        left: 20px;
+        max-width: 700px;
+        padding: 9.167px 29.4px 7.167px;
+        border-radius: 89.833px;
+        backdrop-filter: blur(4.083px);
+        font-size: 20px;
+        line-height: 33px;
+    }
+}
+
+.vc-strip {
+    display: flex;
+    flex: 0 0 auto;
+    gap: 19.7px;
+    height: 181.29px;
+    margin-top: 28px;
+    overflow-x: auto;
+    scrollbar-width: none;
+
+    &::-webkit-scrollbar {
+        display: none;
+    }
+}
+
+.vc-thumb {
+    position: relative;
+    flex: 0 0 296.81px;
+    height: 181.29px;
+    overflow: hidden;
+    border-radius: 11.075px;
+    background-color: #2c2f3a;
+
+    // Measured from the design's render, which is lighter than its layer properties say.
+    &__fade {
+        position: absolute;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        height: 92.15px;
+        background-image: linear-gradient(to top, rgba(0, 0, 0, 0.63), rgba(0, 0, 0, 0) 74%);
+    }
+
+    &__mic {
+        position: absolute;
+        z-index: 1;
+        top: 128.86px;
+        left: 244.39px;
+        width: 40.064px;
+        height: 40.064px;
+        border-radius: 50%;
+        background-color: #0060ff;
+        backdrop-filter: blur(3.876px);
+
+        &.is-off {
+            background-color: #eb5757;
+        }
+
+        img {
+            position: absolute;
+            top: 8.01px;
+            left: 8.01px;
+        }
+    }
+}
+
+.vc-strip-bar {
+    position: relative;
+    flex: 0 0 auto;
+    align-self: flex-start;
+    width: 437px;
+    height: 4px;
+    // Centred 2.5px to the right of the stage's middle, as in the design.
+    margin: 18.71px 0 19px calc(50% - 216px);
+    border-radius: 53px;
+    background-color: #dee1e7;
+
+    span {
+        position: absolute;
+        top: 0;
+        height: 4px;
+        border-radius: 53px;
+        background-color: #0060ff;
+    }
+}
+
+// Controls
+
+.vc-controls {
+    position: absolute;
+    left: 0;
+    bottom: 0;
+    width: calc(100% - 422px);
+    height: 140px;
+    border: 1.5px solid #edf0f6;
+    background-color: #fff;
+
+    &.is-full {
+        width: 100%;
+    }
+
+    &__group {
+        position: absolute;
+        top: 34.5px;
+        left: calc(50% - 232px);
+        display: flex;
+        align-items: flex-start;
+        gap: 20px;
+    }
+}
+
+button.vc-control {
+    position: relative;
+    flex: 0 0 60px;
+    width: 60px;
+    height: 60px;
+    margin-top: 5px;
+    border-radius: 50%;
+    background-color: #dfebff;
+    transition: transform 120ms ease;
+
+    &:active {
+        transform: scale(0.94);
+    }
+
+    &.is-primary {
+        background-color: #0060ff;
+    }
+
+    &.is-off {
+        background-color: #eb5757;
+    }
+
+    &.is-record {
+        margin-top: 0;
+        background-color: #ffc8c8;
+    }
+
+    &__icon {
+        position: absolute;
+    }
+}
+
+.vc-control__icon {
+    position: absolute;
+    top: 16px;
+    left: 16px;
+    width: 28px;
+    height: 28px;
+
+    img {
+        position: absolute;
+        top: 0;
+        left: 0;
+    }
+
+    .vc-control__mic-part {
+        top: 8.6px;
+        left: 9.33px;
+    }
+
+    .vc-control__record-dot {
+        top: 10px;
+        left: 10px;
+    }
+}
+
+.vc-control__slash {
+    position: absolute;
+    top: 13px;
+    left: -2px;
+    width: 32px;
+    height: 2px;
+    border-radius: 2px;
+    background-color: #fff;
+    transform: rotate(-45deg);
+}
+
+.vc-record {
+    position: relative;
+    flex: 0 0 70px;
+    width: 70px;
+    height: 70px;
+
+    button.vc-control {
+        position: absolute;
+        top: 5px;
+        left: 5px;
+    }
+
+    img.vc-record__ring-outer {
+        position: absolute;
+        top: -1px;
+        left: -1px;
+    }
+
+    img.vc-record__ring-inner {
+        position: absolute;
+        top: 12px;
+        left: 12px;
+        pointer-events: none;
+    }
+}
+
+button.vc-end-call {
+    position: absolute;
+    top: 39.5px;
+    right: 29.5px;
+    width: 145px;
+    height: 60px;
+    border-radius: 73px;
+    background-color: #eb5757;
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 22px;
+    color: #fff;
+}
+
+// Sidebar
+
+.vc-sidebar {
+    position: absolute;
+    top: 140px;
+    right: 0;
+    bottom: 0;
+    width: 422px;
+    display: flex;
+    flex-direction: column;
+    background-color: #f6f6f6;
+    border: 1.5px solid #eae9e9;
+}
+
+.vc-panel-head {
+    position: relative;
+    flex: 0 0 70px;
+    height: 70px;
+    background-color: #fff;
+
+    h2 {
+        position: absolute;
+        font-size: 18px;
+        font-weight: 600;
+        line-height: 32.667px;
+        color: #292d32;
+    }
+
+    &--participants {
+        margin-top: -0.5px;
+        border-bottom: 1px solid #fdfbfb;
+
+        h2 {
+            top: 18px;
+            left: 32.58px;
+        }
+    }
+
+    &--chats {
+        margin-top: 0;
+        border-bottom: 1px solid #f1f0f0;
+
+        h2 {
+            top: 20px;
+            left: 33.58px;
+        }
+    }
+
+    button.vc-panel-head__chevron {
+        position: absolute;
+        top: 32px;
+        right: 20.5px;
+        width: 14px;
+        height: 8px;
+        transition: transform 200ms ease;
+
+        &.is-closed {
+            transform: rotate(180deg);
+        }
+    }
+
+    &--chats button.vc-panel-head__chevron {
+        top: 33px;
+    }
+}
+
+button.vc-add-participant {
+    position: absolute;
+    top: 12px;
+    right: 50.5px;
+    display: flex;
+    justify-content: center;
+    min-width: 176px;
+    gap: 10px;
+    align-items: flex-start;
+    padding: 12px 20px;
+    border-radius: 61px;
+    background-color: #dfebff;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 22px;
+    white-space: nowrap;
+    color: #0060ff;
+}
+
+.vc-participants {
+    position: relative;
+    flex: 0 0 297px;
+    height: 297px;
+
+    &__list {
+        position: absolute;
+        top: 30.5px;
+        left: 18.5px;
+        width: 351px;
+        height: 237px;
+        overflow-y: auto;
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+    }
+
+    &__bar {
+        position: absolute;
+        top: 36.5px;
+        left: 390.5px;
+        width: 3px;
+        height: 231px;
+        border-radius: 53px;
+        background-color: #dfebff;
+
+        span {
+            position: absolute;
+            left: 0;
+            width: 3px;
+            border-radius: 53px;
+            background-color: #0060ff;
+        }
+    }
+}
+
+.vc-participant {
+    display: flex;
+    align-items: center;
+    gap: 17px;
+    height: 69px;
+    margin-bottom: 15px;
+    padding: 6px 0 8px 9px;
+    border-radius: 31.5px;
+    background-color: rgba(255, 255, 255, 0.8);
+
+    &:last-child {
+        margin-bottom: 0;
+    }
+
+    img {
+        flex-shrink: 0;
+    }
+
+    &__avatar {
+        width: 55px;
+        height: 55px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    &__name {
+        flex: 0 0 173px;
+        width: 173px;
+        overflow: hidden;
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 32.667px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #25293b;
+    }
+}
+
+.vc-chat-tabs {
+    position: absolute;
+    top: 9px;
+    right: 50.5px;
+    width: 248px;
+    height: 50px;
+    border-radius: 71px;
+    background-color: #dfebff;
+
+    button {
+        position: absolute;
+        border-radius: 61px;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 22px;
+        color: #0060ff;
+        transition: background-color 150ms ease, color 150ms ease;
+
+        &.is-active {
+            background-color: #0060ff;
+            color: #fff;
+        }
+    }
+
+    &__group {
+        top: 4px;
+        left: 5px;
+        width: 122px;
+        height: 42px;
+    }
+
+    &__personal {
+        top: 7px;
+        left: 141px;
+        width: 100px;
+        height: 36px;
+    }
+}
+
+.vc-chat {
+    position: relative;
+    flex: 1 1 auto;
+    min-height: 0;
+
+    &__list {
+        height: 100%;
+        overflow-y: auto;
+        padding: 28.5px 0 24px 25px;
+        scrollbar-width: none;
+
+        &::-webkit-scrollbar {
+            display: none;
+        }
+    }
+
+    &__empty {
+        padding-top: 60px;
+        padding-right: 24.5px;
+        font-size: 14px;
+        font-weight: 500;
+        text-align: center;
+        color: #8d8f98;
+    }
+
+    &__typing {
+        position: absolute;
+        bottom: 29px;
+        left: 189.5px;
+    }
+}
+
+.vc-message {
+    position: relative;
+    min-height: 55px;
+    margin-top: 32px;
+    padding-left: 75px;
+
+    &:first-child {
+        margin-top: 0;
+    }
+
+    &.is-continued {
+        min-height: 0;
+        margin-top: 12px;
+    }
+
+    &__avatar {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 55px;
+        height: 55px;
+        border: 3px solid #fff;
+        border-radius: 95px;
+        object-fit: cover;
+    }
+
+    &__bubble {
+        width: 233px;
+        padding: 9px 13.5px;
+        border-radius: 10px;
+        background-color: #fff;
+    }
+
+    // A bubble with more from the same sender below it is a little taller in the design.
+    &.has-more:not(.is-continued) &__bubble {
+        padding-bottom: 12px;
+    }
+
+    &__sender {
+        margin-bottom: 4.85px;
+        overflow: hidden;
+        font-size: 10px;
+        font-weight: 500;
+        line-height: 10.167px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: #afafaf;
+    }
+
+    &__text {
+        font-size: 15.301px;
+        font-weight: 500;
+        line-height: 1.5;
+        word-break: break-word;
+        color: #25293b;
+    }
+
+    &__file {
+        color: #0060ff;
+    }
+
+    &__time {
+        position: absolute;
+        top: 50%;
+        left: 324.5px;
+        margin-top: -11px;
+        font-size: 10px;
+        font-weight: 500;
+        line-height: 22.15px;
+        white-space: nowrap;
+        color: #a8a8a8;
+    }
+
+    &.has-more &__time {
+        top: 11px;
+        margin-top: 0;
+    }
+}
+
+.vc-chat-input {
+    position: relative;
+    flex: 0 0 139.5px;
+    height: 139.5px;
+    background-color: #fff;
+
+    &__pill {
+        position: absolute;
+        top: 40px;
+        left: 24.5px;
+        width: 365px;
+        height: 60px;
+        border-radius: 88px;
+        background-color: #f6f6f6;
+    }
+
+    button.vc-chat-input__attach {
+        position: absolute;
+        top: 15px;
+        left: 20px;
+        width: 30px;
+        height: 30px;
+    }
+
+    input[type="text"] {
+        position: absolute;
+        top: 18px;
+        left: 72px;
+        width: 224px;
+        height: 22px;
+        padding: 0;
+        border: 0;
+        outline: 0;
+        background: none;
+        font-family: inherit;
+        font-size: 16px;
+        font-weight: 500;
+        line-height: 22.15px;
+        color: #25293b;
+
+        &::placeholder {
+            color: #8d8f98;
+            opacity: 1;
+        }
+    }
+
+    button.vc-chat-input__send {
+        position: absolute;
+        top: 5px;
+        left: 309px;
+        width: 50px;
+        height: 50px;
+        border-radius: 50%;
+        background-color: #0060ff;
+
+        img {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+        }
+    }
+}
+
+// Phones and small tablets: same parts, stacked, at normal size.
+
+.vc-screen.is-compact {
+    .vc-canvas {
+        display: flex;
+        flex-direction: column;
+        width: 100%;
+        height: 100%;
+    }
+
+    .vc-sidebar,
+    .vc-header__line,
+    .vc-header__people,
+    .vc-header__me,
+    .vc-header__date,
+    .vc-strip-bar,
+    .vc-record,
+    .vc-main-tile__sound {
+        display: none;
+    }
+
+    .vc-header {
+        position: relative;
+        flex: 0 0 64px;
+        height: 64px;
+
+        &__logo {
+            top: 12px;
+            left: 12px;
+            width: 38px;
+            height: 38px;
+        }
+
+        &__meeting {
+            top: 18px;
+            left: 62px;
+            right: 12px;
+        }
+
+        &__title {
+            overflow: hidden;
+            font-size: 18px;
+            text-overflow: ellipsis;
+        }
+    }
+
+    .vc-stage {
+        position: relative;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        flex: 1 1 auto;
+        width: 100%;
+        min-height: 0;
+        padding: 12px;
+    }
+
+    .vc-strip {
+        gap: 10px;
+        height: 110px;
+        margin-top: 12px;
+    }
+
+    .vc-thumb {
+        flex-basis: 170px;
+        height: 110px;
+
+        &__mic {
+            top: auto;
+            left: auto;
+            right: 8px;
+            bottom: 8px;
+        }
+    }
+
+    .vc-name-pill {
+        top: auto;
+        bottom: 12px;
+        max-width: 120px;
+        padding: 2px 10px;
+        font-size: 12px;
+        line-height: 20px;
+    }
+
+    .vc-name-pill--main {
+        max-width: 80%;
+        padding: 4px 16px;
+        font-size: 16px;
+        line-height: 24px;
+    }
+
+    .vc-main-tile__timer {
+        top: 10px;
+        left: 10px;
+    }
+
+    .vc-main-tile__maximize {
+        top: 10px;
+        right: 10px;
+    }
+
+    .vc-controls {
+        position: relative;
+        flex: 0 0 88px;
+        width: 100%;
+        height: 88px;
+
+        &__group {
+            top: 22px;
+            left: 12px;
+            gap: 6px;
+        }
+    }
+
+    button.vc-control {
+        flex-basis: 44px;
+        width: 44px;
+        height: 44px;
+        margin-top: 0;
+    }
+
+    .vc-control__icon {
+        top: 8px;
+        left: 8px;
+    }
+
+    button.vc-end-call {
+        top: 22px;
+        right: 12px;
+        width: 88px;
+        height: 44px;
+        font-size: 14px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    button.vc-control,
+    .vc-panel-head__chevron,
+    .vc-chat-tabs button {
+        transition: none;
+    }
+}
+
+// Floating call window, the default view. Modelled on WhatsApp.
+
+.vc-float {
+    position: fixed;
+    right: 24px;
+    bottom: 24px;
+    z-index: 1060;
+    width: 360px;
+    height: 620px;
+    max-height: calc(100vh - 48px);
+    overflow: hidden;
+    border-radius: 16px;
+    background-color: #111b21;
+    box-shadow: 0 16px 48px rgba(0, 0, 0, 0.45);
+    font-family: "Inter", sans-serif;
+    color: #fff;
+    cursor: grab;
+    touch-action: none;
+    user-select: none;
+    animation: vc-float-in 220ms cubic-bezier(0.22, 0.9, 0.3, 1);
+
+    &:active {
+        cursor: grabbing;
+    }
+
+    &.is-group {
+        width: 460px;
+    }
+
+    button {
+        padding: 0;
+        border: 0;
+        cursor: pointer;
+    }
+
+    p {
+        margin: 0;
+    }
+
+    .vc-tile__sample {
+        object-position: center 30%;
+        pointer-events: none;
+    }
+
+    .vc-tile__no-video {
+        background-color: #202c33;
+
+        img {
+            width: 96px;
+            height: 96px;
+        }
+    }
+
+    &__main {
+        position: absolute;
+        inset: 0;
+    }
+
+    &__main .vc-tile__no-video img {
+        width: 140px;
+        height: 140px;
+    }
+
+    &__self {
+        position: absolute;
+        right: 14px;
+        bottom: 96px;
+        width: 96px;
+        height: 136px;
+        overflow: hidden;
+        border-radius: 12px;
+        box-shadow: 0 4px 16px rgba(0, 0, 0, 0.45);
+
+        .vc-tile__no-video img {
+            width: 48px;
+            height: 48px;
+        }
+    }
+
+    // Stops above the controls, so that they never cover anyone's name.
+    &__grid {
+        position: absolute;
+        inset: 0 0 82px;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        grid-auto-rows: 1fr;
+        gap: 2px;
+
+        &.is-single-column {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    &__grid-tile {
+        position: relative;
+        min-height: 0;
+        overflow: hidden;
+    }
+
+    &__label {
+        position: absolute;
+        left: 8px;
+        bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        max-width: calc(100% - 16px);
+        overflow: hidden;
+        padding: 2px 8px;
+        border-radius: 10px;
+        background-color: rgba(0, 0, 0, 0.5);
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 18px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__more {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: rgba(0, 0, 0, 0.55);
+        font-size: 28px;
+        font-weight: 600;
+    }
+
+    // Keeps the name and time readable over any video.
+    &__top {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        padding: 16px 14px 36px 18px;
+        background-image: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0));
+    }
+
+    &__heading {
+        min-width: 0;
+    }
+
+    &__name {
+        overflow: hidden;
+        font-size: 17px;
+        font-weight: 600;
+        line-height: 22px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__time {
+        font-size: 13px;
+        font-weight: 400;
+        font-variant-numeric: tabular-nums;
+        line-height: 18px;
+        opacity: 0.85;
+    }
+
+    button.vc-float__expand {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 36px;
+        height: 36px;
+        margin-left: 12px;
+        border-radius: 50%;
+        background-color: rgba(0, 0, 0, 0.35);
+
+        img {
+            width: 20px;
+            height: 20px;
+        }
+    }
+
+    &__status {
+        position: absolute;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0 24px;
+        background-color: rgba(0, 0, 0, 0.45);
+        font-size: 16px;
+        font-weight: 500;
+        text-align: center;
+        pointer-events: none;
+    }
+
+    &__controls {
+        position: absolute;
+        left: 50%;
+        bottom: 18px;
+        display: flex;
+        gap: 12px;
+        padding: 8px 12px;
+        border-radius: 40px;
+        background-color: rgba(32, 44, 51, 0.92);
+        transform: translateX(-50%);
+    }
+
+    button.vc-float__btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 46px;
+        height: 46px;
+        border-radius: 50%;
+        background-color: rgba(255, 255, 255, 0.14);
+        font-size: 24px;
+        color: #fff;
+        transition: background-color 120ms ease, transform 120ms ease;
+
+        &:hover {
+            background-color: rgba(255, 255, 255, 0.24);
+        }
+
+        &:active {
+            transform: scale(0.93);
+        }
+
+        &.is-off {
+            background-color: #fff;
+            color: #111b21;
+        }
+
+        &.is-end,
+        &.is-decline {
+            background-color: #ea0038;
+            color: #fff;
+        }
+
+        &.is-accept {
+            background-color: #00a884;
+            color: #fff;
+        }
+    }
+
+    @media (max-width: 575.98px) {
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        width: auto !important;
+        height: auto;
+        max-height: none;
+        border-radius: 0;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        animation: none;
+    }
+}
+
+@keyframes vc-float-in {
+    from {
+        opacity: 0;
+        scale: 0.92;
+    }
+    to {
+        opacity: 1;
+        scale: 1;
+    }
+}

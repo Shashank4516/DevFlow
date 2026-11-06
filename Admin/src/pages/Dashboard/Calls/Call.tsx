@@ -1,221 +1,77 @@
-import React, { useState } from "react";
+import React from "react";
 import classnames from "classnames";
-import { Button } from "reactstrap";
+import { format } from "date-fns";
 
-// interface
 import { CallItem } from "../../../data/calls";
-import { formateDate } from "../../../utils/index";
-import AudioCallModal from "../../../components/AudioCallModal";
-import VideoCallModal from "../../../components/VideoCallModal";
 
-interface ProfileImageProps {
-  call: CallItem;
-}
-const ProfileImage = ({ call }: ProfileImageProps) => {
-  const shortName = `${call.firstName.charAt(0)}${call.lastName.charAt(0)}`;
+/** Missed for the person called. For the caller, the same call just wasn't answered. */
+export const isMissedCall = (call: CallItem) =>
+  call.wasConnected === false && call.isIncomming && !call.wasDeclined;
 
-  const colors = [
-    "bg-primary",
-    "bg-danger",
-    "bg-info",
-    "bg-warning",
-    "bg-secondary",
-    "bg-pink",
-    "bg-purple",
-  ];
-  const [color] = useState(Math.floor(Math.random() * colors.length));
-  const displayNumbers =
-    call.peoplesAvailableOnCall > 2 ? call.peoplesAvailableOnCall - 1 : 0;
-  const displayProfile =
-    call.peoplesAvailableOnCall > 2
-      ? call.peoples && call.peoples.length > 0
-        ? call.peoples[0]
-        : null
-      : null;
-  const groupProfile = displayProfile
-    ? `${displayProfile.firstName.charAt(0)}${displayProfile.lastName.charAt(
-        0
-      )}`
-    : "";
-
-  return (
-    <>
-      {call.peoplesAvailableOnCall > 2 ? (
-        <div className="chat-user-img flex-shrink-0 me-2">
-          <div className="avatar-group">
-            <div className="avatar-group-item">
-              <div className="avatar-xs">
-                {displayProfile && displayProfile.profileImage ? (
-                  <img
-                    src={displayProfile.profileImage}
-                    alt=""
-                    className="img-fluid rounded-circle"
-                  />
-                ) : (
-                  <span
-                    className={classnames(
-                      "avatar-title",
-                      "rounded-circle",
-                      "text-uppercase",
-                      "text-white",
-                      colors[color]
-                    )}
-                  >
-                    {groupProfile}
-                  </span>
-                )}
-              </div>
-            </div>
-            <div className="avatar-group-item">
-              <div className="avatar-xs">
-                <div className="avatar-title rounded-circle bg-light text-primary">
-                  {`${displayNumbers}+`}
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      ) : call.profileImage ? (
-        <div className="chat-user-img flex-shrink-0 me-2">
-          <img
-            src={call.profileImage}
-            className="rounded-circle avatar-xs"
-            alt=""
-          />
-        </div>
-      ) : (
-        <div className="chat-user-img flex-shrink-0 avatar-xs me-2">
-          <span
-            className={classnames(
-              "avatar-title",
-              "rounded-circle",
-              "text-uppercase",
-              "text-white",
-              colors[color]
-            )}
-          >
-            {shortName}
-          </span>
-        </div>
-      )}
-    </>
-  );
+const describeCall = (call: CallItem) => {
+  if (call.wasDeclined) {
+    return {
+      icon: call.isIncomming ? "bx bx-phone-incoming" : "bx bx-phone-outgoing",
+      label: "Declined",
+    };
+  }
+  if (isMissedCall(call)) return { icon: "bx bx-phone-incoming", label: "Missed" };
+  if (call.wasConnected === false) return { icon: "bx bx-phone-outgoing", label: "No answer" };
+  return call.isIncomming
+    ? { icon: "bx bx-phone-incoming", label: "Incoming" }
+    : { icon: "bx bx-phone-outgoing", label: "Outgoing" };
 };
 
 interface CallProps {
   call: CallItem;
-  currentUser?: any | null;
+  onOpenChat: (call: CallItem) => void;
+  onCall: (call: CallItem) => void;
 }
-const Call = ({ call, currentUser }: CallProps) => {
-  /*
-   selected user
-   */
-  const [user, setUser] = useState<any | null>(null);
 
-  /*
-    video call modal
-    */
-  const [isOpenVideoModal, setIsOpenVideoModal] = useState<boolean>(false);
-  const onOpenVideo = () => {
-    if (!call.peerUserId) return;
-    setUser({
-      id: call.peerUserId,
-      firstName: call.firstName,
-      lastName: call.lastName,
-      displayName: [call.firstName, call.lastName].filter(Boolean).join(" ").trim() || "User",
-      profileImage: call.profileImage,
-    });
-    setIsOpenVideoModal(true);
-  };
-  const onCloseVideo = () => {
-    setUser(null);
-    setIsOpenVideoModal(false);
-  };
-
-  /*
-        audio call modal
-    */
-  const [isOpenAudioModal, setIsOpenAudioModal] = useState<boolean>(false);
-  const onOpenAudio = () => {
-    if (!call.peerUserId) return;
-    setUser({
-      id: call.peerUserId,
-      firstName: call.firstName,
-      lastName: call.lastName,
-      displayName: [call.firstName, call.lastName].filter(Boolean).join(" ").trim() || "User",
-      profileImage: call.profileImage,
-    });
-    setIsOpenAudioModal(true);
-  };
-  const onCloseAudio = () => {
-    setUser(null);
-    setIsOpenAudioModal(false);
-  };
-
-  const fullName = `${call.firstName} ${call.lastName}`;
-  const date = formateDate(call.callDate, "d MMM, yyyy, hh:mmp");
+const Call = ({ call, onOpenChat, onCall }: CallProps) => {
+  const fullName = `${call.firstName} ${call.lastName}`.trim();
+  const initials = `${call.firstName.charAt(0)}${call.lastName.charAt(0)}`.toUpperCase();
+  const missed = isMissedCall(call);
+  const { icon, label } = describeCall(call);
+  const hasDuration = call.callDuration && call.callDuration !== "—";
 
   return (
-    <>
-      <li>
-        <div className="d-flex align-items-center">
-          <ProfileImage call={call} />
-          <div className="flex-grow-1 overflow-hidden">
-            <p className="text-truncate mb-0">{fullName}</p>
-            <div className="text-muted font-size-12 text-truncate">
-              {call.isIncomming ? (
-                <i className="ri-arrow-left-down-fill text-success align-bottom me-1"></i>
-              ) : (
-                <i className="ri-arrow-right-up-fill text-danger align-bottom me-1"></i>
-              )}
-              {date}
-            </div>
-          </div>
-          <div className="flex-shrink-0 ms-3">
-            <div className="d-flex align-items-center gap-3">
-              <div>
-                <h5 className="mb-0 font-size-12 text-muted">
-                  {call.callDuration}
-                </h5>
-              </div>
-              <div>
-                {call.hasVideoCall ? (
-                  <Button
-                    color="link"
-                    type="button"
-                    className="p-0 font-size-20 stretched-link"
-                    onClick={onOpenVideo}
-                  >
-                    <i className="bx bx-video align-middle"></i>
-                  </Button>
-                ) : (
-                  <Button
-                    color="link"
-                    type="button"
-                    className="p-0 font-size-20 stretched-link"
-                    onClick={onOpenAudio}
-                  >
-                    <i className="bx bxs-phone-call align-middle"></i>
-                  </Button>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-      </li>
-      <AudioCallModal
-        isOpen={isOpenAudioModal}
-        onClose={onCloseAudio}
-        user={user}
-      />
-      <VideoCallModal
-        isOpen={isOpenVideoModal}
-        onClose={onCloseVideo}
-        user={user}
-        currentUser={currentUser}
-        direction="outgoing"
-      />
-    </>
+    <li className={classnames("call-row", { "is-missed": missed })}>
+      <button
+        type="button"
+        className="call-row__main"
+        title={`Open chat with ${fullName}`}
+        disabled={!call.peerUserId}
+        onClick={() => onOpenChat(call)}
+      >
+        {call.profileImage ? (
+          <img src={call.profileImage} alt="" className="call-row__avatar" />
+        ) : (
+          <span className="call-row__avatar call-row__avatar--initials">{initials}</span>
+        )}
+        <span className="call-row__body">
+          <span className="call-row__top">
+            <span className="call-row__name">{fullName}</span>
+            <time className="call-row__time">{format(new Date(call.callDate), "h:mm a")}</time>
+          </span>
+          <span className="call-row__detail">
+            <i className={icon} />
+            {label}
+            {hasDuration && ` · ${call.callDuration}`}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        className="call-row__call"
+        aria-label={`Video call ${fullName}`}
+        title={`Video call ${fullName}`}
+        disabled={!call.peerUserId}
+        onClick={() => onCall(call)}
+      >
+        <i className="bx bxs-video" />
+      </button>
+    </li>
   );
 };
 

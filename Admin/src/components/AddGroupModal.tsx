@@ -1,239 +1,253 @@
-import React, { useMemo, useState } from "react";
-
-import {
-  Button,
-  Modal,
-  ModalHeader,
-  ModalBody,
-  ModalFooter,
-  Label,
-  Input,
-  Form,
-} from "reactstrap";
+import React, { useMemo, useRef, useState } from "react";
+import classnames from "classnames";
+import { Modal } from "reactstrap";
 
 // interfaces
 import { CreateChannelPostData } from "../redux/actions";
 import { UserTypes } from "../data/chat";
+import { STATUS_TYPES } from "../constants";
 
-// components
-import AppSimpleBar from "./AppSimpleBar";
-
-interface DataTypes {
-  id: any;
-  channelName: string;
-  description: string;
-}
 interface GroupSelectableFriend {
   id: string | number;
-  firstName: string;
-  lastName: string;
+  name: string;
+  image?: string;
+  isOnline: boolean;
 }
-interface ContactItemProps {
-  contact: GroupSelectableFriend;
-  selected: boolean;
-  onSelectContact: (id: string | number, selected: boolean) => void;
-}
-const ContactItem = ({
-  contact,
-  selected,
-  onSelectContact,
-}: ContactItemProps) => {
-  const fullName = `${contact.firstName} ${contact.lastName}`;
-  const onCheck = (checked: boolean) => {
-    onSelectContact(contact.id, checked);
-  };
 
-  return (
-    <li>
-      <div className="form-check">
-        <Input
-          type="checkbox"
-          className="form-check-input"
-          id={`contact-${contact.id}`}
-          checked={selected}
-          onChange={(e: any) => {
-            onCheck(e.target.checked);
-          }}
-          value={fullName}
-        />
-        <Label className="form-check-label" htmlFor={`contact-${contact.id}`}>
-          {fullName}
-        </Label>
-      </div>
-    </li>
+const initialsOf = (name: string) =>
+  name
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map(part => part.charAt(0).toUpperCase())
+    .join("") || "?";
+
+const FriendAvatar = ({ friend, size }: { friend: GroupSelectableFriend; size: number }) =>
+  friend.image ? (
+    <img
+      src={friend.image}
+      alt=""
+      className="group-modal__avatar"
+      style={{ width: size, height: size }}
+    />
+  ) : (
+    <span
+      className="group-modal__avatar group-modal__avatar--initials"
+      style={{ width: size, height: size, fontSize: size * 0.36 }}
+    >
+      {initialsOf(friend.name)}
+    </span>
   );
-};
+
 interface AddGroupModalProps {
   isOpen: boolean;
   onClose: () => void;
   onCreateChannel: (params: CreateChannelPostData) => void;
   friends: Array<UserTypes>;
 }
-const AddGroupModal = ({
-  isOpen,
-  onClose,
-  onCreateChannel,
-  friends,
-}: AddGroupModalProps) => {
-  const [selectedContacts, setSelectedContacts] = useState<
-    Array<string | number>
-  >([]);
-  const onSelectContact = (id: string | number, selected: boolean) => {
-    let modifiedList: Array<string | number> = [...selectedContacts];
-    if (selected) {
-      modifiedList = [...modifiedList, id];
-    } else {
-      modifiedList = modifiedList.filter(m => m + "" !== id + "");
-    }
-    setSelectedContacts(modifiedList);
+
+const AddGroupModal = ({ isOpen, onClose, onCreateChannel, friends }: AddGroupModalProps) => {
+  const nameRef = useRef<HTMLInputElement>(null);
+  const [name, setName] = useState("");
+  const [description, setDescription] = useState("");
+  const [memberSearch, setMemberSearch] = useState("");
+  const [selectedIds, setSelectedIds] = useState<Array<string | number>>([]);
+
+  const selectableFriends = useMemo<GroupSelectableFriend[]>(
+    () =>
+      (friends || [])
+        .filter(friend => friend.id !== undefined && friend.id !== null)
+        .map(friend => ({
+          id: friend.id,
+          name: `${friend.firstName || ""} ${friend.lastName || ""}`.trim() || "Unknown",
+          image: friend.profileImage,
+          isOnline: friend.status === STATUS_TYPES.ACTIVE,
+        })),
+    [friends],
+  );
+
+  const isSelected = (id: string | number) => selectedIds.some(item => item + "" === id + "");
+
+  const onToggleMember = (id: string | number) => {
+    setSelectedIds(current =>
+      current.some(item => item + "" === id + "")
+        ? current.filter(item => item + "" !== id + "")
+        : [...current, id],
+    );
   };
 
-  const [data, setData] = useState<DataTypes>({
-    id: "",
-    channelName: "",
-    description: "",
-  });
-  const onDataChange = (
-    field: "id" | "channelName" | "description",
-    value: any
-  ) => {
-    let modifiedData: DataTypes = { ...data };
-    modifiedData[field] = value;
-    setData(modifiedData);
-  };
+  const searchTerm = memberSearch.trim().toLowerCase();
+  const shownFriends = selectableFriends.filter(friend =>
+    friend.name.toLowerCase().includes(searchTerm),
+  );
+  const selectedFriends = selectedIds
+    .map(id => selectableFriends.find(friend => friend.id + "" === id + ""))
+    .filter((friend): friend is GroupSelectableFriend => !!friend);
 
-  const selectableFriends = useMemo<Array<GroupSelectableFriend>>(() => {
-    return (friends || [])
-      .map((friend) => ({
-        id: friend.id,
-        firstName: friend.firstName || "",
-        lastName: friend.lastName || "",
-      }))
-      .filter((friend) => friend.id !== undefined && friend.id !== null);
-  }, [friends]);
+  const hasName = name.trim().length > 0;
+  const isValid = hasName && selectedIds.length > 0;
+  const hint = !hasName
+    ? selectedIds.length === 0
+      ? "Add a group name and at least one member"
+      : "Add a group name"
+    : selectedIds.length === 0
+      ? "Add at least one member"
+      : "";
 
-  const isValid = data.channelName.trim().length > 0 && selectedContacts.length > 0;
-
-  const resetForm = () => {
-    setData({ id: "", channelName: "", description: "" });
-    setSelectedContacts([]);
-  };
-
-  const onSubmit = () => {
+  const onSubmit = (event: React.FormEvent) => {
+    event.preventDefault();
     if (!isValid) return;
-    const params = {
-      id: data.id,
-      name: data.channelName,
-      members: selectedContacts,
-      description: data.description,
-    };
-    onCreateChannel(params);
-    resetForm();
-  };
-
-  const handleFormSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    onSubmit();
+    onCreateChannel({
+      id: "",
+      name: name.trim(),
+      members: selectedIds,
+      description: description.trim(),
+    });
   };
 
   return (
     <Modal
       isOpen={isOpen}
       toggle={onClose}
-      tabIndex={-1}
       centered
       scrollable
-      color="white"
+      autoFocus={false}
+      onOpened={() => nameRef.current?.focus()}
+      className="group-modal"
+      contentClassName="group-modal__card"
       id="addgroup-exampleModal"
-      role="dialog">
-      <ModalHeader toggle={onClose} className="bg-primary">
-        <div className="modal-title modal-title-custom text-white bg-primary font-size-16">
-          Create New Group
+      labelledBy="group-modal-title"
+    >
+      <form className="group-modal__form" onSubmit={onSubmit}>
+        <div className="group-modal__head">
+          <div>
+            <h2 id="group-modal-title" className="group-modal__title">
+              New group
+            </h2>
+            <p className="group-modal__subtitle">Name your group and choose who to add.</p>
+          </div>
+          <button type="button" className="group-modal__close" aria-label="Close" onClick={onClose}>
+            <i className="bx bx-x" />
+          </button>
         </div>
-      </ModalHeader>
 
-      <ModalBody className="p-4">
-        <Form id="create-group-form" onSubmit={handleFormSubmit}>
-          <div className="mb-4">
-            <Label htmlFor="addgroupname-input" className="form-label">
-              Group Name
-            </Label>
-            <Input
-              type="text"
-              className="form-control"
-              id="addgroupname-input"
-              placeholder="Enter Group Name"
-              value={data.channelName || ""}
-              onChange={(e: any) => {
-                onDataChange("channelName", e.target.value);
-              }}
-            />
-          </div>
-          <div className="mb-4">
-            <label className="form-label">Group Members</label>
-            <div className="card border">
-              <div className="card-header">
-                <h5 className="font-size-15 mb-0">Friends</h5>
-              </div>
-              <div className="card-body p-2">
-                <AppSimpleBar style={{ maxHeight: "180px" }}>
-                  <ul className="list-unstyled contact-list mb-0">
-                    {(selectableFriends || []).map(
-                      (contact: GroupSelectableFriend, key: number) => {
-                        const selected = selectedContacts.includes(contact.id);
-                        return (
-                          <ContactItem
-                            contact={contact}
-                            key={key}
-                            selected={selected}
-                            onSelectContact={onSelectContact}
-                          />
-                        );
-                      }
-                    )}
-                  </ul>
-                  {selectableFriends.length === 0 && (
-                    <p className="text-muted px-2 py-1 mb-0">
-                      No friends available to add yet.
-                    </p>
-                  )}
-                </AppSimpleBar>
-              </div>
+        <div className="group-modal__body">
+          <div className="group-modal__identity">
+            <span className="group-modal__group-avatar" aria-hidden="true">
+              #
+            </span>
+            <div className="group-modal__field">
+              <label htmlFor="addgroupname-input">Group name</label>
+              <input
+                ref={nameRef}
+                id="addgroupname-input"
+                type="text"
+                placeholder="e.g. Design team"
+                autoComplete="off"
+                value={name}
+                onChange={event => setName(event.target.value)}
+              />
             </div>
-            <small className="text-muted d-block mt-2">
-              Selected: {selectedContacts.length}
-            </small>
           </div>
-          <div className="mb-3">
-            <Label htmlFor="addgroupdescription-input" className="form-label">
-              Description
-            </Label>
+
+          <div className="group-modal__section-head">
+            <span id="group-members-label">Members</span>
+            <span className="group-modal__count">
+              {selectedIds.length === 0 ? "None selected" : `${selectedIds.length} selected`}
+            </span>
+          </div>
+
+          {selectedFriends.length > 0 && (
+            <ul className="group-modal__chips">
+              {selectedFriends.map(friend => (
+                <li key={friend.id} className="group-modal__chip">
+                  <FriendAvatar friend={friend} size={22} />
+                  <span>{friend.name}</span>
+                  <button
+                    type="button"
+                    aria-label={`Remove ${friend.name}`}
+                    onClick={() => onToggleMember(friend.id)}
+                  >
+                    <i className="bx bx-x" />
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {selectableFriends.length > 0 && (
+            <div className="group-modal__search">
+              <i className="bx bx-search" />
+              <input
+                type="text"
+                placeholder="Search friends"
+                aria-label="Search friends"
+                autoComplete="off"
+                value={memberSearch}
+                onChange={event => setMemberSearch(event.target.value)}
+              />
+            </div>
+          )}
+
+          <ul className="group-modal__members" aria-labelledby="group-members-label">
+            {shownFriends.map(friend => {
+              const selected = isSelected(friend.id);
+              return (
+                <li key={friend.id}>
+                  <label className={classnames("group-modal__member", { "is-selected": selected })}>
+                    <input
+                      type="checkbox"
+                      checked={selected}
+                      onChange={() => onToggleMember(friend.id)}
+                    />
+                    <FriendAvatar friend={friend} size={40} />
+                    <span className="group-modal__member-text">
+                      <span className="group-modal__member-name">{friend.name}</span>
+                      <span className="group-modal__member-status">
+                        {friend.isOnline ? "Online" : "Offline"}
+                      </span>
+                    </span>
+                    <span className="group-modal__check" aria-hidden="true">
+                      <i className="bx bx-check" />
+                    </span>
+                  </label>
+                </li>
+              );
+            })}
+            {selectableFriends.length === 0 && (
+              <li className="group-modal__empty">
+                You have no friends to add yet. Search for people to connect with first.
+              </li>
+            )}
+            {selectableFriends.length > 0 && shownFriends.length === 0 && (
+              <li className="group-modal__empty">No friends match “{memberSearch.trim()}”.</li>
+            )}
+          </ul>
+
+          <div className="group-modal__field group-modal__field--description">
+            <label htmlFor="addgroupdescription-input">
+              Description <span>Optional</span>
+            </label>
             <textarea
-              className="form-control"
               id="addgroupdescription-input"
-              rows={3}
-              placeholder="Enter Description"
-              value={data.description || ""}
-              onChange={(e: any) => {
-                onDataChange("description", e.target.value);
-              }}
+              rows={2}
+              placeholder="What is this group for?"
+              value={description}
+              onChange={event => setDescription(event.target.value)}
             />
           </div>
-        </Form>
-      </ModalBody>
-      <ModalFooter>
-        <Button color="link" type="button" onClick={onClose}>
-          Close
-        </Button>
-        <Button
-          type="submit"
-          form="create-group-form"
-          color="primary"
-          disabled={!isValid}
-        >
-          Create Group
-        </Button>
-      </ModalFooter>
+        </div>
+
+        <div className="group-modal__foot">
+          <span className="group-modal__hint">{hint}</span>
+          <button type="button" className="group-modal__btn" onClick={onClose}>
+            Cancel
+          </button>
+          <button type="submit" className="group-modal__btn is-primary" disabled={!isValid}>
+            Create group
+          </button>
+        </div>
+      </form>
     </Modal>
   );
 };

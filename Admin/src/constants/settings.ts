@@ -10,6 +10,7 @@ export enum SETTINGS_COLLAPSES {
   PRIVACY = "privacy",
   SECURITY = "security",
   HELP = "help",
+  SOUNDS = "sounds",
 }
 export interface DisplayOpt {
   label: string;

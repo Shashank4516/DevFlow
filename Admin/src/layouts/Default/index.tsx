@@ -1,6 +1,6 @@
 import React, { useEffect } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
-import { ToastContainer } from "react-toastify";
+import { cssTransition, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 // actions
@@ -10,10 +10,24 @@ import { pingPresence } from "../../api/presence";
 // components
 import SideMenu from "./SideMenu";
 import { FriendRequestsProvider } from "../../contexts/FriendRequestsContext";
+import { NotificationsProvider } from "../../contexts/NotificationsContext";
 import { useDispatch, useSelector } from "react-redux";
 import { TABS } from "../../constants";
 import { createSelector } from "reselect";
 import { getLoggedinUser } from "../../api/apiCore";
+
+const toastTransition = cssTransition({
+  enter: "app-toast-in",
+  exit: "app-toast-out",
+});
+
+const TOAST_ICONS: Record<string, string> = {
+  success: "bx bx-check",
+  error: "bx bx-x",
+  warning: "bx bx-error",
+  info: "bx bx-info-circle",
+  default: "bx bx-bell",
+};
 
 interface IndexProps {
   children: any;
@@ -126,13 +140,28 @@ const Index = (props: IndexProps) => {
 
   return (
     <FriendRequestsProvider>
+      <NotificationsProvider>
       <div className="layout-wrapper d-lg-flex">
         {/* side menu */}
         <SideMenu onChangeLayoutMode={onChangeLayoutMode} />
 
         {props.children}
-        <ToastContainer autoClose={2000} />
+        <ToastContainer
+          position="top-center"
+          autoClose={3000}
+          hideProgressBar
+          closeButton={false}
+          newestOnTop
+          limit={3}
+          transition={toastTransition}
+          icon={({ type }) => (
+            <span className={`app-toast-icon app-toast-icon--${type}`}>
+              <i className={TOAST_ICONS[type] || TOAST_ICONS.default} />
+            </span>
+          )}
+        />
       </div>
+    </NotificationsProvider>
     </FriendRequestsProvider>
   );
 };

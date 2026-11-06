@@ -1,61 +1,72 @@
 import React from "react";
 
-// interface
 import { BasicDetailsTypes } from "../../../data/myProfile";
+import { copyToClipboard } from "./MyProfile";
 
 interface UserDescriptionProps {
   basicDetails: BasicDetailsTypes;
+  onEdit: () => void;
 }
-const UserDescription = ({ basicDetails }: UserDescriptionProps) => {
+
+const UserDescription = ({ basicDetails, onEdit }: UserDescriptionProps) => {
+  const email = basicDetails?.email?.trim();
+  const location = basicDetails?.location?.trim();
+  const title = basicDetails?.title?.trim();
+
   return (
-    <>
-      <div className="text-muted small mb-3">
-        <p className="mb-0">
-          {basicDetails && basicDetails.description
-            ? basicDetails.description
-            : "-"}
-        </p>
+    <section className="my-profile__section">
+      <h6>Details</h6>
+      <div className="my-profile__group">
+        {title && (
+          <div className="my-profile__row">
+            <span className="my-profile__row-icon">
+              <i className="bx bx-briefcase" />
+            </span>
+            <span className="my-profile__row-text">
+              <small>Role</small>
+              <span>{title}</span>
+            </span>
+          </div>
+        )}
+        <button
+          type="button"
+          className="my-profile__row"
+          disabled={!email}
+          title={email ? "Copy your email" : undefined}
+          onClick={() => email && copyToClipboard(email, "Email")}
+        >
+          <span className="my-profile__row-icon">
+            <i className="bx bx-envelope" />
+          </span>
+          <span className="my-profile__row-text">
+            <small>Email</small>
+            <span>{email || "Not set"}</span>
+          </span>
+          {email && <i className="bx bx-copy my-profile__row-end" />}
+        </button>
+        {location ? (
+          <div className="my-profile__row">
+            <span className="my-profile__row-icon">
+              <i className="bx bx-map" />
+            </span>
+            <span className="my-profile__row-text">
+              <small>Location</small>
+              <span>{location}</span>
+            </span>
+          </div>
+        ) : (
+          <button type="button" className="my-profile__row" onClick={onEdit}>
+            <span className="my-profile__row-icon">
+              <i className="bx bx-map" />
+            </span>
+            <span className="my-profile__row-text">
+              <small>Location</small>
+              <span className="is-link">Add your location</span>
+            </span>
+          </button>
+        )}
       </div>
-
-      <div className="profile-details-rows">
-        <div className="d-flex align-items-start py-2">
-          <div className="flex-shrink-0 me-2 text-muted" style={{ width: "1.25rem" }}>
-            <i className="bx bx-user align-middle"></i>
-          </div>
-          <div className="flex-grow-1 min-w-0">
-            <p className="mb-0 text-break">
-              {basicDetails && basicDetails.fullName
-                ? basicDetails.fullName
-                : "-"}
-            </p>
-          </div>
-        </div>
-
-        <div className="d-flex align-items-start py-2">
-          <div className="flex-shrink-0 me-2 text-muted" style={{ width: "1.25rem" }}>
-            <i className="bx bx-message-rounded-dots align-middle"></i>
-          </div>
-          <div className="flex-grow-1 min-w-0">
-            <p className="mb-0 text-break">
-              {basicDetails && basicDetails.email ? basicDetails.email : "-"}
-            </p>
-          </div>
-        </div>
-
-        <div className="d-flex align-items-start py-2">
-          <div className="flex-shrink-0 me-2 text-muted" style={{ width: "1.25rem" }}>
-            <i className="bx bx-location-plus align-middle"></i>
-          </div>
-          <div className="flex-grow-1 min-w-0">
-            <p className="mb-0 text-break">
-              {basicDetails && basicDetails.location
-                ? basicDetails.location
-                : "-"}
-            </p>
-          </div>
-        </div>
-      </div>
-    </>
+    </section>
   );
 };
 

@@ -1,0 +1,1061 @@
+// ─────────────────────────────────────────────────────────
+//  GitHub tab — follows the iMessage / macOS language used by
+//  Chats: the same sidebar, frosted top bar, Apple system colours
+//  and iOS-style grouped lists.
+// ─────────────────────────────────────────────────────────
+
+.github-main-workspace {
+    // Same values as the --imsg-* tokens in _user-chat.scss
+    --gh-blue: #007aff;
+    --gh-blue-rgb: 0, 122, 255;
+    --gh-green: #34c759;
+    --gh-red: #ff3b30;
+    --gh-orange: #ff9500;
+    --gh-fill: #e9e9eb;              // iMessage received bubble
+    --gh-fill-soft: rgba(118, 118, 128, 0.12); // iOS tertiary fill
+    --gh-label: var(--#{$prefix}emphasis-color);
+    --gh-secondary: #8e8e93;
+    --gh-separator: rgba(60, 60, 67, 0.14);
+    --gh-card: #ffffff;
+    --gh-canvas: var(--#{$prefix}body-bg);
+    --gh-sidebar: var(--#{$prefix}sidebar-sub-bg);
+    --gh-topbar: rgba(255, 255, 255, 0.72);
+    --gh-mono: SFMono-Regular, ui-monospace, Menlo, Monaco, Consolas, monospace;
+
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    min-height: 0;
+    display: flex;
+    overflow: hidden;
+    background-color: var(--gh-canvas);
+    color: var(--#{$prefix}body-color);
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Inter", "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+
+    .min-w-0 { min-width: 0; }
+
+    code {
+        padding: 1px 5px;
+        border-radius: 5px;
+        background: var(--gh-fill-soft);
+        color: inherit;
+        font-family: var(--gh-mono);
+        font-size: 0.9em;
+    }
+
+    .is-add { color: var(--gh-green); }
+    .is-del { color: var(--gh-red); }
+}
+
+body[data-bs-theme="dark"] .github-main-workspace {
+    --gh-blue: #0a84ff;
+    --gh-blue-rgb: 10, 132, 255;
+    --gh-green: #30d158;
+    --gh-red: #ff453a;
+    --gh-orange: #ff9f0a;
+    --gh-fill: #3a3a3c;
+    --gh-fill-soft: rgba(118, 118, 128, 0.24);
+    --gh-secondary: #98989d;
+    --gh-separator: rgba(84, 84, 88, 0.55);
+    --gh-card: rgba(255, 255, 255, 0.06);
+    --gh-topbar: rgba(30, 30, 30, 0.72);
+}
+
+// ── Primitives ───────────────────────────────────────────
+
+.gh-card {
+    border-radius: 12px;
+    background: var(--gh-card);
+    overflow: hidden;
+}
+
+.gh-avatar {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: var(--gh-fill);
+    color: var(--gh-label);
+    font-size: 12px;
+    font-weight: 600;
+}
+
+// iOS Settings-style icon tile
+.gh-tile {
+    --tile: var(--gh-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 30px;
+    height: 30px;
+    border-radius: 8px;
+    background: var(--tile);
+    color: #fff;
+    font-size: 17px;
+    font-weight: 700;
+
+    &--sm {
+        width: 22px;
+        height: 22px;
+        border-radius: 6px;
+        font-size: 11px;
+        font-family: var(--gh-mono);
+    }
+
+    &--blue   { --tile: var(--gh-blue); }
+    &--green  { --tile: var(--gh-green); }
+    &--red    { --tile: var(--gh-red); }
+    &--orange { --tile: var(--gh-orange); }
+    &--yellow { --tile: #ffcc00; color: #3a2e00; }
+    &--teal   { --tile: #30b0c7; }
+    &--indigo { --tile: #5856d6; }
+    &--purple { --tile: #af52de; }
+    &--pink   { --tile: #ff2d55; }
+    &--gray   { --tile: #8e8e93; }
+}
+
+.gh-sha {
+    flex-shrink: 0;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--gh-fill-soft);
+    color: var(--gh-secondary);
+    font-family: var(--gh-mono);
+    font-size: 11px;
+}
+
+.gh-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    height: 38px;
+    padding: 0 16px;
+    border: 0;
+    border-radius: 10px;
+    font-size: 14px;
+    font-weight: 600;
+    transition: opacity 120ms ease, transform 120ms ease;
+
+    i { font-size: 18px; }
+
+    &:active:not(:disabled) { transform: scale(0.98); }
+    &:disabled { opacity: 0.4; cursor: default; }
+
+    &--primary {
+        background: var(--gh-blue);
+        color: #fff;
+        &:hover:not(:disabled) { opacity: 0.88; }
+    }
+
+    &--lg {
+        height: 48px;
+        border-radius: 12px;
+        font-size: 15px;
+    }
+}
+
+.gh-icon-btn,
+.gh-round-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    border: 0;
+    border-radius: 50%;
+    background: transparent;
+    color: var(--#{$prefix}secondary-color);
+    text-decoration: none;
+    transition: background-color 120ms ease, color 120ms ease;
+
+    &:hover {
+        background: var(--gh-fill-soft);
+        color: var(--gh-blue);
+    }
+}
+
+.gh-icon-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 22px;
+}
+
+.gh-round-btn {
+    width: 30px;
+    height: 30px;
+    font-size: 16px;
+}
+
+.gh-empty {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 48px 24px;
+    text-align: center;
+
+    &__icon {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 64px;
+        height: 64px;
+        margin-bottom: 16px;
+        border-radius: 50%;
+        background: var(--gh-fill);
+        color: var(--gh-secondary);
+        font-size: 30px;
+    }
+
+    &__title {
+        margin-bottom: 6px;
+        color: var(--gh-label);
+        font-size: 17px;
+        font-weight: 600;
+    }
+
+    &__text {
+        max-width: 320px;
+        margin: 0;
+        color: var(--gh-secondary);
+        font-size: 14px;
+        line-height: 1.45;
+    }
+}
+
+.gh-note {
+    margin: 8px 4px 0;
+    color: var(--gh-secondary);
+    font-size: 12px;
+
+    &--error { color: var(--gh-red); }
+}
+
+// ── Grouped list (iOS inset grouped) ─────────────────────
+
+.gh-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+
+    > li { position: relative; }
+
+    // Inset separator that starts after the leading icon, like iOS.
+    > li + li::before {
+        content: "";
+        position: absolute;
+        top: 0;
+        right: 0;
+        left: 58px;
+        height: 1px;
+        background: var(--gh-separator);
+        transform: scaleY(0.5);
+        transform-origin: top;
+    }
+}
+
+.gh-row {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    width: 100%;
+    min-height: 48px;
+    padding: 9px 16px;
+    border: 0;
+    background: transparent;
+    color: var(--gh-label);
+    font-size: 15px;
+    text-align: left;
+    cursor: pointer;
+    transition: background-color 120ms ease;
+
+    &:hover { background: var(--gh-fill-soft); }
+    &:active { background: var(--gh-fill); }
+
+    &--static {
+        cursor: default;
+        &:hover { background: transparent; }
+    }
+
+    &--two { min-height: 56px; }
+
+    &.is-active {
+        background: var(--gh-blue);
+        color: #fff;
+
+        .gh-row__sub,
+        .gh-row__nums span { color: rgba(255, 255, 255, 0.85); }
+        .gh-tile { background: rgba(255, 255, 255, 0.25); color: #fff; }
+    }
+
+    &__label {
+        flex: 1;
+        min-width: 0;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__stack {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        gap: 1px;
+
+        .gh-row__label { flex: none; font-weight: 500; }
+    }
+
+    &__sub {
+        color: var(--gh-secondary);
+        font-size: 13px;
+    }
+
+    &__detail {
+        flex-shrink: 0;
+        color: var(--gh-secondary);
+        font-size: 13px;
+    }
+
+    &__chev {
+        flex-shrink: 0;
+        color: #c7c7cc;
+        font-size: 18px;
+    }
+
+    &__nums {
+        display: inline-flex;
+        gap: 6px;
+        flex-shrink: 0;
+        font-family: var(--gh-mono);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    // Settings-style "label …… value ⌄" row with a native select.
+    &--field {
+        position: relative;
+        margin: 0;
+
+        .gh-row__label {
+            flex: none;
+            width: 48px;
+            color: var(--gh-secondary);
+            font-size: 14px;
+        }
+
+        select {
+            flex: 1;
+            min-width: 0;
+            height: 30px;
+            padding: 0 22px 0 0;
+            border: 0;
+            background: transparent;
+            color: var(--gh-label);
+            font-family: var(--gh-mono);
+            font-size: 12.5px;
+            text-align: right;
+            text-overflow: ellipsis;
+            appearance: none;
+            cursor: pointer;
+
+            &:focus { outline: none; color: var(--gh-blue); }
+        }
+
+        .gh-row__chev {
+            position: absolute;
+            right: 12px;
+            pointer-events: none;
+        }
+    }
+}
+
+body[data-bs-theme="dark"] .github-main-workspace .gh-row__chev { color: #48484a; }
+
+.gh-group-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    margin: 22px 16px 6px;
+    color: var(--#{$prefix}secondary-color);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+
+    &:first-child { margin-top: 4px; }
+}
+
+// ── Sidebar (same shape as .chat-leftsidebar) ────────────
+
+.gh-sidebar {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+    width: 300px;
+    min-height: 0;
+    background-color: var(--gh-sidebar);
+    box-shadow: $box-shadow;
+    z-index: 2;
+
+    &__search {
+        position: relative;
+        padding: 16px 16px 8px;
+
+        input {
+            width: 100%;
+            height: 38px;
+            padding: 0 36px 0 12px;
+            border: 0;
+            border-radius: 4px;
+            background-color: var(--#{$prefix}light);
+            color: var(--#{$prefix}body-color);
+            font-size: 14px;
+
+            &::placeholder { color: var(--#{$prefix}secondary-color); }
+            &:focus { outline: none; box-shadow: 0 0 0 2px rgba(var(--gh-blue-rgb), 0.35); }
+            &::-webkit-search-cancel-button { display: none; }
+        }
+
+        i {
+            position: absolute;
+            top: 50%;
+            right: 29px;
+            margin-top: 4px;
+            transform: translateY(-50%);
+            color: var(--#{$prefix}secondary-color);
+            font-size: 16px;
+            pointer-events: none;
+        }
+    }
+
+    &__title {
+        display: flex;
+        align-items: baseline;
+        justify-content: space-between;
+        gap: 8px;
+        padding: 24px 24px 0;
+
+        h4 { margin: 0; }
+    }
+
+    &__user {
+        overflow: hidden;
+        color: var(--#{$prefix}secondary-color);
+        font-size: 12px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__scroll {
+        flex: 1;
+        min-height: 0;
+    }
+
+    &__note {
+        margin: 4px 24px;
+        color: var(--#{$prefix}secondary-color);
+        font-size: 13px;
+
+        &--error { color: var(--gh-red); }
+    }
+}
+
+.gh-section-title {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 18px 0 6px;
+    padding: 0 24px;
+    color: var(--#{$prefix}secondary-color);
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    line-height: 24px;
+    text-transform: uppercase;
+
+    &__count {
+        min-width: 22px;
+        padding: 0 7px;
+        border-radius: 11px;
+        background: var(--gh-fill);
+        color: var(--gh-label);
+        font-size: 11px;
+        line-height: 20px;
+        letter-spacing: 0;
+        text-align: center;
+    }
+}
+
+// Repo row — identical rhythm to .chat-row
+.gh-repo-list {
+    list-style: none;
+    margin: 0 0 16px;
+    padding: 0;
+}
+
+.gh-repo {
+    margin: 0 8px;
+
+    &__link {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        width: 100%;
+        padding: 8px;
+        border: 0;
+        border-radius: 12px;
+        background: transparent;
+        color: var(--#{$prefix}body-color);
+        font-size: 14px;
+        text-align: left;
+        transition: background-color 120ms ease;
+
+        &:hover { background-color: color-mix(in srgb, var(--gh-blue) 8%, transparent); }
+    }
+
+    &__avatar {
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        background-color: var(--gh-blue);
+        color: #fff;
+        font-size: 15px;
+        font-weight: 700;
+    }
+
+    &__lock {
+        position: absolute;
+        right: -2px;
+        bottom: -2px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--gh-sidebar);
+        border-radius: 50%;
+        background: var(--gh-fill);
+        color: var(--gh-label);
+        font-size: 9px;
+    }
+
+    &__body {
+        display: flex;
+        flex: 1 1 auto;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    &__top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 8px;
+    }
+
+    &__name,
+    &__preview {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__name {
+        color: var(--#{$prefix}emphasis-color);
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 20px;
+    }
+
+    &__branch {
+        flex-shrink: 0;
+        color: var(--#{$prefix}secondary-color);
+        font-size: 11px;
+        line-height: 16px;
+    }
+
+    &__preview {
+        color: var(--#{$prefix}secondary-color);
+        font-size: 13px;
+        line-height: 18px;
+    }
+
+    &.active &__link { background-color: var(--gh-blue); }
+    &.active &__avatar { background-color: rgba(255, 255, 255, 0.25); }
+    &.active &__lock { border-color: var(--gh-blue); }
+    &.active &__name,
+    &.active &__branch,
+    &.active &__preview { color: #fff; }
+    &.active &__branch,
+    &.active &__preview { opacity: 0.85; }
+}
+
+// ── Main pane ────────────────────────────────────────────
+
+.gh-main {
+    position: relative;
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 0;
+
+    &__scroll {
+        flex: 1;
+        min-height: 0;
+    }
+}
+
+// Frosted top bar, same as .user-chat-topbar
+.gh-topbar {
+    position: relative;
+    z-index: 3;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-shrink: 0;
+    min-height: 72px;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--#{$prefix}border-color);
+    background-color: var(--gh-topbar);
+    backdrop-filter: saturate(180%) blur(20px);
+    -webkit-backdrop-filter: saturate(180%) blur(20px);
+
+    &__back {
+        display: none;
+        margin-left: -8px;
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--gh-blue);
+        font-size: 28px;
+    }
+
+    &__avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        width: 40px;
+        height: 40px;
+        border-radius: 50%;
+        background: var(--gh-blue);
+        color: #fff;
+        font-size: 14px;
+        font-weight: 700;
+    }
+
+    &__info { flex: 1; }
+
+    &__name {
+        color: var(--gh-label);
+        font-size: 17px;
+        font-weight: 600;
+        line-height: 1.25;
+    }
+
+    &__sub {
+        color: var(--#{$prefix}secondary-color);
+        font-size: 13px;
+    }
+
+    &__actions {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+    }
+}
+
+// Apple segmented control
+.gh-segmented {
+    display: inline-flex;
+    flex-shrink: 0;
+    padding: 2px;
+    border-radius: 9px;
+    background: var(--gh-fill-soft);
+
+    button {
+        min-width: 76px;
+        height: 28px;
+        padding: 0 12px;
+        border: 0;
+        border-radius: 7px;
+        background: transparent;
+        color: var(--gh-label);
+        font-size: 13px;
+        font-weight: 500;
+        transition: background-color 160ms ease, box-shadow 160ms ease;
+
+        &.is-active {
+            background: #fff;
+            font-weight: 600;
+            box-shadow: 0 3px 8px rgba(0, 0, 0, 0.12), 0 3px 1px rgba(0, 0, 0, 0.04);
+        }
+    }
+}
+
+body[data-bs-theme="dark"] .github-main-workspace .gh-segmented button.is-active {
+    background: #636366;
+}
+
+// Branch pill
+.gh-branch {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    margin: 0 4px 0 0;
+    cursor: pointer;
+
+    > i:first-child {
+        position: absolute;
+        left: 12px;
+        color: var(--gh-blue);
+        font-size: 15px;
+        pointer-events: none;
+    }
+
+    &__caret {
+        position: absolute;
+        right: 10px;
+        color: var(--gh-secondary);
+        font-size: 15px;
+        pointer-events: none;
+    }
+
+    select {
+        max-width: 190px;
+        height: 32px;
+        padding: 0 30px 0 32px;
+        border: 0;
+        border-radius: 999px;
+        background: var(--gh-fill-soft);
+        color: var(--gh-label);
+        font-size: 13px;
+        font-weight: 500;
+        appearance: none;
+        cursor: pointer;
+
+        &:focus { outline: none; box-shadow: 0 0 0 2px rgba(var(--gh-blue-rgb), 0.35); }
+    }
+}
+
+// Page content
+.gh-page {
+    max-width: 880px;
+    margin: 0 auto;
+    padding: 24px 24px 40px;
+
+    &__lead {
+        margin: 0 16px 16px;
+        color: var(--#{$prefix}secondary-color);
+        font-size: 15px;
+        line-height: 1.5;
+    }
+}
+
+.gh-latest {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 16px;
+
+    &__title {
+        color: var(--gh-label);
+        font-size: 14px;
+        font-weight: 500;
+    }
+
+    &__meta {
+        color: var(--gh-secondary);
+        font-size: 12px;
+    }
+}
+
+.gh-crumbs {
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 2px;
+    min-width: 0;
+    letter-spacing: 0;
+    text-transform: none;
+
+    button {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: var(--gh-blue);
+        font-size: 13px;
+        font-weight: 500;
+
+        &:hover:not(.is-current) { text-decoration: underline; }
+
+        &.is-current {
+            color: var(--gh-label);
+            font-weight: 600;
+            cursor: default;
+        }
+    }
+
+    i {
+        color: var(--gh-secondary);
+        font-size: 14px;
+    }
+}
+
+// Changes: list on the left, diff on the right
+.gh-split {
+    display: flex;
+    align-items: flex-start;
+    gap: 24px;
+    padding: 24px;
+
+    &__side {
+        flex: 0 0 300px;
+        min-width: 0;
+    }
+
+    &__main {
+        display: flex;
+        flex: 1;
+        flex-direction: column;
+        min-width: 0;
+        min-height: 360px;
+        padding-top: 22px;
+    }
+}
+
+.gh-summary {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    margin-top: 16px;
+    padding: 12px 0;
+    border-radius: 12px;
+    background: var(--gh-card);
+
+    > div {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+
+        & + div { border-left: 1px solid var(--gh-separator); }
+    }
+
+    strong {
+        color: var(--gh-label);
+        font-size: 17px;
+        font-weight: 600;
+        line-height: 1.2;
+    }
+
+    span {
+        color: var(--gh-secondary);
+        font-size: 11px;
+    }
+
+    .is-add strong { color: var(--gh-green); }
+    .is-del strong { color: var(--gh-red); }
+}
+
+// Diff
+.gh-diff {
+    display: flex;
+    flex-direction: column;
+
+    &__head {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 12px 12px 16px;
+        border-bottom: 1px solid var(--gh-separator);
+    }
+
+    &__title { flex: 1; }
+
+    &__name {
+        color: var(--gh-label);
+        font-size: 15px;
+        font-weight: 600;
+    }
+
+    &__path {
+        color: var(--gh-secondary);
+        font-size: 12px;
+    }
+
+    &__nums {
+        display: inline-flex;
+        gap: 8px;
+        margin-right: 4px;
+        font-family: var(--gh-mono);
+        font-size: 12px;
+        font-weight: 600;
+    }
+
+    &__body { overflow-x: auto; }
+
+    &__table {
+        width: 100%;
+        border-collapse: collapse;
+        font-family: var(--gh-mono);
+
+        td {
+            padding: 0 14px;
+            border: 0;
+            vertical-align: top;
+        }
+
+        tr:first-child td { padding-top: 6px; }
+        tr:last-child td { padding-bottom: 10px; }
+    }
+
+    &__ln {
+        width: 1%;
+        min-width: 44px;
+        color: var(--gh-secondary);
+        font-size: 11px;
+        line-height: 22px;
+        text-align: right;
+        user-select: none;
+        opacity: 0.7;
+    }
+
+    &__code pre {
+        margin: 0;
+        color: var(--gh-label);
+        font-family: inherit;
+        font-size: 12.5px;
+        line-height: 22px;
+        white-space: pre-wrap;
+        word-break: break-word;
+    }
+}
+
+.gh-diff-line {
+    &--add td { background: color-mix(in srgb, var(--gh-green) 14%, transparent); }
+    &--del td { background: color-mix(in srgb, var(--gh-red) 12%, transparent); }
+    &--hunk td { background: color-mix(in srgb, var(--gh-blue) 8%, transparent); }
+
+    &--add .gh-diff__ln,
+    &--add pre { color: color-mix(in srgb, var(--gh-green) 70%, var(--gh-label)); }
+    &--del .gh-diff__ln,
+    &--del pre { color: color-mix(in srgb, var(--gh-red) 70%, var(--gh-label)); }
+    &--hunk pre,
+    &--hunk .gh-diff__ln { color: var(--gh-blue); }
+}
+
+// ── Welcome / connect ────────────────────────────────────
+
+.gh-welcome {
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    overflow-y: auto;
+
+    &__inner {
+        width: 100%;
+        max-width: 400px;
+        text-align: center;
+    }
+
+    &__icon {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        width: 84px;
+        height: 84px;
+        margin-bottom: 20px;
+        border-radius: 22px;
+        background-image: linear-gradient(135deg, #007aff, #5856d6);
+        box-shadow: 0 12px 28px rgba(0, 122, 255, 0.28);
+        color: #fff;
+        font-size: 48px;
+
+        &.is-warn {
+            background-image: linear-gradient(135deg, #ff9500, #ff3b30);
+            box-shadow: 0 12px 28px rgba(255, 59, 48, 0.25);
+        }
+    }
+
+    &__title {
+        margin-bottom: 8px;
+        color: var(--gh-label);
+        font-size: 28px;
+        font-weight: 700;
+        letter-spacing: -0.02em;
+    }
+
+    &__text {
+        margin: 0 auto 24px;
+        max-width: 340px;
+        color: var(--gh-secondary);
+        font-size: 15px;
+        line-height: 1.5;
+    }
+
+    &__list {
+        margin-bottom: 20px;
+        text-align: left;
+    }
+
+    &__fine {
+        margin: 12px 0 0;
+        color: var(--gh-secondary);
+        font-size: 12px;
+    }
+}
+
+// ── Responsive ───────────────────────────────────────────
+
+@media (max-width: 1199.98px) {
+    .gh-split {
+        flex-direction: column;
+        align-items: stretch;
+
+        &__side { flex-basis: auto; }
+        &__main { padding-top: 0; }
+    }
+}
+
+@media (max-width: 991.98px) {
+    // Keep the bottom tab bar (60px) reachable while on the GitHub tab.
+    .user-chat.user-chat--github {
+        height: auto;
+        bottom: 60px;
+    }
+
+    .gh-topbar {
+        flex-wrap: wrap;
+        padding: 10px 16px;
+    }
+
+    .gh-segmented { order: 3; width: 100%; button { flex: 1; } }
+}
+
+@media (max-width: 767.98px) {
+    // Behave like Chats on phones: list first, repo replaces it when opened.
+    .gh-sidebar { width: 100%; }
+    .gh-shell .gh-main { display: none; }
+    .gh-shell:has(.gh-sidebar.has-selection) {
+        .gh-sidebar { display: none; }
+        .gh-main { display: flex; }
+    }
+    .gh-topbar__back { display: inline-flex; }
+    .gh-topbar__avatar { display: none; }
+    .gh-branch select { max-width: 120px; }
+    .gh-page,
+    .gh-split { padding: 16px 12px 32px; }
+}

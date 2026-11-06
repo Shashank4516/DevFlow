@@ -12,6 +12,8 @@ import withRouter from "../../components/withRouter";
 // actions
 import { logoutUser } from "../../redux/actions";
 
+import { isDemoMode } from "../../demo";
+
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
 
 const Logout = (props: any) => {
@@ -20,7 +22,7 @@ const Logout = (props: any) => {
 
   useEffect(() => {
     dispatch(logoutUser());
-    if (BACKEND_URL) {
+    if (BACKEND_URL && !isDemoMode) {
       window.location.href = `${BACKEND_URL.replace(/\/$/, "")}/auth/logout.php`;
       return;
     }

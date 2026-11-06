@@ -1,0 +1,125 @@
+//
+// Popup notifications across the app: a soft banner, in the style of iOS.
+// The doubled-up selectors outrank the library's own stylesheet, whatever its load order.
+//
+
+.Toastify .Toastify__toast-container.Toastify__toast-container--top-center {
+    // Spans the window, so that a popup is never squeezed. It lets clicks through to the app.
+    top: 16px;
+    right: 16px;
+    left: 16px;
+    width: auto;
+    margin: 0;
+    padding: 0;
+    transform: none;
+    pointer-events: none;
+}
+
+.Toastify .Toastify__toast-container .Toastify__toast {
+    display: flex;
+    align-items: center;
+    width: fit-content;
+    max-width: min(440px, 100%);
+    min-height: 0;
+    margin: 0 auto 8px;
+    padding: 10px 16px 10px 12px;
+    overflow: hidden;
+    border: 1px solid rgba(0, 0, 0, 0.06);
+    border-radius: 14px;
+    background-color: rgba(255, 255, 255, 0.92);
+    backdrop-filter: blur(16px);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.12);
+    font-family: inherit;
+    color: #1c1c1e;
+    cursor: pointer;
+    pointer-events: auto;
+
+    .Toastify__toast-body {
+        align-items: center;
+        margin: 0;
+        padding: 0;
+        font-size: 14px;
+        font-weight: 500;
+        line-height: 20px;
+
+        > div:last-child {
+            min-width: 0;
+        }
+    }
+
+    .Toastify__toast-icon {
+        width: 22px;
+        margin-inline-end: 10px;
+    }
+}
+
+body[data-bs-theme="dark"] .Toastify .Toastify__toast-container .Toastify__toast {
+    border-color: rgba(255, 255, 255, 0.08);
+    background-color: rgba(58, 58, 60, 0.92);
+    box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+    color: #fff;
+}
+
+.app-toast-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 22px;
+    height: 22px;
+    border-radius: 50%;
+    font-size: 16px;
+    color: #fff;
+
+    &--success {
+        background-color: #34c759;
+    }
+
+    &--error {
+        background-color: #ff3b30;
+    }
+
+    &--warning {
+        background-color: #ff9500;
+        font-size: 14px;
+    }
+
+    &--info,
+    &--default {
+        background-color: #007aff;
+        font-size: 15px;
+    }
+}
+
+.app-toast-in {
+    animation: app-toast-in 240ms cubic-bezier(0.22, 0.9, 0.3, 1) both;
+}
+
+.app-toast-out {
+    animation: app-toast-out 160ms ease-in both;
+}
+
+@keyframes app-toast-in {
+    from {
+        opacity: 0;
+        transform: translateY(-14px);
+    }
+    to {
+        opacity: 1;
+        transform: none;
+    }
+}
+
+@keyframes app-toast-out {
+    to {
+        opacity: 0;
+        transform: translateY(-8px);
+    }
+}
+
+// Very short rather than removed: the library waits for the animation to end.
+@media (prefers-reduced-motion: reduce) {
+    .app-toast-in,
+    .app-toast-out {
+        animation-duration: 1ms;
+    }
+}

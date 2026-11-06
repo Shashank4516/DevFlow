@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { createSelector } from "reselect";
-import { Link } from "react-router-dom";
 // hooks
 import { useRedux } from "../../../hooks/index";
 
@@ -196,7 +195,7 @@ const Index = (props: IndexProps) => {
         <div className="px-4 pt-4">
           <div className="d-flex align-items-start">
             <div className="flex-grow-1">
-              <h4 className="mb-4">Chats</h4>
+              <h4 className="mb-1">Chats</h4>
             </div>
           </div>
         </div>{" "}
@@ -229,16 +228,18 @@ const Index = (props: IndexProps) => {
                 selectedChat={selectedChat}
                 onSelectChat={onSelectChat}
               />
-              <h5 className="text-center mb-2">
-                <Link
-                  to="#"
-                  className="mb-3 px-4 mt-4 font-size-11 text-primary"
-                  onClick={() => onChangeTab(CHATS_TABS.ARCHIVE)}
-                >
-                  Archived Contacts{" "}
-                  <i className="bx bxs-archive-in align-middle" />
-                </Link>
-              </h5>
+              <button
+                type="button"
+                className="chat-archive-link"
+                onClick={() => onChangeTab(CHATS_TABS.ARCHIVE)}
+              >
+                <i className="bx bx-archive" />
+                <span>Archived</span>
+                {(archiveContacts || []).length > 0 && (
+                  <span className="chat-archive-link__count">{archiveContacts.length}</span>
+                )}
+                <i className="bx bx-chevron-right" />
+              </button>
             </>
           )}
           {active === CHATS_TABS.ARCHIVE && (
@@ -248,15 +249,14 @@ const Index = (props: IndexProps) => {
                 selectedChat={selectedChat}
                 onSelectChat={onSelectChat}
               />
-              <h5 className="text-center mb-2">
-                <Link
-                  to="#"
-                  className="mb-3 px-4 mt-4 font-size-11 text-primary"
-                  onClick={() => onChangeTab(CHATS_TABS.DEFAULT)}
-                >
-                  Chats <i className="bx bxs-archive-out align-middle" />
-                </Link>
-              </h5>
+              <button
+                type="button"
+                className="chat-archive-link"
+                onClick={() => onChangeTab(CHATS_TABS.DEFAULT)}
+              >
+                <i className="bx bx-chevron-left" />
+                <span>Back to chats</span>
+              </button>
             </>
           )}
 

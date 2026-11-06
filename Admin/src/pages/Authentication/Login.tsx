@@ -26,6 +26,8 @@ import { loginUser, setSettingsFromAuthUser } from "../../redux/actions";
 // Firebase helper for native Google sign-in (used when backend is not set)
 import { getFirebaseBackend } from "../../helpers/firebase_helper";
 
+import { isDemoMode } from "../../demo";
+
 const BACKEND_URL = import.meta.env.VITE_BACKEND_URL || "";
 
 // components
@@ -115,6 +117,10 @@ const Login = (props: LoginProps) => {
 
   // GitHub Sign-In: redirect to PHP backend (then GitHub). Do redirect first so React doesn't Navigate to dashboard before we leave.
   const handleGitHubSignIn = () => {
+    if (isDemoMode) {
+      dispatch(loginUser(defaultValues));
+      return;
+    }
     if (!BACKEND_URL) {
       setGithubError("Backend URL not set. Add VITE_BACKEND_URL to .env.");
       return;
@@ -124,6 +130,10 @@ const Login = (props: LoginProps) => {
 
   // Google Sign-In: PHP backend (redirect) or Firebase (popup). Redirect first so we don't get Navigate-to-dashboard first.
   const handleGoogleSignIn = async () => {
+    if (isDemoMode) {
+      dispatch(loginUser(defaultValues));
+      return;
+    }
     if (BACKEND_URL) {
       setGoogleError(null);
       window.location.href = `${BACKEND_URL.replace(/\/$/, "")}/auth/google/index.php`;

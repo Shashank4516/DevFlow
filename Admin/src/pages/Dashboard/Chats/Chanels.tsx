@@ -5,7 +5,6 @@ import { UncontrolledTooltip } from "reactstrap";
 import { ChannelTypes } from "../../../data/chat";
 
 // components
-import AddButton from "../../../components/AddButton";
 import ChatChannel from "./ChatChannel";
 
 interface ChanelsProps {
@@ -22,22 +21,20 @@ const Chanels = ({
 }: ChanelsProps) => {
   return (
     <>
-      <div className="d-flex align-items-center px-4 mt-5 mb-2">
-        <div className="flex-grow-1">
-          <h4 className="mb-0 font-size-11 text-muted text-uppercase">
-            Channels
-          </h4>
-        </div>
-        <div className="flex-shrink-0">
-          <div id="create-group">
-            {/* Button trigger modal */}
-            <AddButton onClick={openCreateChannel} />{" "}
-            {/* addgroup-exampleModal */}
-          </div>
-          <UncontrolledTooltip target="create-group" placement="bottom">
-            Create group
-          </UncontrolledTooltip>
-        </div>
+      <div className="chat-section-title chat-section-title--action">
+        <span>Channels</span>
+        <button
+          type="button"
+          id="create-group"
+          className="chat-section-add"
+          aria-label="Create group"
+          onClick={openCreateChannel}
+        >
+          <i className="bx bx-plus" />
+        </button>
+        <UncontrolledTooltip target="create-group" placement="bottom">
+          Create group
+        </UncontrolledTooltip>
       </div>
       <div className="chat-message-list">
         <ul className="list-unstyled chat-list chat-user-list mb-3">

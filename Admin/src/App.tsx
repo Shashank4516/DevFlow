@@ -14,6 +14,7 @@ import { initFirebaseBackend } from "./helpers/firebase_helper";
 import { firebaseConfig } from "./config/firebase";
 
 import fakeBackend from "./helpers/fakeBackend";
+import { isDemoMode } from "./demo";
 import { changelayoutMode } from "./redux/actions";
 import { LAYOUT_MODES } from "./constants";
 
@@ -23,8 +24,11 @@ if (import.meta.env.VITE_USE_FAKE_BACKEND === "true") {
   fakeBackend();
 }
 
-// Init Firebase auth backend (compat layer for login/register)
-initFirebaseBackend(firebaseConfig);
+// Init Firebase auth backend (compat layer for login/register). Demo mode skips it
+// because its listener clears `authUser` when no Firebase user is signed in.
+if (!isDemoMode) {
+  initFirebaseBackend(firebaseConfig);
+}
 
 const App = () => {
   document.title = "DevFlow";

@@ -1,6 +1,7 @@
 import firebase from "firebase/compat/app";
 import "firebase/compat/auth";
 import "firebase/compat/firestore";
+import { DEMO_CALLS_DISABLED_MESSAGE, isDemoMode } from "../demo";
 import { firebaseConfig } from "../config/firebase";
 import type { CallItem } from "../data/calls";
 
@@ -156,6 +157,7 @@ export async function createOutgoingVideoCall(opts: {
   caller: any;
   receiver: any;
 }) {
+  if (isDemoMode) throw new Error(DEMO_CALLS_DISABLED_MESSAGE);
   await ensureVideoCallAuth();
   const caller = serializeParticipant(opts.caller);
   const receiver = serializeParticipant(opts.receiver);
@@ -188,6 +190,7 @@ export async function createOutgoingGroupVideoCall(opts: {
   caller: any;
   participants: Array<any | string | number>;
 }) {
+  if (isDemoMode) throw new Error(DEMO_CALLS_DISABLED_MESSAGE);
   await ensureVideoCallAuth();
   const caller = serializeParticipant(opts.caller);
   const channelId = normalizeId(opts.channelId);
@@ -244,6 +247,7 @@ export function subscribeToIncomingVideoCalls(
   onIncoming: (call: IncomingVideoCall) => void,
   onError?: (message: string) => void,
 ) {
+  if (isDemoMode) return () => {};
   const userId = normalizeId(myId);
   if (!userId) return () => {};
 
@@ -281,6 +285,7 @@ export function subscribeToIncomingGroupVideoCalls(
   onIncoming: (call: IncomingGroupVideoCall) => void,
   onError?: (message: string) => void,
 ): Unsubscribe {
+  if (isDemoMode) return () => {};
   const userId = normalizeId(myId);
   if (!userId) return () => {};
 
@@ -331,7 +336,10 @@ function splitDisplayName(displayName: string): { firstName: string; lastName: s
   return { firstName: parts[0], lastName: parts.slice(1).join(" ") };
 }
 
-function firestoreDocToCallItem(docId: string, data: any, myUserId: string): CallItem | null {
+/** A call that has said "ringing" for longer than this was abandoned, such as by a closed tab. */
+const UNANSWERED_AFTER_MS = 2 * 60 * 1000;
+
+export function firestoreDocToCallItem(docId: string, data: any, myUserId: string): CallItem | null {
   if (!data) return null;
   if (data.type && data.type !== "video") return null;
   const callerId = normalizeId(data.callerId);
@@ -364,10 +372,22 @@ function firestoreDocToCallItem(docId: string, data: any, myUserId: string): Cal
         : null;
   const callDate = ts ? ts.toISOString() : new Date().toISOString();
 
-  const durationSeconds =
+  // Calls store when they connected, and their last update is when they ended.
+  const connectedAt =
+    data.connectedAt && typeof data.connectedAt.toDate === "function"
+      ? data.connectedAt.toDate()
+      : null;
+  let durationSeconds: number | null =
     typeof data.durationSeconds === "number" && Number.isFinite(data.durationSeconds)
       ? data.durationSeconds
       : null;
+  if (durationSeconds === null && connectedAt && ts && data.status === "ended") {
+    durationSeconds = Math.max(0, (ts.getTime() - connectedAt.getTime()) / 1000);
+  }
+  const mayStillConnect =
+    !connectedAt &&
+    ["ringing", "accepted", "active"].includes(data.status) &&
+    (!ts || Date.now() - ts.getTime() < UNANSWERED_AFTER_MS);
 
   return {
     callId: docId,
@@ -381,6 +401,8 @@ function firestoreDocToCallItem(docId: string, data: any, myUserId: string): Cal
     hasVideoCall: true,
     peoplesAvailableOnCall: 2,
     peerUserId: peerId,
+    wasConnected: mayStillConnect ? undefined : !!connectedAt,
+    wasDeclined: data.status === "declined",
   };
 }
 
@@ -393,6 +415,10 @@ export function subscribeVideoCallHistory(
   onCalls: (calls: CallItem[]) => void,
   onError?: (message: string) => void,
 ): Unsubscribe {
+  if (isDemoMode) {
+    import("../demo/demoData").then(({ demoCalls }) => onCalls(demoCalls()));
+    return () => {};
+  }
   const userId = normalizeId(myId);
   if (!userId) return () => {};
 

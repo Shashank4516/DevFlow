@@ -16,9 +16,7 @@ const Archive = ({
 }: ArchiveProps) => {
   return (
     <>
-      <h5 className="mb-3 px-4 mt-4 font-size-11 text-muted text-uppercase">
-      Archived
-      </h5>
+      <h5 className="chat-section-title">Archived</h5>
 
       <div className="chat-message-list">
         <ul className="list-unstyled chat-list chat-user-list">

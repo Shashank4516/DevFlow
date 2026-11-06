@@ -9,12 +9,16 @@ import {
   toggleArchiveContact,
   setChatUserConversations,
   createBookmark,
+  getChannels,
+  getDirectMessages,
+  getFavourites,
 } from "../../../redux/actions";
 
 import { useProfile } from "../../../hooks";
+import { isDemoMode } from "../../../demo";
 
 import UserHead from "./UserHead";
-import Conversation from "./Conversation";
+import Conversation, { TypingUser } from "./Conversation";
 import ChatInputSection from "./ChatInputSection/index";
 
 import { MessagesTypes } from "../../../data/messages";
@@ -36,6 +40,9 @@ import {
 interface IndexProps {
   isChannel: boolean;
 }
+
+// Often enough in the demo for its typing bubble to appear promptly.
+const POLL_MS = isDemoMode ? 700 : 2000;
 
 const Index = ({ isChannel }: IndexProps) => {
   const { dispatch, useAppSelector } = useRedux();
@@ -62,8 +69,10 @@ const Index = ({ isChannel }: IndexProps) => {
   const { userProfile } = useProfile();
 
   const pollRef = useRef<number | null>(null);
+  const lastCountRef = useRef<{ chat: string | null; count: number }>({ chat: null, count: 0 });
   const [chatError, setChatError] = useState<string | null>(null);
   const [peerMutedNotify, setPeerMutedNotify] = useState(false);
+  const [typingUsers, setTypingUsers] = useState<TypingUser[]>([]);
 
   // IMPORTANT: use stable MySQL numeric ids for Firestore conversation ids.
   // Firebase auth uid can differ per login method and will cause each side
@@ -167,6 +176,14 @@ const Index = ({ isChannel }: IndexProps) => {
       const data: any = isChannel
         ? await getChannelMessagesApi(peerIdStr)
         : await getChatUserConversationsApi(peerIdStr);
+      // A new message changes this chat's preview and time in the list.
+      const count = Array.isArray(data?.messages) ? data.messages.length : 0;
+      const known = lastCountRef.current;
+      lastCountRef.current = { chat: conversationId, count };
+      if (known.chat === conversationId && count > known.count) {
+        dispatch(isChannel ? getChannels() : getDirectMessages());
+        if (!isChannel) dispatch(getFavourites());
+      }
       dispatch(
         setChatUserConversations({
           conversationId: data?.conversationId || conversationId,
@@ -174,6 +191,8 @@ const Index = ({ isChannel }: IndexProps) => {
           messages: Array.isArray(data?.messages) ? data.messages : [],
         }),
       );
+      // Optional in the response. Nothing shows until the backend sends it.
+      setTypingUsers(Array.isArray(data?.typing) ? data.typing : []);
       setChatError(null);
     } catch (e: any) {
       setChatError(e?.message || String(e) || "Failed to load messages");
@@ -189,13 +208,14 @@ const Index = ({ isChannel }: IndexProps) => {
       pollRef.current = null;
     }
     setChatError(null);
+    setTypingUsers([]);
     loadMessages();
 
     pollRef.current = window.setInterval(() => {
       if (document.visibilityState === "visible") {
         loadMessages();
       }
-    }, 2000);
+    }, POLL_MS);
 
     return () => {
       if (pollRef.current) {
@@ -330,6 +350,7 @@ const Index = ({ isChannel }: IndexProps) => {
         onToggleMute={onToggleMute}
       />
       <Conversation
+        typingUsers={typingUsers}
         chatUserConversations={chatUserConversations}
         chatUserDetails={chatUserDetails}
         onDelete={onDeleteMessage}

@@ -5,15 +5,27 @@ import { Provider } from "react-redux";
 import reportWebVitals from "./reportWebVitals";
 import { configureStore } from "./redux/store";
 import { BrowserRouter } from "react-router-dom";
+import { isDemoMode } from "./demo";
 
 const root = ReactDOM.createRoot(document.getElementById("root") as HTMLElement);
-root.render(
-  <Provider store={configureStore({})}>
-    <BrowserRouter>
-      <App />
-    </BrowserRouter>
-  </Provider>
-);
+const renderApp = () => {
+  root.render(
+    <Provider store={configureStore({})}>
+      <BrowserRouter>
+        <App />
+      </BrowserRouter>
+    </Provider>
+  );
+};
+
+if (isDemoMode) {
+  import("./demo/install").then(({ installDemoMode }) => {
+    installDemoMode();
+    renderApp();
+  });
+} else {
+  renderApp();
+}
 
 // If you want to start measuring performance in your app, pass a function
 // to log results (for example: reportWebVitals(console.log))

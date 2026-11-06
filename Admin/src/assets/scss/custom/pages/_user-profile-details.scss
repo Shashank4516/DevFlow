@@ -163,3 +163,451 @@
     }
 }
 
+
+
+// Channel "Group info" panel. Figma: Chat Massage Dashboard, node 1:295.
+
+.user-profile-sidebar.group-info-sidebar {
+    // Layout comes from the design. Colors come from the chat, so the panel matches it
+    // in both themes: the app's own tokens, plus the --imsg-* colors of the bubbles.
+    --gi-bg: var(--#{$prefix}modal-content-bg);
+    --gi-text: var(--#{$prefix}body-color);
+    --gi-muted: var(--#{$prefix}secondary-color);
+    --gi-border: var(--imsg-input-border);
+    --gi-surface: var(--imsg-received-bg);
+    --gi-blue: var(--imsg-blue);
+    --gi-blue-soft: color-mix(in srgb, var(--imsg-blue) 14%, transparent);
+
+    // The design's content runs under its 1px edge, so this can't take up layout space.
+    border-left: 0;
+    background-color: var(--gi-bg);
+    box-shadow: inset 1px 0 0 var(--#{$prefix}border-color);
+}
+
+// Channel avatar, shared by this panel and the chat header.
+.user-chat-topbar .imsg-channel-avatar {
+    background-color: var(--imsg-blue) !important;
+    color: #fff !important;
+}
+
+.group-info {
+    height: 100vh;
+    font-family: "Plus Jakarta Sans", "Poppins", sans-serif;
+    color: var(--gi-text);
+
+    button {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: inherit;
+        cursor: pointer;
+    }
+
+    // Icons take their shape from the design's SVG and their color from the text.
+    &__icon {
+        display: block;
+        flex-shrink: 0;
+        background-color: currentColor;
+        -webkit-mask-position: center;
+        mask-position: center;
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-size: 100% 100%;
+        mask-size: 100% 100%;
+    }
+
+    img {
+        display: block;
+    }
+
+    ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    &__top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 24px 20px;
+    }
+
+    &__heading {
+        margin: 0;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: normal;
+        color: var(--gi-text);
+    }
+
+    button.group-info__close,
+    button.group-info__info {
+        position: relative;
+        width: 32px;
+        height: 32px;
+        border: 1.5px solid var(--gi-border);
+        border-radius: 100px;
+
+        .group-info__icon {
+            position: absolute;
+        }
+    }
+
+    // The artwork includes its own ring, so only the X inside it is kept.
+    button.group-info__close .group-info__icon {
+        top: -1.5px;
+        left: -1.5px;
+        clip-path: circle(11px);
+    }
+
+    // 24px icon frame centred in the 32px ring, with the glyph at (9, 6) inside it.
+    button.group-info__info .group-info__icon {
+        top: 8.5px;
+        left: 11.5px;
+    }
+
+    &__identity {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        margin-top: 8px;
+    }
+
+    &__avatar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 120px;
+        height: 120px;
+        border-radius: 100px;
+        background-color: var(--gi-blue);
+        font-size: 44px;
+        font-weight: 700;
+        line-height: 1;
+        color: #fff;
+        // The design places this at x = 129.5.
+        transform: translateX(-0.5px);
+    }
+
+    &__name {
+        display: flex;
+        align-items: center;
+        // 4px in the design, plus the 1px Figma adds by rounding up the text's width.
+        gap: 5px;
+        max-width: calc(100% - 40px);
+        margin-top: 24px;
+        // The design's title sits 2.5px right of the panel's centre line.
+        transform: translateX(2.5px);
+        font-size: 20px;
+        font-weight: 700;
+        line-height: 24px;
+
+        .group-info__icon {
+            color: var(--gi-blue);
+        }
+    }
+
+    &__name-text {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__description {
+        margin: 8px 20px 0;
+        font-size: 14px;
+        line-height: 20px;
+        text-align: center;
+        color: var(--gi-muted);
+    }
+
+    &__section-head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 16px 20px;
+
+        &--members {
+            margin-top: 32px;
+        }
+    }
+
+    &__section-title {
+        display: flex;
+        align-items: flex-start;
+        gap: 8px;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: normal;
+
+        &--media {
+            // Chrome sets this font 1px higher than Figma at this line height.
+            position: relative;
+            top: 1px;
+            line-height: 24px;
+        }
+    }
+
+    &__chip {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        min-width: 39px;
+        padding: 4px 10px;
+        border-radius: 100px;
+        background-color: var(--gi-surface);
+        font-size: 12px;
+        font-weight: 700;
+        line-height: 16px;
+        color: var(--gi-text);
+    }
+
+    button.group-info__icon-btn {
+        width: 24px;
+        height: 24px;
+    }
+
+    &__chevron .group-info__icon {
+        transition: transform 200ms ease;
+    }
+
+    &__chevron.is-open .group-info__icon {
+        transform: rotate(180deg);
+    }
+
+    &__row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 12px 20px;
+    }
+
+    &__member:first-child {
+        padding: 8px 20px 12px;
+    }
+
+    &__row-main {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+    }
+
+    &__text {
+        display: flex;
+        flex-direction: column;
+        gap: 2px;
+        min-width: 0;
+    }
+
+    &__title {
+        // Chrome sets this font 1px higher than Figma at this line height.
+        position: relative;
+        top: 1px;
+        overflow: hidden;
+        font-size: 16px;
+        font-weight: 600;
+        line-height: 24px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__subtitle {
+        overflow: hidden;
+        font-size: 14px;
+        font-weight: 400;
+        line-height: 20px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        color: var(--gi-muted);
+    }
+
+    &__member-avatar {
+        position: relative;
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 48px;
+        border-radius: 100px;
+        font-size: 16px;
+        font-weight: 700;
+        line-height: normal;
+        background-color: var(--gi-surface);
+        color: var(--gi-text);
+    }
+
+    img.group-info__member-photo {
+        width: 48px;
+        height: 48px;
+        border-radius: 100px;
+        object-fit: cover;
+    }
+
+    // Same treatment as the dots in the chat list.
+    &__status-dot {
+        position: absolute;
+        top: 4px;
+        left: 36px;
+        width: 10px;
+        height: 10px;
+        border: 1.5px solid var(--gi-bg);
+        border-radius: 50%;
+        background-color: $gray-500;
+
+        &.is-online {
+            background-color: var(--#{$prefix}success);
+        }
+    }
+
+    &__actions {
+        display: flex;
+        flex-shrink: 0;
+        gap: 12px;
+        align-items: center;
+        justify-content: center;
+        height: 48px;
+        margin-left: 12px;
+    }
+
+    button.group-info__round-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 40px;
+        height: 40px;
+        border: 1.5px solid var(--gi-border);
+        border-radius: 125px;
+        transition: background-color 120ms ease;
+
+        &:hover {
+            background-color: var(--gi-surface);
+        }
+    }
+
+    &__cta-layer {
+        padding: 16px 20px;
+    }
+
+    button.group-info__cta {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 4px;
+        width: 100%;
+        padding: 12px 0;
+        border-radius: 16px;
+        background-color: var(--gi-blue-soft);
+        font-family: inherit;
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 24px;
+        color: var(--gi-blue);
+    }
+
+    &__file {
+        padding: 16px 20px;
+    }
+
+    &__empty {
+        margin: 0;
+        padding: 0 20px 16px;
+        font-size: 14px;
+        line-height: 20px;
+        color: var(--gi-muted);
+    }
+
+    &__download {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        box-sizing: border-box;
+        min-width: 92px;
+        height: 34px;
+        margin-left: 12px;
+        padding: 0 15px;
+        border: 1px solid var(--gi-blue);
+        border-radius: 100px;
+        font-size: 12px;
+        font-weight: 500;
+        line-height: 20px;
+        color: var(--gi-blue);
+        transition: background-color 120ms ease, color 120ms ease;
+
+        &:hover {
+            background-color: var(--gi-blue);
+            color: #fff;
+        }
+    }
+
+    &__thumb {
+        position: relative;
+        display: block;
+        flex-shrink: 0;
+        width: 48px;
+        height: 48px;
+        overflow: hidden;
+        border-radius: 12px;
+        background-color: var(--gi-surface);
+
+        img {
+            position: absolute;
+        }
+    }
+
+    &__thumb-file {
+        position: absolute;
+        top: 9.99px;
+        left: 6.05px;
+        width: 34.946px;
+        height: 40.77px;
+        border-radius: 6px;
+        background-color: var(--gi-blue);
+        -webkit-mask-repeat: no-repeat;
+        mask-repeat: no-repeat;
+        -webkit-mask-size: 34.946px 40.77px;
+        mask-size: 34.946px 40.77px;
+    }
+
+    &__thumb-file-top {
+        // 3.5px in the design, but Chrome would round that up a whole pixel too high.
+        top: 4px;
+        left: 3.5px;
+        width: 27.957px;
+        height: 20.967px;
+    }
+
+    &__thumb-file-bottom {
+        top: 28.24px;
+        left: 3.5px;
+        width: 27.957px;
+        height: 6.989px;
+    }
+
+    &__thumb-sheet {
+        position: absolute;
+        top: 9.09px;
+        left: 5.5px;
+        width: 36.18px;
+        height: 42.21px;
+        border-radius: 6px;
+        background-color: #fff;
+    }
+
+    &__thumb-image-top {
+        top: 12.71px;
+        left: 9.12px;
+        width: 28.944px;
+        height: 21.708px;
+    }
+
+    &__thumb-image-bottom {
+        top: 38.33px;
+        left: 9.12px;
+        width: 28.944px;
+        height: 7.049px;
+    }
+}

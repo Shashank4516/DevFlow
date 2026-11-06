@@ -39,6 +39,8 @@ import {
   type StackTaskTodo,
   type TaskAssignee,
 } from "../../../api";
+import { showErrorNotification } from "../../../helpers/notifications";
+import { BoardModal, PersonPicker } from "./BoardModal";
 import { STACK_COUNTS_REFRESH } from "./stackEvents";
 import ProjectWorkGraph from "./ProjectWorkGraph";
 
@@ -69,6 +71,7 @@ interface Column {
 }
 
 const COLUMN_ORDER = ["todo", "inprogress", "review", "complete"] as const;
+type ColumnKey = (typeof COLUMN_ORDER)[number];
 
 const COLUMN_STYLES: Record<
   (typeof COLUMN_ORDER)[number],
@@ -558,10 +561,12 @@ const KanbanColumn = ({
   col,
   onOpenChecklist,
   onOpenAssign,
+  onAddTask,
 }: {
   col: Column;
   onOpenChecklist: (card: Card) => void;
   onOpenAssign: (card: Card) => void;
+  onAddTask: (columnId: ColumnKey) => void;
 }) => {
   const { setNodeRef, isOver } = useDroppable({ id: col.id });
   return (
@@ -585,6 +590,7 @@ const KanbanColumn = ({
             type="button"
             className="tm-column__add-btn"
             aria-label={`Add card to ${col.label}`}
+            onClick={() => onAddTask(col.id as ColumnKey)}
           >
             <PlusIcon size={14} />
           </button>
@@ -630,6 +636,9 @@ const KanbanBoard = () => {
   const [newTaskTitle, setNewTaskTitle] = useState("");
   const [newTaskDesc, setNewTaskDesc] = useState("");
   const [newTaskAssignee, setNewTaskAssignee] = useState<number | "">("");
+  const [newTaskColumn, setNewTaskColumn] = useState<ColumnKey>("todo");
+  const [suggestion, setSuggestion] = useState<{ userId: number; reason: string } | null>(null);
+  const [isSavingTask, setIsSavingTask] = useState(false);
   const [assignModal, setAssignModal] = useState(false);
   const [assignCard, setAssignCard] = useState<Card | null>(null);
   const [assignSelect, setAssignSelect] = useState<number | "">("");
@@ -687,6 +696,17 @@ const KanbanBoard = () => {
   useEffect(() => {
     loadBoard();
   }, [loadBoard]);
+
+  useEffect(() => {
+    if (stackProjectId == null) return undefined;
+    const onTeamChange = () => {
+      getProjectMembers(stackProjectId)
+        .then(res => setMembers(res.members || []))
+        .catch(() => {});
+    };
+    window.addEventListener(STACK_COUNTS_REFRESH, onTeamChange);
+    return () => window.removeEventListener(STACK_COUNTS_REFRESH, onTeamChange);
+  }, [stackProjectId]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -871,13 +891,13 @@ const KanbanBoard = () => {
     [stackProjectId]
   );
 
-  const handleSaveAssign = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSaveAssign = async () => {
     if (!stackProjectId || !assignCard) return;
     const v = assignSelect === "" ? null : Number(assignSelect);
     if (v !== null && (Number.isNaN(v) || v <= 0)) {
       return;
     }
+    setIsSavingTask(true);
     try {
       const res = await updateProjectTask({
         project_id: stackProjectId,
@@ -892,7 +912,9 @@ const KanbanBoard = () => {
       setAssignModal(false);
       setAssignCard(null);
     } catch {
-      /* ignore */
+      showErrorNotification("Could not assign the task. Please try again.");
+    } finally {
+      setIsSavingTask(false);
     }
   };
 
@@ -902,21 +924,29 @@ const KanbanBoard = () => {
       const s = await getSuggestedAssignee(stackProjectId);
       if (s.suggested_user_id != null) {
         setNewTaskAssignee(s.suggested_user_id);
+        setSuggestion({ userId: s.suggested_user_id, reason: s.reason });
       }
     } catch {
-      /* ignore */
+      showErrorNotification("Could not get a suggestion right now.");
     }
   }, [stackProjectId]);
 
-  const handleCreateTask = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const openNewTask = useCallback((columnId: ColumnKey = "todo") => {
+    setNewTaskAssignee("");
+    setSuggestion(null);
+    setNewTaskColumn(columnId);
+    setTaskModal(true);
+  }, []);
+
+  const handleCreateTask = async () => {
     if (!stackProjectId || !newTaskTitle.trim() || !hasBackend) return;
+    setIsSavingTask(true);
     try {
       const res = await createProjectTask({
         project_id: stackProjectId,
         title: newTaskTitle.trim(),
         description: newTaskDesc.trim(),
-        column_key: "todo",
+        column_key: newTaskColumn,
         assignee_user_id:
           newTaskAssignee === "" ? undefined : Number(newTaskAssignee),
       });
@@ -929,7 +959,9 @@ const KanbanBoard = () => {
       setTaskModal(false);
       window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
     } catch {
-      /* ignore */
+      showErrorNotification("Could not create the task. Please try again.");
+    } finally {
+      setIsSavingTask(false);
     }
   };
 
@@ -999,10 +1031,7 @@ const KanbanBoard = () => {
             <button
               type="button"
               className="tm-btn-primary"
-              onClick={() => {
-                setNewTaskAssignee("");
-                setTaskModal(true);
-              }}
+              onClick={() => openNewTask()}
             >
               <PlusIcon size={14} />
               <span>New Task</span>
@@ -1062,6 +1091,7 @@ const KanbanBoard = () => {
               col={col}
               onOpenChecklist={onOpenChecklist}
               onOpenAssign={onOpenAssign}
+              onAddTask={openNewTask}
             />
           ))}
         </div>
@@ -1079,90 +1109,109 @@ const KanbanBoard = () => {
         </DragOverlay>
       </DndContext>
 
-      <Modal isOpen={taskModal} toggle={() => setTaskModal(false)} centered>
-        <ModalHeader toggle={() => setTaskModal(false)}>New task</ModalHeader>
-        <ModalBody>
-          <Form onSubmit={handleCreateTask}>
-            <Input
-              className="mb-2"
-              placeholder="Title"
-              value={newTaskTitle}
-              onChange={e => setNewTaskTitle(e.target.value)}
-              autoFocus
-            />
-            <Input
-              type="textarea"
-              className="mb-2"
-              placeholder="Description (optional)"
-              value={newTaskDesc}
-              onChange={e => setNewTaskDesc(e.target.value)}
-              rows={3}
-            />
-            <div className="d-flex flex-wrap gap-2 align-items-end mb-3">
-              <div className="flex-grow-1" style={{ minWidth: 180 }}>
-                <div className="text-muted small mb-1">Assign to</div>
-                <Input
-                  type="select"
-                  value={newTaskAssignee === "" ? "" : String(newTaskAssignee)}
-                  onChange={e => {
-                    const v = e.target.value;
-                    setNewTaskAssignee(v === "" ? "" : Number(v));
-                  }}
-                >
-                  <option value="">Unassigned</option>
-                  {members.map(m => (
-                    <option key={m.user_id} value={m.user_id}>
-                      {m.name}
-                    </option>
-                  ))}
-                </Input>
-              </div>
-              <Button
-                type="button"
-                color="secondary"
-                outline
-                size="sm"
-                onClick={() => void applySuggestedAssignee()}
+      <BoardModal
+        isOpen={taskModal}
+        onClose={() => setTaskModal(false)}
+        title="New task"
+        subtitle={projectName ? `In ${projectName}` : undefined}
+        icon="bx bx-task"
+        submitLabel={`Add to ${COLUMN_STYLES[newTaskColumn].label}`}
+        canSubmit={!!newTaskTitle.trim()}
+        isBusy={isSavingTask}
+        hint="Give your task a title"
+        onSubmit={handleCreateTask}
+      >
+        <div className="tm-modal__field">
+          <label className="tm-modal__label" htmlFor="tm-task-title">
+            Title
+          </label>
+          <input
+            id="tm-task-title"
+            data-autofocus
+            type="text"
+            placeholder="What needs to be done?"
+            autoComplete="off"
+            value={newTaskTitle}
+            onChange={e => setNewTaskTitle(e.target.value)}
+          />
+        </div>
+        <div className="tm-modal__field">
+          <label className="tm-modal__label" htmlFor="tm-task-description">
+            Description <span>Optional</span>
+          </label>
+          <textarea
+            id="tm-task-description"
+            rows={3}
+            placeholder="Add any details"
+            value={newTaskDesc}
+            onChange={e => setNewTaskDesc(e.target.value)}
+          />
+        </div>
+        <div className="tm-modal__field">
+          <span className="tm-modal__label">Status</span>
+          <div className="tm-modal__statuses" role="radiogroup" aria-label="Status">
+            {COLUMN_ORDER.map(id => (
+              <label
+                key={id}
+                className={`tm-modal__status${newTaskColumn === id ? " is-selected" : ""}`}
               >
-                Suggest
-              </Button>
-            </div>
-            <Button color="primary" type="submit" disabled={!newTaskTitle.trim()}>
-              Add to To Do
-            </Button>
-          </Form>
-        </ModalBody>
-      </Modal>
-
-      <Modal isOpen={assignModal} toggle={() => setAssignModal(false)} centered>
-        <ModalHeader toggle={() => setAssignModal(false)}>Assign task</ModalHeader>
-        <ModalBody>
-          {assignCard && (
-            <p className="small text-muted mb-2">{assignCard.title}</p>
-          )}
-          <Form onSubmit={handleSaveAssign}>
-            <Input
-              type="select"
-              className="mb-3"
-              value={assignSelect === "" ? "" : String(assignSelect)}
-              onChange={e => {
-                const v = e.target.value;
-                setAssignSelect(v === "" ? "" : Number(v));
-              }}
+                <input
+                  type="radio"
+                  name="tm-task-status"
+                  checked={newTaskColumn === id}
+                  onChange={() => setNewTaskColumn(id)}
+                />
+                <i style={{ background: COLUMN_STYLES[id].dotColor }} />
+                {COLUMN_STYLES[id].label}
+              </label>
+            ))}
+          </div>
+        </div>
+        <PersonPicker
+          label="Assign to"
+          allowNone
+          people={members.map(m => ({
+            id: m.user_id,
+            name: m.name,
+            image: m.profileImage,
+            note: suggestion?.userId === m.user_id ? suggestion.reason : undefined,
+          }))}
+          value={newTaskAssignee}
+          onChange={setNewTaskAssignee}
+          headerAction={
+            <button
+              type="button"
+              className="tm-modal__link"
+              title="Picks the teammate with the fewest open tasks"
+              onClick={() => void applySuggestedAssignee()}
             >
-              <option value="">Unassigned</option>
-              {members.map(m => (
-                <option key={m.user_id} value={m.user_id}>
-                  {m.name}
-                </option>
-              ))}
-            </Input>
-            <Button color="primary" type="submit">
-              Save
-            </Button>
-          </Form>
-        </ModalBody>
-      </Modal>
+              <i className="bx bxs-magic-wand" />
+              Suggest
+            </button>
+          }
+        />
+      </BoardModal>
+
+      <BoardModal
+        isOpen={assignModal}
+        onClose={() => setAssignModal(false)}
+        title="Assign task"
+        subtitle="Choose who is working on this."
+        icon="bx bxs-user-check"
+        submitLabel="Save"
+        canSubmit
+        isBusy={isSavingTask}
+        onSubmit={handleSaveAssign}
+      >
+        {assignCard && <div className="tm-modal__task-preview">{assignCard.title}</div>}
+        <PersonPicker
+          label="Assign to"
+          allowNone
+          people={members.map(m => ({ id: m.user_id, name: m.name, image: m.profileImage }))}
+          value={assignSelect}
+          onChange={setAssignSelect}
+        />
+      </BoardModal>
 
       <Modal
         isOpen={completeConfirmOpen}

@@ -8,11 +8,11 @@ import Loader from "../../../components/Loader";
 import AppSimpleBar from "../../../components/AppSimpleBar";
 import MyProfile from "./MyProfile";
 import UserDescription from "./UserDescription";
-import Media from "../../../components/Media";
-import AttachedFiles from "../../../components/AttachedFiles";
+import { ProfileFiles, ProfileMedia } from "./ProfileLibrary";
+import { TABS } from "../../../constants";
 
 // actions
-import { getProfileDetails } from "../../../redux/actions";
+import { changeTab, getProfileDetails } from "../../../redux/actions";
 
 import { getLoggedinUser } from "../../../api/apiCore";
 
@@ -49,7 +49,13 @@ const Index = (props: IndexProps) => {
   const errorData = createSelector(
     (state: any) => state.Profile,
     (state: any) => state.Settings,
-    (profile, settings) => ({
+    (state: any) => state.Chats,
+    (profile, settings, chats) => ({
+      status: settings?.settings?.status as string | undefined,
+      directMessages: chats.directMessages,
+      favourites: chats.favourites,
+      archiveContacts: chats.archiveContacts,
+      channels: chats.channels,
       profileDetails: profile.profileDetails,
       getProfileLoading: profile.getProfileLoading,
       isProfileFetched: profile.isProfileFetched,
@@ -57,8 +63,17 @@ const Index = (props: IndexProps) => {
       profileTagFromSession: settings?.settings?.basicDetails?.profileTag as string | undefined,
     })
   );
-  const { profileDetails, getProfileLoading, isProfileFetched, profileTagFromSession } =
-    useAppSelector(errorData);
+  const {
+    status,
+    directMessages,
+    favourites,
+    archiveContacts,
+    channels,
+    profileDetails,
+    getProfileLoading,
+    isProfileFetched,
+    profileTagFromSession,
+  } = useAppSelector(errorData);
 
   const basicDetails = useMemo(() => {
     const merged = getBasicDetailsWithSaved(profileDetails?.basicDetails);
@@ -72,20 +87,28 @@ const Index = (props: IndexProps) => {
     dispatch(getProfileDetails());
   }, [dispatch]);
 
+  const onEdit = () => dispatch(changeTab(TABS.SETTINGS));
+
+  const friendIds = new Set(
+    [...(directMessages || []), ...(favourites || []), ...(archiveContacts || [])].map(
+      (friend: any) => String(friend.id),
+    ),
+  );
+
   return (
-    <div className="position-relative">
+    <div className="my-profile position-relative">
       {getProfileLoading && !isProfileFetched && <Loader />}
-      <MyProfile basicDetails={basicDetails} />
-
-      <AppSimpleBar className="px-3 py-3 profile-desc">
-        <UserDescription basicDetails={basicDetails} />
-        <hr className="my-4" />
-
-        <Media media={profileDetails?.media} limit={2} />
-
-        <hr className="my-4" />
-
-        <AttachedFiles attachedFiles={profileDetails?.attachedFiles} />
+      <AppSimpleBar className="my-profile__scroll">
+        <MyProfile
+          basicDetails={basicDetails}
+          status={status}
+          friendCount={friendIds.size}
+          groupCount={(channels || []).length}
+          onEdit={onEdit}
+        />
+        <UserDescription basicDetails={basicDetails} onEdit={onEdit} />
+        <ProfileMedia media={profileDetails?.media} />
+        <ProfileFiles attachedFiles={profileDetails?.attachedFiles} />
       </AppSimpleBar>
     </div>
   );

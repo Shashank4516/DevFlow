@@ -1,4 +1,4 @@
-import React, { useRef, useState } from "react";
+import React, { useLayoutEffect, useRef, useState } from "react";
 import {
   DropdownToggle,
   DropdownMenu,
@@ -27,6 +27,7 @@ import { useProfile } from "../../../hooks";
 // utils
 import { formateDate } from "../../../utils";
 import RepliedMessage from "./RepliedMessage";
+import { fadeInStatus } from "./messageAnimations";
 
 interface MenuProps {
   onDelete: () => any;
@@ -472,28 +473,62 @@ const isGithubRepoOnlyText = (text: string | undefined) => {
   return GITHUB_REPO_MENTION_SEGMENT.test(text.trim());
 };
 
-const renderTextWithRepoMentions = (text: string) => {
-  const mentionPattern = /(@[a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)/g;
-  const parts = text.split(mentionPattern);
-  return parts.map((part, index) => {
-    const match = part.match(/^@([a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)$/);
-    if (!match) {
-      return <React.Fragment key={`text-${index}`}>{part}</React.Fragment>;
+const escapeForRegex = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+/**
+ * Turns "@owner/repo" into a link, and "@Member Name" into a highlight when that person
+ * is in this chat. Longest names first, so "@Ann Lee" wins over "@Ann".
+ */
+const renderMessageText = (text: string, memberNames: string[], myName: string) => {
+  const repo = "@[a-zA-Z0-9_.-]+\\/[a-zA-Z0-9_.-]+";
+  const names = [...memberNames]
+    .sort((a, b) => b.length - a.length)
+    .map(escapeForRegex)
+    .join("|");
+  const pattern = names
+    ? `(${repo}|@(?:${names})(?![\\p{L}\\p{N}]))`
+    : `(${repo})`;
+  return text.split(new RegExp(pattern, "gu")).map((part, index) => {
+    const repoMatch = part.match(/^@([a-zA-Z0-9_.-]+\/[a-zA-Z0-9_.-]+)$/);
+    if (repoMatch) {
+      return (
+        <a
+          key={`repo-${repoMatch[1]}-${index}`}
+          href={`https://github.com/${repoMatch[1]}`}
+          target="_blank"
+          rel="noreferrer"
+          className="chat-repo-mention"
+        >
+          {part}
+        </a>
+      );
     }
-    const repoFullName = match[1];
-    return (
-      <a
-        key={`repo-${repoFullName}-${index}`}
-        href={`https://github.com/${repoFullName}`}
-        target="_blank"
-        rel="noreferrer"
-        className="chat-repo-mention"
-      >
-        {part}
-      </a>
-    );
+    if (part.startsWith("@") && memberNames.includes(part.slice(1))) {
+      return (
+        <span
+          key={`member-${index}`}
+          className={classnames("imsg-mention", { "is-me": part.slice(1) === myName })}
+        >
+          {part}
+        </span>
+      );
+    }
+    return <React.Fragment key={`text-${index}`}>{part}</React.Fragment>;
   });
 };
+
+const MessageStatus = ({ label }: { label: string }) => {
+  const ref = useRef<HTMLDivElement>(null);
+  useLayoutEffect(() => {
+    if (ref.current) fadeInStatus(ref.current);
+  }, [label]);
+  return (
+    <div className="imsg-status" ref={ref}>
+      {label}
+    </div>
+  );
+};
+
 interface MessageProps {
   message: MessagesTypes;
   chatUserDetails: any;
@@ -505,6 +540,12 @@ interface MessageProps {
   isChannel: boolean;
   onDeleteImage: (messageId: string | number, imageId: string | number) => void;
   onAddBookmark: (message: MessagesTypes) => void;
+  /** First bubble in a run from the same sender. */
+  isGroupStart: boolean;
+  /** Last bubble in a run from the same sender. It gets the tail. */
+  isGroupEnd: boolean;
+  /** My newest message. It shows Delivered or Read underneath. */
+  isLatestFromMe: boolean;
   // onSetReplyImageData: () => void;
 }
 const Message = ({
@@ -518,6 +559,9 @@ const Message = ({
   isChannel,
   onDeleteImage,
   onAddBookmark,
+  isGroupStart,
+  isGroupEnd,
+  isLatestFromMe,
 }: MessageProps) => {
   const { userProfile } = useProfile();
   const hasImages = message.image && message.image.length;
@@ -544,9 +588,13 @@ const Message = ({
     : imagePlaceholder;
   const profile = isChannel ? channeluserProfile : chatUserprofile;
   const date = formateDate(message.time, "hh:mmaaa");
-  const isSent = message.meta.sent;
-  const isReceived = message.meta.received;
   const isRead = message.meta.read;
+  const memberNames: string[] = isChannel
+    ? (chatUserDetails?.members || [])
+        .map((member: any) => `${member.firstName || ""} ${member.lastName || ""}`.trim())
+        .filter(Boolean)
+    : [];
+  const myName = `${userProfile?.firstName || ""} ${userProfile?.lastName || ""}`.trim();
   const isForwarded = message.meta.isForwarded;
   const isPinned = !!message.isPinned;
   const channdelSenderFullname = message.meta.userData
@@ -580,15 +628,23 @@ const Message = ({
       className={classnames(
         "chat-list",
         { right: isFromMe },
-        { reply: isRepliedMessage }
+        { reply: isRepliedMessage },
+        { "imsg-group-end": isGroupEnd },
       )}
+      data-mid={message.mId}
     >
       <div className="conversation-list">
-        <div className="chat-avatar">
-          <img src={isFromMe ? myProfile : profile} alt="" />
-        </div>
+        {/* As in iMessage, only other people in group chats get an avatar. */}
+        {isChannel && !isFromMe && (
+          <div className={classnames("chat-avatar", { "imsg-avatar-hidden": !isGroupEnd })}>
+            <img src={profile} alt="" />
+          </div>
+        )}
 
-        <div className="user-chat-content">
+        <div className="user-chat-content" title={date}>
+          {isChannel && !isFromMe && isGroupStart && (
+            <div className="imsg-sender">{fullName}</div>
+          )}
           {hasImages && message.text && (
             <div className="ctext-wrap">
               <div
@@ -597,7 +653,7 @@ const Message = ({
                 })}
               >
                 <p className="mb-0 ctext-content">
-                  {renderTextWithRepoMentions(message.text || "")}
+                  {renderMessageText(message.text || "", memberNames, myName)}
                 </p>
               </div>
             </div>
@@ -658,6 +714,7 @@ const Message = ({
               <>
                 <div
                   className={classnames("ctext-wrap-content", {
+                    "imsg-tail": isGroupEnd,
                     "voice-only": hasOnlyVoiceAttachment,
                     "github-repo-msg":
                       hasText &&
@@ -676,7 +733,7 @@ const Message = ({
 
                   {hasText && (
                     <p className="mb-0 ctext-content">
-                      {renderTextWithRepoMentions(message.text || "")}
+                      {renderMessageText(message.text || "", memberNames, myName)}
                     </p>
                   )}
 
@@ -710,38 +767,9 @@ const Message = ({
 
             {/* image message end */}
           </div>
-          <div className="conversation-name">
-            {isFromMe ? (
-              <>
-                <span
-                  className={classnames(
-                    "me-1",
-                    { "text-success": isRead },
-                    { "text-muted": (isSent || isReceived) && !isRead }
-                  )}
-                >
-                  <i
-                    className={classnames(
-                      "bx",
-                      { "bx-check-double": isRead || isReceived },
-                      { "bx-check": isSent }
-                    )}
-                  ></i>
-                </span>
-                <small className={classnames("text-muted", "mb-0", "me-2")}>
-                  {date}
-                </small>
-                You
-              </>
-            ) : (
-              <>
-                {fullName}
-                <small className={classnames("text-muted", "mb-0", "ms-2")}>
-                  {date}
-                </small>
-              </>
-            )}
-          </div>
+          {isFromMe && isLatestFromMe && (
+            <MessageStatus label={isRead && !isChannel ? "Read" : "Delivered"} />
+          )}
         </div>
       </div>
     </li>

@@ -847,261 +847,6 @@
     }
 }
 
-// GitHub workspace (fills main pane when GitHub tab is active)
-.github-main-workspace {
-    position: absolute;
-    inset: 0;
-    z-index: 1;
-    min-height: 0;
-    background-color: var(--#{$prefix}body-bg);
-}
-
-.github-ws-body {
-    min-height: 0;
-}
-
-.github-ws-rail {
-    width: min(360px, 42vw);
-    flex-shrink: 0;
-    background-color: var(--#{$prefix}secondary-bg);
-
-    // Branch / compare selects: keep a visible edge off the rail (especially dark mode).
-    .form-select {
-        border: 1px solid var(--#{$prefix}border-color);
-        background-color: var(--#{$prefix}body-bg);
-        color: var(--#{$prefix}body-color);
-    }
-}
-
-body[data-bs-theme="dark"] .github-main-workspace .github-ws-rail .form-select,
-body[data-bs-theme="dark"] .github-main-workspace .github-ws-rail .github-ws-summary.border {
-    border-color: rgba(255, 255, 255, 0.22) !important;
-}
-
-body[data-bs-theme="dark"] .github-main-workspace .github-ws-rail .form-select {
-    background-color: rgba(var(--#{$prefix}body-bg-rgb), 0.55);
-}
-
-.github-ws-list-item:hover {
-    background-color: rgba(var(--bs-primary-rgb), 0.06);
-}
-
-.github-ws-file-pill {
-    border: 1px solid var(--#{$prefix}border-color-translucent);
-
-    &.github-ws-file-pill--active {
-        border-color: rgba(var(--bs-primary-rgb), 0.5);
-        background-color: rgba(var(--bs-primary-rgb), 0.1);
-    }
-}
-
-.github-ws-main {
-    flex: 1;
-    min-width: 0;
-    background-color: var(--#{$prefix}body-bg);
-}
-
-.github-ws-summary {
-    background-color: var(--#{$prefix}tertiary-bg);
-}
-
-// Diff preview: light-mode friendly shell + GitHub-like line colors; dark overrides below
-.github-diff-panel {
-    background-color: #f6f8fa;
-    border-color: var(--#{$prefix}border-color);
-    color: #1f2328;
-
-    .github-diff-panel__header {
-        background-color: #eef1f4;
-        border-color: var(--#{$prefix}border-color);
-    }
-
-    .github-diff-panel__body,
-    .github-diff-panel__pad {
-        background-color: #f6f8fa;
-    }
-
-    .github-diff-panel__pad {
-        min-height: 12px;
-    }
-
-    .github-diff-panel__gh-icon {
-        font-size: 1.35rem;
-        color: #24292f;
-        line-height: 1;
-    }
-
-    .github-diff-panel__filename {
-        color: #24292f;
-    }
-
-    .github-diff-panel__meta {
-        color: #57606a;
-        font-weight: 500;
-    }
-
-    .github-diff-panel__action.btn {
-        color: #24292f;
-        border: 1px solid rgba(31, 35, 40, 0.22);
-        background-color: #ffffff;
-        font-weight: 500;
-
-        &:hover {
-            color: #1f2328;
-            border-color: rgba(31, 35, 40, 0.38);
-            background-color: #f3f5f7;
-        }
-
-        &:focus-visible {
-            box-shadow: 0 0 0 0.2rem rgba(9, 105, 218, 0.25);
-        }
-    }
-
-    .github-diff-table .github-diff-table__lineno {
-        width: 3.25rem;
-        font-size: 11px;
-        vertical-align: top;
-        color: #6e7781;
-        background-color: rgba(175, 184, 193, 0.14);
-    }
-
-    .github-diff-table .github-diff-table__code pre {
-        font-size: 12px;
-        line-height: 1.45;
-        white-space: pre-wrap;
-        word-break: break-word;
-        margin: 0;
-    }
-
-    tr.github-diff-line.github-diff-line--ctx .github-diff-table__code {
-        color: #24292f;
-        background-color: transparent;
-    }
-
-    tr.github-diff-line.github-diff-line--add td {
-        color: #054d29;
-        background-color: #dafbe1 !important;
-    }
-
-    tr.github-diff-line.github-diff-line--add .github-diff-table__lineno {
-        background-color: #c9f3d7;
-        color: #05603a;
-    }
-
-    tr.github-diff-line.github-diff-line--del td {
-        color: #82071e;
-        background-color: #ffebe9 !important;
-    }
-
-    tr.github-diff-line.github-diff-line--del .github-diff-table__lineno {
-        background-color: #ffc9c9;
-        color: #a40e26;
-    }
-
-    tr.github-diff-line.github-diff-line--hunk td {
-        color: #0550ae;
-        background-color: #ddf4ff !important;
-    }
-
-    tr.github-diff-line.github-diff-line--hunk .github-diff-table__lineno {
-        background-color: #b6e3ff;
-        color: #0969da;
-    }
-}
-
-body[data-bs-theme="dark"] .github-diff-panel {
-    background-color: #0d1117;
-    border-color: #30363d;
-    color: #e6edf3;
-
-    .github-diff-panel__header {
-        background-color: rgba(0, 0, 0, 0.35);
-        border-color: #30363d;
-    }
-
-    .github-diff-panel__body,
-    .github-diff-panel__pad {
-        background-color: #0d1117;
-    }
-
-    .github-diff-panel__gh-icon {
-        color: #f0f6fc;
-    }
-
-    .github-diff-panel__filename {
-        color: #f0f6fc;
-    }
-
-    .github-diff-panel__meta {
-        color: #b1bac4;
-    }
-
-    .github-diff-panel__action.btn {
-        color: #e6edf3;
-        border: 1px solid rgba(230, 237, 243, 0.45);
-        background-color: rgba(255, 255, 255, 0.06);
-
-        &:hover {
-            color: #ffffff;
-            border-color: rgba(255, 255, 255, 0.65);
-            background-color: rgba(255, 255, 255, 0.14);
-        }
-
-        &:focus-visible {
-            box-shadow: 0 0 0 0.2rem rgba(88, 166, 255, 0.35);
-        }
-    }
-
-    .github-diff-table .github-diff-table__lineno {
-        color: rgba(230, 237, 243, 0.55);
-        background-color: rgba(255, 255, 255, 0.06);
-    }
-
-    tr.github-diff-line.github-diff-line--ctx .github-diff-table__code {
-        color: #d8e6ff;
-        background-color: transparent;
-    }
-
-    tr.github-diff-line.github-diff-line--add td {
-        color: #aff5b4;
-        background-color: rgba(46, 160, 67, 0.22) !important;
-    }
-
-    tr.github-diff-line.github-diff-line--add .github-diff-table__lineno {
-        background-color: rgba(46, 160, 67, 0.28);
-        color: #7ee787;
-    }
-
-    tr.github-diff-line.github-diff-line--del td {
-        color: #ffb3ad;
-        background-color: rgba(248, 81, 73, 0.22) !important;
-    }
-
-    tr.github-diff-line.github-diff-line--del .github-diff-table__lineno {
-        background-color: rgba(248, 81, 73, 0.28);
-        color: #ff9d97;
-    }
-
-    tr.github-diff-line.github-diff-line--hunk td {
-        color: #a6ceff;
-        background-color: rgba(56, 139, 253, 0.22) !important;
-    }
-
-    tr.github-diff-line.github-diff-line--hunk .github-diff-table__lineno {
-        background-color: rgba(56, 139, 253, 0.3);
-        color: #79c0ff;
-    }
-}
-
-.github-diff-table {
-    --bs-table-bg: transparent;
-    --bs-table-color: inherit;
-
-    td {
-        border: none;
-    }
-}
-
 // only for firefox browser
 @-moz-document url-prefix() {
     .user-chat-topbar, .chat-input-section{
@@ -1115,4 +860,765 @@ body[data-bs-theme="dark"] {
         color: rgba(255,255,255,.8);
     }
 
+}
+
+/* ─── iMessage-style conversation ──────────────────────────── */
+
+.chat-conversation,
+.chat-input-section,
+.user-chat-topbar,
+.friend-search,
+.notif-panel,
+.group-modal,
+.chat-leftsidebar,
+.my-profile,
+.calls-panel,
+.call-row,
+.user-profile-sidebar.group-info-sidebar {
+    --imsg-blue: #007aff;
+    --imsg-received-bg: #e9e9eb;
+    --imsg-received-text: #000;
+    --imsg-meta: #8e8e93;
+    --imsg-card-mine: rgba(255, 255, 255, 0.2);
+    --imsg-card-theirs: rgba(0, 0, 0, 0.06);
+    --imsg-input-border: #c7c7cc;
+}
+
+body[data-bs-theme="dark"] {
+    .chat-conversation,
+    .chat-input-section,
+    .user-chat-topbar,
+    .friend-search,
+    .notif-panel,
+    .group-modal,
+    .chat-leftsidebar,
+    .my-profile,
+    .calls-panel,
+    .call-row,
+    .user-profile-sidebar.group-info-sidebar {
+        --imsg-blue: #0a84ff;
+        --imsg-received-bg: #3a3a3c;
+        --imsg-received-text: #fff;
+        --imsg-meta: #98989d;
+        --imsg-card-theirs: rgba(255, 255, 255, 0.1);
+        --imsg-input-border: #48484a;
+    }
+}
+
+.chat-conversation {
+    .chat-conversation-list > li.imsg-time-label {
+        display: block;
+        width: 100%;
+        margin: 16px 0 10px;
+        text-align: center;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--imsg-meta);
+    }
+
+    .imsg-sender {
+        margin: 0 0 2px 13px;
+        font-size: 11px;
+        color: var(--imsg-meta);
+    }
+
+    .imsg-status {
+        margin: 3px 2px 0 0;
+        font-size: 11px;
+        font-weight: 500;
+        color: var(--imsg-meta);
+    }
+
+    .chat-avatar {
+        margin: 0 8px 0 0;
+
+        &.imsg-avatar-hidden {
+            visibility: hidden;
+        }
+    }
+
+    li:last-of-type .conversation-list {
+        margin-bottom: 0;
+    }
+
+    .conversation-list {
+        margin-bottom: 2px;
+        max-width: 68%;
+
+        @media (max-width: 575.98px) {
+            max-width: 82%;
+        }
+
+        .ctext-wrap {
+            margin-bottom: 0;
+        }
+
+        // A caption bubble above its image.
+        .ctext-wrap + .ctext-wrap {
+            margin-top: 6px;
+        }
+
+        .ctext-wrap-content {
+            padding: 7px 13px;
+            border-radius: 18px;
+            box-shadow: none;
+            background-color: var(--imsg-received-bg);
+            font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", Arial, sans-serif;
+
+            &.imsg-tail::after {
+                content: "";
+                position: absolute;
+                bottom: 0;
+                left: -6px;
+                width: 20px;
+                height: 18px;
+                background-color: inherit;
+                transform: scaleX(-1);
+                -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 18'%3E%3Cpath d='M0 0h13c.4 6.6 2.7 12.6 7 17.6-5.2.8-9.8-.6-13.4-3.4C4.5 15.6 2.3 16.4 0 16.6z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+                mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 18'%3E%3Cpath d='M0 0h13c.4 6.6 2.7 12.6 7 17.6-5.2.8-9.8-.6-13.4-3.4C4.5 15.6 2.3 16.4 0 16.6z'/%3E%3C/svg%3E") center / 100% 100% no-repeat;
+            }
+
+            &.github-repo-msg,
+            &.voice-only {
+                padding: 0;
+                background-color: transparent;
+
+                &::after {
+                    display: none;
+                }
+            }
+
+            .voice-note {
+                background: #48484a;
+            }
+
+            // Breathing room between a message's text and its file, and an even inset
+            // around the file card.
+            .ctext-content + div {
+                margin-top: 8px;
+            }
+
+            &:has(> .border-primary) {
+                padding-bottom: 13px;
+            }
+
+            &:has(> .border-primary:first-child) {
+                padding-top: 13px;
+            }
+
+            // The bootstrap border and muted classes on file cards don't suit a bubble.
+            .border-primary {
+                position: relative;
+                z-index: 1;
+                border: 0 !important;
+                padding: 10px !important;
+                border-radius: 12px !important;
+                background-color: var(--imsg-card-theirs);
+            }
+
+            .attached-file h5 {
+                color: inherit;
+            }
+
+            .text-muted {
+                color: inherit !important;
+                opacity: 0.75;
+            }
+
+            .avatar-title {
+                background-color: var(--imsg-blue) !important;
+                color: #fff !important;
+            }
+        }
+
+        .ctext-content {
+            font-size: 15px;
+            line-height: 1.3;
+            text-align: left;
+            color: var(--imsg-received-text);
+        }
+
+        .message-img {
+            img {
+                max-width: 240px;
+                border: 0 !important;
+                border-radius: 16px !important;
+            }
+
+            .message-img-link {
+                opacity: 0;
+                transition: opacity 120ms linear;
+            }
+
+            .message-img-list:hover .message-img-link {
+                opacity: 1;
+            }
+        }
+    }
+
+    .chat-list.imsg-group-end .conversation-list {
+        margin-bottom: 10px;
+    }
+
+    // Photos need more room than the 2px between grouped bubbles, on both sides.
+    .chat-list:not(.imsg-group-end):has(.message-img) .conversation-list,
+    .chat-list:not(.imsg-group-end):has(+ .chat-list .message-img) .conversation-list {
+        margin-bottom: 8px;
+    }
+
+    .right {
+        .conversation-list .ctext-wrap .ctext-wrap-content {
+            order: 2;
+            background-color: var(--imsg-blue);
+
+            &.imsg-tail::after {
+                left: auto;
+                right: -6px;
+                transform: none;
+            }
+
+            &.github-repo-msg,
+            &.voice-only {
+                background-color: transparent;
+            }
+
+            .voice-note {
+                background: var(--imsg-blue);
+            }
+
+            .ctext-content,
+            .chat-repo-mention,
+            .replymessage-block,
+            .replymessage-block .conversation-name {
+                color: #fff;
+            }
+
+            .replymessage-block {
+                background-color: rgba(255, 255, 255, 0.2);
+                border-color: #fff;
+            }
+
+            .border-primary {
+                background-color: var(--imsg-card-mine);
+                color: #fff;
+            }
+
+            .avatar-title {
+                background-color: #fff !important;
+                color: var(--imsg-blue) !important;
+            }
+
+            a.text-muted {
+                color: #fff !important;
+            }
+        }
+
+        .imsg-status {
+            margin-right: 0;
+            text-align: right;
+        }
+    }
+}
+
+.chat-input-section {
+    .chat-input {
+        height: 38px;
+        padding: 6px 16px;
+        font-size: 15px;
+        border: 1px solid var(--imsg-input-border);
+        border-radius: 19px;
+        background-color: transparent;
+        box-shadow: none;
+
+        &:focus {
+            border-color: var(--imsg-input-border);
+            box-shadow: none;
+        }
+    }
+
+    .chat-input-links .links-list-item > .btn.chat-send {
+        width: 34px;
+        height: 34px;
+        margin: 2px 0 0 4px;
+        font-size: 24px;
+        line-height: 1;
+        color: #fff;
+        border: 0;
+        border-radius: 50%;
+        background-color: var(--imsg-blue);
+        transition: transform 140ms ease, opacity 140ms ease;
+
+        &:active:not(:disabled) {
+            transform: scale(0.86);
+        }
+
+        &:disabled {
+            opacity: 0.35;
+        }
+    }
+}
+
+
+// Instagram-style people search, on the right of the chat.
+
+.friend-search {
+    --fs-text: var(--#{$prefix}body-color);
+    --fs-muted: var(--#{$prefix}secondary-color);
+    --fs-border: var(--#{$prefix}border-color);
+    --fs-blue-soft: color-mix(in srgb, var(--imsg-blue) 14%, transparent);
+
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 100;
+    display: flex;
+    flex-direction: column;
+    width: 400px;
+    background-color: var(--#{$prefix}modal-content-bg);
+    border-left: 1px solid var(--fs-border);
+    box-shadow: -8px 0 24px rgba(0, 0, 0, 0.08);
+    color: var(--fs-text);
+    visibility: hidden;
+    transform: translateX(100%);
+    transition: transform 260ms cubic-bezier(0.22, 0.9, 0.3, 1), visibility 260ms;
+
+    &.is-open {
+        visibility: visible;
+        transform: translateX(0);
+    }
+
+    @media (max-width: 575.98px) {
+        width: 100%;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        transition: none;
+    }
+
+    button {
+        padding: 0;
+        border: 0;
+        background: none;
+        color: inherit;
+        cursor: pointer;
+    }
+
+    ul {
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    &__head {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 24px 24px 20px;
+    }
+
+    &__title {
+        margin: 0;
+        font-size: 22px;
+        font-weight: 600;
+        line-height: 28px;
+        color: var(--fs-text);
+    }
+
+    button.friend-search__close {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 32px;
+        height: 32px;
+        border-radius: 50%;
+        font-size: 24px;
+
+        &:hover {
+            background-color: var(--imsg-received-bg);
+        }
+    }
+
+    &__field {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        gap: 10px;
+        height: 42px;
+        margin: 0 24px;
+        padding: 0 12px;
+        border-radius: 10px;
+        background-color: var(--imsg-received-bg);
+        font-size: 18px;
+        color: var(--fs-muted);
+
+        input {
+            flex: 1 1 auto;
+            min-width: 0;
+            border: 0;
+            outline: 0;
+            background: none;
+            font-size: 15px;
+            color: var(--fs-text);
+
+            &::placeholder {
+                color: var(--fs-muted);
+            }
+        }
+    }
+
+    button.friend-search__clear {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        background-color: var(--fs-muted);
+        font-size: 14px;
+        color: var(--#{$prefix}modal-content-bg);
+    }
+
+    &__divider {
+        flex-shrink: 0;
+        height: 1px;
+        margin-top: 20px;
+        background-color: var(--fs-border);
+    }
+
+    &__body {
+        flex: 1 1 auto;
+        min-height: 0;
+        overflow-y: auto;
+        padding: 16px 0 24px;
+    }
+
+    &__section {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 24px 8px;
+        font-size: 15px;
+        font-weight: 600;
+
+        button {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--imsg-blue);
+        }
+    }
+
+    &__row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 8px 16px 8px 24px;
+        transition: background-color 120ms ease;
+
+        &:hover {
+            background-color: var(--fs-blue-soft);
+        }
+    }
+
+    button.friend-search__person {
+        display: flex;
+        flex: 1 1 auto;
+        align-items: center;
+        gap: 12px;
+        min-width: 0;
+        text-align: left;
+    }
+
+    &__avatar {
+        flex-shrink: 0;
+        width: 44px;
+        height: 44px;
+        border-radius: 50%;
+        object-fit: cover;
+
+        &--initials {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: var(--imsg-received-bg);
+            font-size: 15px;
+            font-weight: 600;
+        }
+    }
+
+    &__text {
+        display: flex;
+        flex-direction: column;
+        min-width: 0;
+    }
+
+    &__name,
+    &__subtitle {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    &__name {
+        font-size: 14px;
+        font-weight: 600;
+        line-height: 20px;
+    }
+
+    &__subtitle {
+        font-size: 13px;
+        line-height: 18px;
+        color: var(--fs-muted);
+    }
+
+    button.friend-search__action {
+        flex-shrink: 0;
+        min-width: 76px;
+        height: 32px;
+        padding: 0 12px;
+        border-radius: 8px;
+        background-color: var(--imsg-blue);
+        font-size: 13px;
+        font-weight: 600;
+        color: #fff;
+
+        &.is-quiet {
+            background-color: var(--imsg-received-bg);
+            color: var(--fs-text);
+        }
+
+        &:disabled {
+            cursor: default;
+            opacity: 0.7;
+        }
+    }
+
+    button.friend-search__remove {
+        display: flex;
+        flex-shrink: 0;
+        align-items: center;
+        justify-content: center;
+        width: 24px;
+        height: 24px;
+        font-size: 20px;
+        color: var(--fs-muted);
+    }
+
+    &__message {
+        padding: 32px 32px;
+        font-size: 14px;
+        line-height: 20px;
+        text-align: center;
+        color: var(--fs-muted);
+
+        strong {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 15px;
+            color: var(--fs-text);
+        }
+
+        &.is-error {
+            color: var(--#{$prefix}danger);
+        }
+    }
+}
+
+// The chat makes room, so the panel never hides any messages.
+@media (min-width: 992px) {
+    .user-chat {
+        transition: padding-right 260ms cubic-bezier(0.22, 0.9, 0.3, 1);
+
+        &.is-search-open {
+            padding-right: 400px;
+        }
+    }
+}
+
+button.profile-search-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    width: 100%;
+    height: 38px;
+    padding: 0 12px;
+    border: 0;
+    border-radius: 4px;
+    background-color: var(--#{$prefix}light);
+    font-size: 14px;
+    color: var(--#{$prefix}secondary-color);
+    cursor: pointer;
+}
+
+
+// "Someone is typing", in the shape iMessage uses.
+
+.chat-conversation {
+    .imsg-typing-row {
+        display: flex;
+
+        .conversation-list {
+            margin-bottom: 14px;
+        }
+    }
+}
+
+.imsg-typing {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    height: 36px;
+    padding: 0 14px;
+    border-radius: 18px;
+    background-color: var(--imsg-received-bg);
+
+    span {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background-color: var(--imsg-meta);
+        animation: imsg-typing-dot 1.2s ease-in-out infinite;
+
+        &:nth-child(2) {
+            animation-delay: 0.16s;
+        }
+
+        &:nth-child(3) {
+            animation-delay: 0.32s;
+        }
+    }
+
+    // The two small circles that trail off from the bubble.
+    &::before,
+    &::after {
+        content: "";
+        position: absolute;
+        border-radius: 50%;
+        background-color: inherit;
+    }
+
+    &::before {
+        bottom: -1px;
+        left: 0;
+        width: 12px;
+        height: 12px;
+    }
+
+    &::after {
+        bottom: -5px;
+        left: -4px;
+        width: 6px;
+        height: 6px;
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+        span {
+            animation: none;
+        }
+    }
+}
+
+@keyframes imsg-typing-dot {
+    0%,
+    60%,
+    100% {
+        opacity: 0.4;
+        transform: scale(1);
+    }
+    30% {
+        opacity: 1;
+        transform: scale(1.12);
+    }
+}
+
+
+// @mentions in group chats
+
+.member-mention-menu {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 8px);
+    z-index: 20;
+    width: 280px;
+    max-height: 244px;
+    margin: 0;
+    padding: 6px;
+    overflow-y: auto;
+    list-style: none;
+    border: 1px solid var(--#{$prefix}border-color);
+    border-radius: 12px;
+    background-color: var(--#{$prefix}modal-content-bg);
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+
+    &__title {
+        padding: 4px 8px 6px;
+        font-size: 11px;
+        font-weight: 600;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: var(--imsg-meta);
+    }
+
+    button.member-mention-menu__item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        width: 100%;
+        padding: 6px 8px;
+        border: 0;
+        border-radius: 8px;
+        background: none;
+        font-size: 14px;
+        font-weight: 500;
+        text-align: left;
+        color: var(--#{$prefix}body-color);
+        cursor: pointer;
+
+        &.is-active {
+            background-color: var(--imsg-blue);
+            color: #fff;
+        }
+
+        img,
+        .member-mention-menu__initials {
+            flex-shrink: 0;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+    }
+
+    &__initials {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background-color: var(--imsg-received-bg);
+        font-size: 12px;
+        font-weight: 600;
+        color: var(--#{$prefix}body-color);
+    }
+}
+
+.chat-conversation {
+    .imsg-mention {
+        font-weight: 600;
+        color: var(--imsg-blue);
+
+        // Someone mentioned you: this one should catch your eye.
+        &.is-me {
+            padding: 1px 5px;
+            border-radius: 6px;
+            background-color: var(--imsg-blue);
+            color: #fff;
+        }
+    }
+
+    .right .imsg-mention {
+        color: #fff;
+        text-decoration: underline;
+        text-underline-offset: 2px;
+    }
 }

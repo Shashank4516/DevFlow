@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { createSelector } from "reselect";
+import { formatDistanceToNow } from "date-fns";
 import AppSimpleBar from "../../../components/AppSimpleBar";
 import Loader from "../../../components/Loader";
 import { setGithubStatus } from "../../../redux/actions";
@@ -63,16 +64,89 @@ interface CompareData {
   files: CompareFile[];
 }
 
+type Mode = "files" | "review" | "history";
+
+/* ─── Helpers ──────────────────────────────────────────────── */
+
+const timeAgo = (iso: string): string => {
+  const d = new Date(iso);
+  if (!iso || Number.isNaN(d.getTime())) return "";
+  return formatDistanceToNow(d, { addSuffix: true }).replace("about ", "");
+};
+
+const formatSize = (bytes: number): string => {
+  if (!bytes) return "";
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+};
+
+const initials = (name: string): string =>
+  (name || "?")
+    .split(/[\s\-_.]+/)
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((p) => p[0]!.toUpperCase())
+    .join("");
+
+/** iOS-style tinted icon tile per file type. */
+const fileGlyph = (item: ContentItem): { icon: string; tone: string } => {
+  if (item.type === "dir") return { icon: "bx bxs-folder", tone: "blue" };
+  const name = item.name.toLowerCase();
+  const ext = name.includes(".") ? name.split(".").pop()! : "";
+  if (name === "dockerfile") return { icon: "bx bxl-docker", tone: "teal" };
+  if (["ts", "tsx", "js", "jsx"].includes(ext)) return { icon: "bx bx-code-alt", tone: "yellow" };
+  if (["php", "py", "go", "rb", "java", "kt", "swift", "c", "cpp", "rs"].includes(ext))
+    return { icon: "bx bx-code-curly", tone: "indigo" };
+  if (["md", "txt", "rst"].includes(ext)) return { icon: "bx bx-text", tone: "gray" };
+  if (["json", "yml", "yaml", "toml", "xml", "ini", "env", "lock"].includes(ext) || name.startsWith("."))
+    return { icon: "bx bx-cog", tone: "gray" };
+  if (["png", "jpg", "jpeg", "gif", "svg", "webp", "ico"].includes(ext)) return { icon: "bx bx-image", tone: "pink" };
+  if (["css", "scss", "sass", "less"].includes(ext)) return { icon: "bx bx-palette", tone: "purple" };
+  return { icon: "bx bx-file-blank", tone: "gray" };
+};
+
+const STATUS_LABEL: Record<string, { letter: string; tone: string }> = {
+  added: { letter: "A", tone: "green" },
+  modified: { letter: "M", tone: "orange" },
+  changed: { letter: "M", tone: "orange" },
+  removed: { letter: "D", tone: "red" },
+  deleted: { letter: "D", tone: "red" },
+  renamed: { letter: "R", tone: "blue" },
+  copied: { letter: "C", tone: "blue" },
+};
+
+const StatusTile = ({ status }: { status: string }) => {
+  const s = STATUS_LABEL[status] || { letter: "•", tone: "gray" };
+  return (
+    <span className={`gh-tile gh-tile--${s.tone} gh-tile--sm`} title={status}>
+      {s.letter}
+    </span>
+  );
+};
+
+const EmptyState = ({ icon, title, children }: { icon: string; title: string; children?: React.ReactNode }) => (
+  <div className="gh-empty">
+    <div className="gh-empty__icon">
+      <i className={icon} />
+    </div>
+    <h5 className="gh-empty__title">{title}</h5>
+    {children && <p className="gh-empty__text">{children}</p>}
+  </div>
+);
+
 const lineRowClass = (line: string): string => {
-  if (line.startsWith("+") && !line.startsWith("+++")) return "github-diff-line github-diff-line--add";
-  if (line.startsWith("-") && !line.startsWith("---")) return "github-diff-line github-diff-line--del";
-  if (line.startsWith("@@")) return "github-diff-line github-diff-line--hunk";
-  return "github-diff-line github-diff-line--ctx";
+  if (line.startsWith("+") && !line.startsWith("+++")) return "gh-diff-line gh-diff-line--add";
+  if (line.startsWith("-") && !line.startsWith("---")) return "gh-diff-line gh-diff-line--del";
+  if (line.startsWith("@@")) return "gh-diff-line gh-diff-line--hunk";
+  return "gh-diff-line";
 };
 
 const DiffPreview = ({ file }: { file: CompareFile }) => {
   const patch = file.patch;
   const [copied, setCopied] = useState(false);
+  const parts = file.filename.split("/");
+  const base = parts.pop();
 
   const copyPatch = () => {
     if (!patch) return;
@@ -82,74 +156,79 @@ const DiffPreview = ({ file }: { file: CompareFile }) => {
     });
   };
 
-  if (!patch) {
-    return (
-      <div className="github-ws-main-empty h-100 d-flex align-items-center justify-content-center text-muted small px-4 text-center">
-        No patch preview for this file (binary or large change). Open on GitHub to view the diff.
-      </div>
-    );
-  }
-
-  const lines = patch.split("\n");
-
   return (
-    <div className="github-diff-panel d-flex flex-column h-100 min-h-0 border rounded overflow-hidden">
-      <div className="github-diff-panel__header d-flex flex-wrap align-items-center gap-2 px-3 py-2 border-bottom flex-shrink-0">
-        <i className="bx bxl-github github-diff-panel__gh-icon flex-shrink-0" title="GitHub" aria-hidden />
-        <div className="small github-diff-panel__filename text-truncate flex-grow-1 min-w-0 fw-semibold" title={file.filename}>
-          {file.filename}
+    <div className="gh-card gh-diff">
+      <div className="gh-diff__head">
+        <StatusTile status={file.status} />
+        <div className="gh-diff__title min-w-0">
+          <div className="gh-diff__name text-truncate" title={file.filename}>
+            {base}
+          </div>
+          <div className="gh-diff__path text-truncate">
+            {file.previous_filename && file.previous_filename !== file.filename
+              ? `Renamed from ${file.previous_filename}`
+              : parts.join("/") || "/"}
+          </div>
         </div>
-        <span className="small github-diff-panel__meta text-nowrap">
-          {file.status} · +{file.additions} −{file.deletions}
+        <span className="gh-diff__nums">
+          <span className="is-add">+{file.additions}</span>
+          <span className="is-del">−{file.deletions}</span>
         </span>
+        {patch && (
+          <button type="button" className="gh-round-btn" onClick={copyPatch} title={copied ? "Copied" : "Copy patch"}>
+            <i className={copied ? "bx bx-check" : "bx bx-copy"} />
+          </button>
+        )}
         {file.blob_url && (
           <button
             type="button"
-            className="btn btn-sm github-diff-panel__action"
+            className="gh-round-btn"
             onClick={() => window.open(file.blob_url, "_blank")}
+            title="Open on GitHub"
           >
-            Open on GitHub
+            <i className="bx bx-link-external" />
           </button>
         )}
-        <button type="button" className="btn btn-sm github-diff-panel__action" onClick={copyPatch}>
-          {copied ? "Copied" : "Copy patch"}
-        </button>
       </div>
-      <div className="github-diff-panel__body flex-grow-1 overflow-auto min-h-0 d-flex flex-column">
-        <table className="table table-borderless mb-0 github-diff-table flex-shrink-0">
-          <tbody>
-            {lines.map((line, idx) => {
-              const text = line || " ";
-              return (
-                <tr key={`${idx}-${text.slice(0, 24)}`} className={lineRowClass(line)}>
-                  <td className="github-diff-table__lineno align-top text-end user-select-none py-0 px-2">
-                    {idx + 1}
-                  </td>
-                  <td className="github-diff-table__code align-top py-0 px-2 font-monospace small text-break">
-                    <pre className="mb-0">{text}</pre>
+
+      {patch ? (
+        <div className="gh-diff__body">
+          <table className="gh-diff__table">
+            <tbody>
+              {patch.split("\n").map((line, idx) => (
+                <tr key={`${idx}-${line.slice(0, 24)}`} className={lineRowClass(line)}>
+                  <td className="gh-diff__ln">{idx + 1}</td>
+                  <td className="gh-diff__code">
+                    <pre>{line || " "}</pre>
                   </td>
                 </tr>
-              );
-            })}
-          </tbody>
-        </table>
-        <div className="github-diff-panel__pad flex-grow-1 flex-shrink-0" aria-hidden />
-      </div>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      ) : (
+        <EmptyState icon="bx bx-file-blank" title="No preview">
+          This is a binary or very large change. Open it on GitHub to see the full diff.
+        </EmptyState>
+      )}
     </div>
   );
 };
 
+/* ─── Page ─────────────────────────────────────────────────── */
+
 const Github = () => {
   const dispatch = useDispatch();
-  const githubConnected = useSelector(
+  const { githubConnected, githubUsername } = useSelector(
     createSelector(
       (state: any) => state.Github,
-      (g) => g.connected
+      (g) => ({ githubConnected: g.connected as boolean, githubUsername: g.username as string | null })
     )
   );
   const [repos, setRepos] = useState<Repo[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [repoQuery, setRepoQuery] = useState("");
   const [selectedRepo, setSelectedRepo] = useState<Repo | null>(null);
   const [branches, setBranches] = useState<Branch[]>([]);
   const [contents, setContents] = useState<ContentItem[]>([]);
@@ -158,7 +237,7 @@ const Github = () => {
   const [currentBranch, setCurrentBranch] = useState<string>("");
   const [currentPath, setCurrentPath] = useState<string>("");
   const [syncedOnce, setSyncedOnce] = useState(false);
-  const [mode, setMode] = useState<"files" | "review">("files");
+  const [mode, setMode] = useState<Mode>("files");
   const [commits, setCommits] = useState<CommitItem[]>([]);
   const [commitsLoading, setCommitsLoading] = useState(false);
   const [baseSha, setBaseSha] = useState("");
@@ -226,12 +305,7 @@ const Github = () => {
       .finally(() => setCommitsLoading(false));
   };
 
-  const loadCompare = (
-    repoFullName: string,
-    base: string,
-    head: string,
-    branch: string
-  ) => {
+  const loadCompare = (repoFullName: string, base: string, head: string, branch: string) => {
     if (!BACKEND_URL) return;
     setCompareLoading(true);
     setCompareError(null);
@@ -266,15 +340,13 @@ const Github = () => {
     setCompareError(null);
     if (!BACKEND_URL) return;
     setBranchLoading(true);
-    fetch(
-      `${BACKEND_URL}/api/github/branches.php?repo=${encodeURIComponent(repo.full_name)}`,
-      { credentials: "include" }
-    )
+    fetch(`${BACKEND_URL}/api/github/branches.php?repo=${encodeURIComponent(repo.full_name)}`, {
+      credentials: "include",
+    })
       .then((res) => res.json())
       .then((data) => {
         setBranches(data.branches || []);
-        const def =
-          data.branches?.find((b: Branch) => b.name === repo.default_branch) || data.branches?.[0];
+        const def = data.branches?.find((b: Branch) => b.name === repo.default_branch) || data.branches?.[0];
         if (def) {
           setCurrentBranch(def.name);
           loadContents(repo.full_name, def.name, "");
@@ -313,313 +385,529 @@ const Github = () => {
     }
   };
 
-  const renderFilesExplorer = () => (
-    <div className="github-ws-files h-100 d-flex flex-column min-h-0 p-3">
-      {contentsLoading && <Loader />}
-      {!contentsLoading && (
-        <AppSimpleBar className="flex-grow-1 github-ws-files-scroll w-100" style={{ height: "100%", maxHeight: "100%" }}>
-          <ul className="list-unstyled mb-0">
-            {currentPath && (
-              <li
-                className="cursor-pointer rounded px-2 py-2 github-ws-list-item"
-                onClick={() => openFolder(currentPath.split("/").slice(0, -1).join("/"))}
-              >
-                <div className="d-flex align-items-center">
-                  <i className="bx bx-up-arrow-circle font-size-18 me-2" />
-                  <span className="font-size-14">..</span>
-                </div>
+  const filteredRepos = useMemo(() => {
+    const q = repoQuery.trim().toLowerCase();
+    if (!q) return repos;
+    return repos.filter(
+      (r) => r.name.toLowerCase().includes(q) || (r.description || "").toLowerCase().includes(q)
+    );
+  }, [repos, repoQuery]);
+
+  const sortedContents = useMemo(
+    () =>
+      [...(contents || [])].sort((a, b) => {
+        if (a.type !== b.type) return a.type === "dir" ? -1 : 1;
+        return a.name.localeCompare(b.name);
+      }),
+    [contents]
+  );
+
+  const compareTotals = useMemo(() => {
+    if (!compareData) return { additions: 0, deletions: 0 };
+    return compareData.files.reduce(
+      (acc, f) => ({ additions: acc.additions + f.additions, deletions: acc.deletions + f.deletions }),
+      { additions: 0, deletions: 0 }
+    );
+  }, [compareData]);
+
+  const repoUrl = (repo: Repo) =>
+    repo.html_url && repo.html_url !== "#" ? repo.html_url : `https://github.com/${repo.full_name}`;
+
+  /* ─── Sidebar (mirrors the Chats sidebar) ─── */
+
+  const renderSidebar = () => (
+    <aside className={`gh-sidebar ${selectedRepo ? "has-selection" : ""}`}>
+      <div className="gh-sidebar__search">
+        <input
+          type="search"
+          placeholder="Search repositories…"
+          value={repoQuery}
+          onChange={(e) => setRepoQuery(e.target.value)}
+          aria-label="Search repositories"
+        />
+        <i className="bx bx-search" />
+      </div>
+
+      <div className="gh-sidebar__title">
+        <h4>GitHub</h4>
+        {githubUsername && <span className="gh-sidebar__user">@{githubUsername}</span>}
+      </div>
+
+      <AppSimpleBar className="gh-sidebar__scroll" style={{ height: "100%", maxHeight: "100%" }}>
+        <div className="gh-section-title">
+          Repositories
+          {!loading && <span className="gh-section-title__count">{filteredRepos.length}</span>}
+        </div>
+
+        {loading && <Loader />}
+        {!loading && error && <p className="gh-sidebar__note gh-sidebar__note--error">{error}</p>}
+        {!loading && !error && filteredRepos.length === 0 && (
+          <p className="gh-sidebar__note">
+            {repos.length ? `No repositories match “${repoQuery}”.` : "No repositories yet."}
+          </p>
+        )}
+
+        <ul className="gh-repo-list">
+          {filteredRepos.map((repo) => {
+            const active = selectedRepo?.id === repo.id;
+            return (
+              <li key={repo.id} className={`gh-repo ${active ? "active" : ""}`}>
+                <button type="button" className="gh-repo__link" onClick={() => loadBranches(repo)}>
+                  <span className="gh-repo__avatar">
+                    {initials(repo.name)}
+                    {repo.private && (
+                      <span className="gh-repo__lock" title="Private">
+                        <i className="bx bxs-lock-alt" />
+                      </span>
+                    )}
+                  </span>
+                  <span className="gh-repo__body">
+                    <span className="gh-repo__top">
+                      <span className="gh-repo__name">{repo.name}</span>
+                      <span className="gh-repo__branch">{repo.default_branch}</span>
+                    </span>
+                    <span className="gh-repo__preview">
+                      {repo.description || (repo.private ? "Private repository" : "Public repository")}
+                    </span>
+                  </span>
+                </button>
               </li>
-            )}
-            {(contents || []).map((item) => (
-              <li
-                key={item.path}
-                className="cursor-pointer rounded px-2 py-2 github-ws-list-item"
-                onClick={() =>
-                  item.type === "dir"
-                    ? openFolder(item.path)
-                    : window.open(
-                        `https://github.com/${selectedRepo!.full_name}/blob/${currentBranch || selectedRepo!.default_branch}/${item.path}`,
-                        "_blank"
-                      )
-                }
-              >
-                <div className="d-flex align-items-center">
-                  <i
-                    className={`font-size-18 me-2 ${item.type === "dir" ? "bx bx-folder" : "bx bx-file"}`}
-                  />
-                  <span className="font-size-14">{item.name}</span>
-                </div>
-              </li>
+            );
+          })}
+        </ul>
+      </AppSimpleBar>
+    </aside>
+  );
+
+  /* ─── Topbar (mirrors the chat conversation topbar) ─── */
+
+  const renderTopbar = (repo: Repo) => (
+    <header className="gh-topbar">
+      <button type="button" className="gh-topbar__back" onClick={() => setSelectedRepo(null)} aria-label="Back">
+        <i className="bx bx-chevron-left" />
+      </button>
+      <span className="gh-topbar__avatar">{initials(repo.name)}</span>
+      <div className="gh-topbar__info min-w-0">
+        <div className="gh-topbar__name text-truncate">{repo.name}</div>
+        <div className="gh-topbar__sub text-truncate">
+          {repo.private ? "Private" : "Public"} · {branchLoading ? "…" : branches.length} branches ·{" "}
+          {repo.full_name.split("/")[0]}
+        </div>
+      </div>
+
+      <div className="gh-segmented" role="tablist">
+        {(
+          [
+            ["files", "Code"],
+            ["review", "Changes"],
+            ["history", "History"],
+          ] as [Mode, string][]
+        ).map(([key, label]) => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={mode === key}
+            className={mode === key ? "is-active" : ""}
+            onClick={() => setMode(key)}
+          >
+            {label}
+          </button>
+        ))}
+      </div>
+
+      <div className="gh-topbar__actions">
+        <label className="gh-branch" title="Switch branch">
+          <i className="bx bx-git-branch" />
+          <select
+            value={currentBranch}
+            disabled={branchLoading || branches.length === 0}
+            onChange={(e) => onBranchChange(e.target.value)}
+            aria-label="Branch"
+          >
+            {branches.length === 0 && <option value="">{branchLoading ? "Loading…" : "—"}</option>}
+            {branches.map((b) => (
+              <option key={b.name} value={b.name}>
+                {b.name}
+              </option>
             ))}
-          </ul>
-        </AppSimpleBar>
-      )}
+          </select>
+          <i className="bx bx-chevron-down gh-branch__caret" />
+        </label>
+        <a className="gh-icon-btn" href={repoUrl(repo)} target="_blank" rel="noreferrer" title="Open on GitHub">
+          <i className="bx bxl-github" />
+        </a>
+      </div>
+    </header>
+  );
+
+  /* ─── Code ─── */
+
+  const renderCode = (repo: Repo) => {
+    const latest = commits[0];
+    const branch = currentBranch || repo.default_branch;
+    const segments = currentPath.split("/").filter(Boolean);
+
+    return (
+      <div className="gh-page">
+        {repo.description && !currentPath && <p className="gh-page__lead">{repo.description}</p>}
+
+        {latest && (
+          <div className="gh-card gh-latest">
+            <span className="gh-avatar">{initials(latest.author_name || latest.github_login)}</span>
+            <div className="min-w-0 flex-grow-1">
+              <div className="gh-latest__title text-truncate" title={latest.title || latest.message}>
+                {latest.title || latest.message}
+              </div>
+              <div className="gh-latest__meta">
+                {latest.github_login || latest.author_name} · {timeAgo(latest.author_date)}
+              </div>
+            </div>
+            <span className="gh-sha">{latest.short_sha}</span>
+          </div>
+        )}
+
+        <div className="gh-group-head">
+          <nav className="gh-crumbs" aria-label="Path">
+            <button type="button" onClick={() => openFolder("")} className={segments.length ? "" : "is-current"}>
+              {repo.name}
+            </button>
+            {segments.map((seg, i) => {
+              const path = segments.slice(0, i + 1).join("/");
+              const last = i === segments.length - 1;
+              return (
+                <React.Fragment key={path}>
+                  <i className="bx bx-chevron-right" />
+                  <button
+                    type="button"
+                    onClick={() => !last && openFolder(path)}
+                    className={last ? "is-current" : ""}
+                  >
+                    {seg}
+                  </button>
+                </React.Fragment>
+              );
+            })}
+          </nav>
+          {!contentsLoading && <span>{sortedContents.length} items</span>}
+        </div>
+
+        <div className="gh-card">
+          {contentsLoading ? (
+            <div className="py-5">
+              <Loader />
+            </div>
+          ) : (
+            <ul className="gh-list">
+              {currentPath && (
+                <li>
+                  <button
+                    type="button"
+                    className="gh-row"
+                    onClick={() => openFolder(currentPath.split("/").slice(0, -1).join("/"))}
+                  >
+                    <span className="gh-tile gh-tile--gray">
+                      <i className="bx bx-arrow-back" />
+                    </span>
+                    <span className="gh-row__label">Back</span>
+                  </button>
+                </li>
+              )}
+              {sortedContents.map((item) => {
+                const isDir = item.type === "dir";
+                const g = fileGlyph(item);
+                return (
+                  <li key={item.path}>
+                    <button
+                      type="button"
+                      className="gh-row"
+                      onClick={() =>
+                        isDir
+                          ? openFolder(item.path)
+                          : window.open(`https://github.com/${repo.full_name}/blob/${branch}/${item.path}`, "_blank")
+                      }
+                    >
+                      <span className={`gh-tile gh-tile--${g.tone}`}>
+                        <i className={g.icon} />
+                      </span>
+                      <span className="gh-row__label">{item.name}</span>
+                      <span className="gh-row__detail">{isDir ? "" : formatSize(item.size)}</span>
+                      <i className={`gh-row__chev bx ${isDir ? "bx-chevron-right" : "bx-link-external"}`} />
+                    </button>
+                  </li>
+                );
+              })}
+              {!currentPath && sortedContents.length === 0 && (
+                <li>
+                  <EmptyState icon="bx bx-folder-open" title="Nothing here yet" />
+                </li>
+              )}
+            </ul>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  /* ─── Changes ─── */
+
+  const renderChanges = (repo: Repo) => (
+    <div className="gh-split">
+      <div className="gh-split__side">
+        <div className="gh-group-head">
+          <span>Compare</span>
+        </div>
+        <div className="gh-card">
+          {commitsLoading ? (
+            <div className="py-4">
+              <Loader />
+            </div>
+          ) : (
+            <ul className="gh-list">
+              <li>
+                <label className="gh-row gh-row--field">
+                  <span className="gh-row__label">From</span>
+                  <select value={baseSha} onChange={(e) => setBaseSha(e.target.value)}>
+                    <option value="">Choose…</option>
+                    {commits.map((c) => (
+                      <option key={`base-${c.sha}`} value={c.sha}>
+                        {c.short_sha} — {c.title}
+                      </option>
+                    ))}
+                  </select>
+                  <i className="bx bx-chevron-down gh-row__chev" />
+                </label>
+              </li>
+              <li>
+                <label className="gh-row gh-row--field">
+                  <span className="gh-row__label">To</span>
+                  <select value={headSha} onChange={(e) => setHeadSha(e.target.value)}>
+                    <option value="">Choose…</option>
+                    {commits.map((c) => (
+                      <option key={`head-${c.sha}`} value={c.sha}>
+                        {c.short_sha} — {c.title}
+                      </option>
+                    ))}
+                  </select>
+                  <i className="bx bx-chevron-down gh-row__chev" />
+                </label>
+              </li>
+            </ul>
+          )}
+        </div>
+        <button
+          type="button"
+          className="gh-btn gh-btn--primary w-100 mt-2"
+          disabled={!baseSha || !headSha || compareLoading}
+          onClick={() => loadCompare(repo.full_name, baseSha, headSha, currentBranch || repo.default_branch)}
+        >
+          {compareLoading ? "Comparing…" : "Compare"}
+        </button>
+        {compareError && <p className="gh-note gh-note--error">{compareError}</p>}
+
+        {compareData && (
+          <>
+            <div className="gh-summary">
+              <div>
+                <strong>{compareData.total_commits}</strong>
+                <span>{compareData.total_commits === 1 ? "commit" : "commits"}</span>
+              </div>
+              <div>
+                <strong>{compareData.files.length}</strong>
+                <span>{compareData.files.length === 1 ? "file" : "files"}</span>
+              </div>
+              <div className="is-add">
+                <strong>+{compareTotals.additions}</strong>
+                <span>added</span>
+              </div>
+              <div className="is-del">
+                <strong>−{compareTotals.deletions}</strong>
+                <span>removed</span>
+              </div>
+            </div>
+
+            <div className="gh-group-head">
+              <span>Changed files</span>
+            </div>
+            <div className="gh-card">
+              <ul className="gh-list">
+                {compareData.files.map((f) => {
+                  const parts = f.filename.split("/");
+                  const base = parts.pop();
+                  const active = selectedFile?.filename === f.filename;
+                  return (
+                    <li key={f.filename}>
+                      <button
+                        type="button"
+                        className={`gh-row gh-row--two ${active ? "is-active" : ""}`}
+                        onClick={() => setSelectedFile(f)}
+                        title={f.filename}
+                      >
+                        <StatusTile status={f.status} />
+                        <span className="gh-row__stack min-w-0">
+                          <span className="gh-row__label text-truncate">{base}</span>
+                          <span className="gh-row__sub text-truncate">{parts.join("/") || "/"}</span>
+                        </span>
+                        <span className="gh-row__nums">
+                          <span className="is-add">+{f.additions}</span>
+                          <span className="is-del">−{f.deletions}</span>
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+              </ul>
+            </div>
+          </>
+        )}
+      </div>
+
+      <div className="gh-split__main">
+        {compareLoading ? (
+          <div className="py-5">
+            <Loader />
+          </div>
+        ) : !compareData ? (
+          <EmptyState icon="bx bx-git-compare" title="Compare two commits">
+            Pick where to start and end, then press Compare to see what changed.
+          </EmptyState>
+        ) : !selectedFile ? (
+          <EmptyState icon="bx bx-check-circle" title={compareData.files.length ? "Select a file" : "No changes"}>
+            {compareData.files.length
+              ? "Choose a changed file to preview its diff."
+              : "These two commits are identical."}
+          </EmptyState>
+        ) : (
+          <DiffPreview file={selectedFile} />
+        )}
+      </div>
     </div>
   );
 
-  const renderRail = () => (
-    <aside className="github-ws-rail border-end d-flex flex-column min-h-0">
-      <AppSimpleBar
-        className="github-ws-rail-scroll flex-grow-1 w-100"
-        style={{ height: "100%", maxHeight: "100%" }}
-      >
-        {!selectedRepo ? (
-          <ul className="list-unstyled contact-list mb-0">
-            {(repos || []).map((repo) => (
-              <li
-                key={repo.id}
-                className="cursor-pointer github-ws-list-item"
-                onClick={() => loadBranches(repo)}
-              >
-                <div className="d-flex align-items-center py-2 px-3">
-                  <i className="bx bx-folder font-size-20 me-2" />
-                  <div className="flex-grow-1 overflow-hidden">
-                    <h6 className="text-truncate font-size-14 mb-0">{repo.name}</h6>
-                    {repo.description && (
-                      <p className="text-muted text-truncate font-size-12 mb-0">{repo.description}</p>
-                    )}
-                  </div>
-                </div>
+  /* ─── History ─── */
+
+  const renderHistory = () => (
+    <div className="gh-page">
+      <div className="gh-group-head">
+        <span>Recent commits on {currentBranch}</span>
+        {!commitsLoading && <span>{commits.length}</span>}
+      </div>
+      <div className="gh-card">
+        {commitsLoading ? (
+          <div className="py-5">
+            <Loader />
+          </div>
+        ) : commits.length === 0 ? (
+          <EmptyState icon="bx bx-history" title="No commits yet" />
+        ) : (
+          <ul className="gh-list">
+            {commits.map((c) => (
+              <li key={c.sha}>
+                <button
+                  type="button"
+                  className="gh-row gh-row--two"
+                  onClick={() => c.html_url && c.html_url !== "#" && window.open(c.html_url, "_blank")}
+                >
+                  <span className="gh-avatar">{initials(c.author_name || c.github_login)}</span>
+                  <span className="gh-row__stack min-w-0">
+                    <span className="gh-row__label text-truncate" title={c.title || c.message}>
+                      {c.title || c.message}
+                    </span>
+                    <span className="gh-row__sub text-truncate">
+                      {c.github_login || c.author_name} · {timeAgo(c.author_date)}
+                    </span>
+                  </span>
+                  <span className="gh-sha">{c.short_sha}</span>
+                </button>
               </li>
             ))}
           </ul>
-        ) : (
-          <>
-            <div className="px-3 py-2 border-bottom d-flex align-items-center">
-              <button
-                type="button"
-                className="btn btn-sm btn-soft-secondary me-2"
-                onClick={() => setSelectedRepo(null)}
-              >
-                <i className="bx bx-arrow-back" />
-              </button>
-              <span className="text-truncate small">{selectedRepo.name}</span>
-            </div>
-            {branchLoading && <Loader />}
-            {!branchLoading && branches.length > 0 && (
-              <div className="px-3 py-2">
-                <p className="font-size-12 text-muted mb-1">Branch</p>
-                <select
-                  className="form-select form-select-sm"
-                  value={currentBranch}
-                  onChange={(e) => onBranchChange(e.target.value)}
-                >
-                  {branches.map((b) => (
-                    <option key={b.name} value={b.name}>
-                      {b.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            )}
-            <div className="px-3 pb-2 pt-1 d-flex gap-2 border-bottom">
-              <button
-                type="button"
-                className={`btn btn-sm ${mode === "files" ? "btn-primary" : "btn-soft-secondary"}`}
-                onClick={() => setMode("files")}
-              >
-                Files
-              </button>
-              <button
-                type="button"
-                className={`btn btn-sm ${mode === "review" ? "btn-primary" : "btn-soft-secondary"}`}
-                onClick={() => setMode("review")}
-              >
-                Review
-              </button>
-            </div>
-
-            {mode === "review" && (
-              <div className="px-3 py-3">
-                {commitsLoading && <Loader />}
-                {compareError && <p className="small text-danger mb-2">{compareError}</p>}
-                {!commitsLoading && commits.length > 0 && (
-                  <>
-                    <p className="font-size-12 text-muted mb-1">Compare range</p>
-                    <select
-                      className="form-select form-select-sm mb-2"
-                      value={baseSha}
-                      onChange={(e) => setBaseSha(e.target.value)}
-                    >
-                      <option value="">Base commit</option>
-                      {commits.map((c) => (
-                        <option key={`base-${c.sha}`} value={c.sha}>
-                          {c.short_sha} — {c.title}
-                        </option>
-                      ))}
-                    </select>
-                    <select
-                      className="form-select form-select-sm mb-2"
-                      value={headSha}
-                      onChange={(e) => setHeadSha(e.target.value)}
-                    >
-                      <option value="">Head commit</option>
-                      {commits.map((c) => (
-                        <option key={`head-${c.sha}`} value={c.sha}>
-                          {c.short_sha} — {c.title}
-                        </option>
-                      ))}
-                    </select>
-                    <button
-                      type="button"
-                      className="btn btn-sm btn-primary w-100 mb-3"
-                      disabled={!baseSha || !headSha || compareLoading}
-                      onClick={() =>
-                        loadCompare(
-                          selectedRepo.full_name,
-                          baseSha,
-                          headSha,
-                          currentBranch || selectedRepo.default_branch
-                        )
-                      }
-                    >
-                      {compareLoading ? "Loading…" : "Load diff"}
-                    </button>
-                  </>
-                )}
-
-                {compareData && (
-                  <>
-                    <div className="mb-3 p-2 border rounded font-size-12 github-ws-summary">
-                      <div>
-                        <strong>Status:</strong> {compareData.status || "N/A"}
-                      </div>
-                      <div>
-                        <strong>Commits:</strong> {compareData.total_commits} ·{" "}
-                        <strong>Files:</strong> {compareData.files.length}
-                      </div>
-                      <div className="text-muted">
-                        {compareData.base.slice(0, 7)}…{compareData.head.slice(0, 7)}
-                      </div>
-                    </div>
-
-                    <p className="font-size-12 text-muted mb-1">Recent commits</p>
-                    <ul className="list-unstyled mb-3 small">
-                      {compareData.commits.slice(0, 6).map((c) => (
-                        <li key={c.sha} className="mb-2">
-                          <div className="fw-semibold text-truncate">{c.title || c.message}</div>
-                          <div className="font-size-11 text-muted">
-                            {c.short_sha} · {c.github_login || c.author_name}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-
-                    <p className="font-size-12 text-muted mb-1">Changed files</p>
-                    <ul className="list-unstyled mb-0">
-                      {compareData.files.map((f) => (
-                        <li
-                          key={f.filename}
-                          className={`px-2 py-2 rounded cursor-pointer mb-1 github-ws-file-pill ${
-                            selectedFile?.filename === f.filename ? "github-ws-file-pill--active" : ""
-                          }`}
-                          onClick={() => setSelectedFile(f)}
-                        >
-                          <div className="small text-truncate">{f.filename}</div>
-                          <div className="font-size-11 text-muted">
-                            {f.status} · +{f.additions} −{f.deletions}
-                          </div>
-                        </li>
-                      ))}
-                    </ul>
-                  </>
-                )}
-              </div>
-            )}
-          </>
         )}
-      </AppSimpleBar>
-    </aside>
+      </div>
+    </div>
   );
 
   const renderMain = () => {
     if (!selectedRepo) {
       return (
-        <main className="github-ws-main d-flex flex-column align-items-center justify-content-center text-muted p-4">
-          <i className="bx bxl-github display-4 mb-3 opacity-50" />
-          <p className="mb-0 text-center small">Select a repository from the list to browse files or review changes.</p>
+        <main className="gh-main">
+          <EmptyState icon="bx bxl-github" title="Your repositories">
+            Pick a repository to browse its code, review changes and follow its history.
+          </EmptyState>
         </main>
       );
     }
-
-    if (mode === "files") {
-      return <main className="github-ws-main flex-grow-1 min-w-0 min-h-0 d-flex flex-column">{renderFilesExplorer()}</main>;
-    }
-
-    if (!compareData) {
-      return (
-        <main className="github-ws-main d-flex flex-column align-items-center justify-content-center text-muted p-4">
-          <i className="bx bx-git-compare display-4 mb-3 opacity-50" />
-          <p className="mb-0 text-center small">
-            Choose base and head commits, then tap <strong>Load diff</strong>. The preview appears here.
-          </p>
-        </main>
-      );
-    }
-
-    if (!selectedFile) {
-      return (
-        <main className="github-ws-main d-flex flex-column align-items-center justify-content-center text-muted p-4">
-          <p className="mb-0 small">Select a changed file from the list.</p>
-        </main>
-      );
-    }
-
     return (
-      <main className="github-ws-main flex-grow-1 min-w-0 min-h-0 d-flex flex-column">
-        <DiffPreview file={selectedFile} />
+      <main className="gh-main">
+        {renderTopbar(selectedRepo)}
+        <AppSimpleBar className="gh-main__scroll" style={{ height: "100%", maxHeight: "100%" }}>
+          {mode === "files" && renderCode(selectedRepo)}
+          {mode === "review" && renderChanges(selectedRepo)}
+          {mode === "history" && renderHistory()}
+        </AppSimpleBar>
       </main>
     );
   };
 
-  if (!BACKEND_URL) {
-    return (
-      <div className="github-main-workspace d-flex flex-column">
-        <div className="p-4">
-          <h5 className="mb-2">GitHub</h5>
-          <p className="text-muted small mb-0">Backend URL is not configured (VITE_BACKEND_URL).</p>
-        </div>
-      </div>
-    );
-  }
+  /* ─── Not connected ─── */
 
-  if (!githubConnected) {
+  if (!BACKEND_URL || !githubConnected) {
+    const configured = !!BACKEND_URL;
     return (
-      <div className="github-main-workspace d-flex flex-column align-items-center justify-content-center p-4">
-        <div className="text-center" style={{ maxWidth: 420 }}>
-          <i className="bx bxl-github display-4 text-primary mb-3" />
-          <h5 className="mb-2">Connect GitHub</h5>
-          <p className="text-muted small mb-4">
-            Connect your GitHub account to browse repositories, branches, files, and inline diffs in the main workspace.
+      <div className="github-main-workspace gh-welcome">
+        <div className="gh-welcome__inner">
+          <div className={`gh-welcome__icon ${configured ? "" : "is-warn"}`}>
+            <i className={configured ? "bx bxl-github" : "bx bx-plug"} />
+          </div>
+          <h2 className="gh-welcome__title">{configured ? "Connect GitHub" : "Backend not configured"}</h2>
+          <p className="gh-welcome__text">
+            {configured ? (
+              "Browse your repositories, review changes and follow commits — right next to your team chat."
+            ) : (
+              <>
+                Set <code>VITE_BACKEND_URL</code> in your <code>.env</code> file to enable GitHub.
+              </>
+            )}
           </p>
-          <button type="button" className="btn btn-primary" onClick={handleConnect}>
-            <i className="bx bxl-github me-1" />
-            Continue with GitHub
-          </button>
+          {configured && (
+            <>
+              <div className="gh-card gh-welcome__list">
+                <ul className="gh-list">
+                  {[
+                    ["bx bx-book-bookmark", "blue", "Repositories", "Browse branches and files"],
+                    ["bx bx-git-compare", "orange", "Changes", "Compare commits with inline diffs"],
+                    ["bx bx-history", "green", "History", "See who changed what, and when"],
+                  ].map(([icon, tone, title, sub]) => (
+                    <li key={title}>
+                      <div className="gh-row gh-row--two gh-row--static">
+                        <span className={`gh-tile gh-tile--${tone}`}>
+                          <i className={icon} />
+                        </span>
+                        <span className="gh-row__stack">
+                          <span className="gh-row__label">{title}</span>
+                          <span className="gh-row__sub">{sub}</span>
+                        </span>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+              <button type="button" className="gh-btn gh-btn--primary gh-btn--lg w-100" onClick={handleConnect}>
+                <i className="bx bxl-github" />
+                Continue with GitHub
+              </button>
+              <p className="gh-welcome__fine">You'll be asked to authorize DevFlow on GitHub.</p>
+            </>
+          )}
         </div>
       </div>
     );
   }
 
   return (
-    <div className="github-main-workspace d-flex flex-column github-main-workspace--connected overflow-hidden">
-      <header className="github-ws-head border-bottom px-3 py-2 d-flex align-items-center flex-shrink-0">
-        <h5 className="mb-0 me-3">GitHub</h5>
-        {loading && <Loader />}
-        {error && (
-          <span className="text-danger small">{error}</span>
-        )}
-        {selectedRepo && !loading && (
-          <span className="text-muted small text-truncate">
-            <span className="d-none d-md-inline">{selectedRepo.full_name}</span>
-          </span>
-        )}
-      </header>
-
-      <div className="github-ws-body d-flex flex-grow-1 min-h-0">
-        {renderRail()}
-        {renderMain()}
-      </div>
+    <div className="github-main-workspace gh-shell">
+      {renderSidebar()}
+      {renderMain()}
     </div>
   );
 };

@@ -41,6 +41,7 @@ You don’t have to ever use `eject`. The curated feature set is suitable for sm
 
 ## DevFlow Admin (this repo)
 
+- **Demo without a backend:** run `npm run demo` and sign in with any credentials. Sample users, chats and Kanban projects come from `src/demo/`, changes last until you refresh, and live video calls are disabled. `npm run dev` and `npm run build` are not affected.
 - **Backend URL:** set `VITE_BACKEND_URL` in `.env` (see `backend/README.md` for XAMPP paths).
 - **Stack dashboard (Kanban):** `src/pages/Dashboard/Stack/` — projects API under `backend/api/projects/`.
 - **Deploy Admin to XAMPP `htdocs`:** [docs/XAMPP-DASHBOARD.md](docs/XAMPP-DASHBOARD.md) — build, `VITE_PUBLIC_BASE` for a subfolder, copy `build/` to e.g. `C:\xampp\htdocs\devflow-admin\`.

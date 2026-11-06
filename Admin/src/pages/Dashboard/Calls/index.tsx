@@ -1,76 +1,179 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import classnames from "classnames";
+import { format, isThisYear, isToday, isYesterday } from "date-fns";
+import { useDispatch } from "react-redux";
 
-// hooks
 import { useProfile } from "../../../hooks";
-// components
 import AppSimpleBar from "../../../components/AppSimpleBar";
-import LeftbarTitle from "../../../components/LeftbarTitle";
-import Call from "./Call";
-
+import VideoCallModal from "../../../components/VideoCallModal";
+import Call, { isMissedCall } from "./Call";
 import { subscribeVideoCallHistory } from "../../../helpers/webrtc_video_call";
-
-// interface
+import { TABS } from "../../../constants";
+import {
+  changeSelectedChat,
+  changeTab,
+  getChatUserConversations,
+  getChatUserDetails,
+  readConversation,
+} from "../../../redux/actions";
 import { CallItem } from "../../../data/calls";
 
-interface IndexProps {}
-const Index = (props: IndexProps) => {
+type Filter = "all" | "missed";
+
+const dayLabel = (time: string) => {
+  const date = new Date(time);
+  if (isToday(date)) return "Today";
+  if (isYesterday(date)) return "Yesterday";
+  return format(date, isThisYear(date) ? "EEEE, MMM d" : "MMM d, yyyy");
+};
+
+const Index = () => {
+  const dispatch = useDispatch();
   const { userProfile } = useProfile();
   const currentUserId = userProfile?.id || userProfile?.uid || "";
 
   const [callsList, setCallsList] = useState<CallItem[]>([]);
-  const [historyError, setHistoryError] = useState<string | null>(null);
-  const [historyLoading, setHistoryLoading] = useState(true);
+  const [hasError, setHasError] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [filter, setFilter] = useState<Filter>("all");
+  const [callingUser, setCallingUser] = useState<any>(null);
 
   useEffect(() => {
     if (!currentUserId) {
       setCallsList([]);
-      setHistoryLoading(false);
-      return;
+      setIsLoading(false);
+      return undefined;
     }
-    setHistoryLoading(true);
-    setHistoryError(null);
-    const unsubscribe = subscribeVideoCallHistory(
+    setIsLoading(true);
+    setHasError(false);
+    return subscribeVideoCallHistory(
       currentUserId,
       calls => {
         setCallsList(calls);
-        setHistoryLoading(false);
+        setIsLoading(false);
       },
       message => {
-        setHistoryError(message);
-        setHistoryLoading(false);
+        // The cause, such as a missing Firestore index, is for the developer's console.
+        // eslint-disable-next-line no-console
+        console.error("[Calls] Could not load call history:", message);
+        setHasError(true);
+        setIsLoading(false);
       },
     );
-    return unsubscribe;
   }, [currentUserId]);
 
-  return (
-    <div className="position-relative">
-      <LeftbarTitle title="Calls" />
-      {historyLoading && (
-        <div className="px-4 py-2 text-muted font-size-13">Loading call history…</div>
-      )}
-      {historyError && !historyLoading && (
-        <div className="px-4 py-2 text-danger font-size-13">
-          {historyError}
-          <div className="text-muted small mt-1">
-            Create the Firestore composite index suggested in the browser console (or deploy{" "}
-            <code className="small">Admin/firestore.indexes.json</code>).
-          </div>
-        </div>
-      )}
-      {!historyLoading && !historyError && callsList.length === 0 && (
-        <div className="px-4 py-3 text-muted font-size-13">No video calls yet.</div>
-      )}
+  const missedCount = callsList.filter(isMissedCall).length;
+  const groups = useMemo(() => {
+    const shown = filter === "missed" ? callsList.filter(isMissedCall) : callsList;
+    const byDay: { label: string; calls: CallItem[] }[] = [];
+    [...shown]
+      .sort((a, b) => new Date(b.callDate).getTime() - new Date(a.callDate).getTime())
+      .forEach(call => {
+        const label = dayLabel(call.callDate);
+        const group = byDay.find(item => item.label === label);
+        if (group) group.calls.push(call);
+        else byDay.push({ label, calls: [call] });
+      });
+    return byDay;
+  }, [callsList, filter]);
 
-      {/* Start contact lists */}
-      <AppSimpleBar className="chat-message-list chat-call-list">
-        <ul className="list-unstyled chat-list">
-          {callsList.map(call => (
-            <Call call={call} key={String(call.callId)} currentUser={userProfile} />
+  const onOpenChat = (call: CallItem) => {
+    if (!call.peerUserId) return;
+    dispatch(changeTab(TABS.CHAT));
+    dispatch(getChatUserDetails(call.peerUserId));
+    dispatch(readConversation(call.peerUserId));
+    dispatch(getChatUserConversations(call.peerUserId));
+    dispatch(changeSelectedChat(Number(call.peerUserId) || call.peerUserId));
+  };
+
+  const onCall = (call: CallItem) => {
+    if (!call.peerUserId) return;
+    setCallingUser({
+      id: call.peerUserId,
+      firstName: call.firstName,
+      lastName: call.lastName,
+      displayName: `${call.firstName} ${call.lastName}`.trim() || "User",
+      profileImage: call.profileImage,
+    });
+  };
+
+  return (
+    <div className="calls-panel">
+      <h4 className="calls-panel__title">Calls</h4>
+      <div className="calls-panel__filter" role="tablist">
+        {(["all", "missed"] as Filter[]).map(key => (
+          <button
+            key={key}
+            type="button"
+            role="tab"
+            aria-selected={filter === key}
+            className={classnames({ "is-active": filter === key })}
+            onClick={() => setFilter(key)}
+          >
+            {key === "all" ? "All" : "Missed"}
+            {key === "missed" && missedCount > 0 && <span>{missedCount}</span>}
+          </button>
+        ))}
+      </div>
+
+      <AppSimpleBar className="calls-panel__list">
+        {isLoading && (
+          <div aria-label="Loading call history" role="status">
+            {[0, 1, 2, 3].map(key => (
+              <div key={key} className="calls-panel__skeleton">
+                <i />
+                <span>
+                  <b />
+                  <b />
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+        {!isLoading && hasError && (
+          <div className="calls-panel__empty is-error" role="alert">
+            <i className="bx bx-error-circle" />
+            <strong>Could not load your calls</strong>
+            Please try again in a little while.
+          </div>
+        )}
+        {!isLoading && !hasError && groups.length === 0 && (
+          <div className="calls-panel__empty">
+            <i className={filter === "missed" ? "bx bx-check-circle" : "bx bx-video"} />
+            <strong>{filter === "missed" ? "No missed calls" : "No calls yet"}</strong>
+            {filter === "missed"
+              ? "You've answered everything."
+              : "Start a video call from any chat."}
+          </div>
+        )}
+        {!isLoading &&
+          !hasError &&
+          groups.map(group => (
+            <section key={group.label}>
+              <h5 className="calls-panel__day">{group.label}</h5>
+              <ul>
+                {group.calls.map(call => (
+                  <Call
+                    key={String(call.callId)}
+                    call={call}
+                    onOpenChat={onOpenChat}
+                    onCall={onCall}
+                  />
+                ))}
+              </ul>
+            </section>
           ))}
-        </ul>
       </AppSimpleBar>
-      {/* end contact lists */}
+
+      {callingUser && (
+        <VideoCallModal
+          isOpen
+          onClose={() => setCallingUser(null)}
+          user={callingUser}
+          currentUser={userProfile}
+          direction="outgoing"
+        />
+      )}
     </div>
   );
 };

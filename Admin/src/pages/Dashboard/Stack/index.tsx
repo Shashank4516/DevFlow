@@ -1,5 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Button, Form, Input, Modal, ModalBody, ModalHeader } from "reactstrap";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { useRedux, useProfile } from "../../../hooks";
 import { createSelector } from "reselect";
@@ -13,6 +12,8 @@ import {
   type StackMember,
   type StackProject,
 } from "../../../api";
+import { showErrorNotification, showSuccessNotification } from "../../../helpers/notifications";
+import { BoardModal, PersonPicker } from "./BoardModal";
 import { STACK_COUNTS_REFRESH } from "./stackEvents";
 import { setStackProjectId } from "../../../redux/layout/actions";
 
@@ -67,6 +68,8 @@ const Stack = () => {
   const [newName, setNewName] = useState("");
   const [inviteFriendId, setInviteFriendId] = useState<number | "">("");
   const [friends, setFriends] = useState<any[]>([]);
+  const [isSaving, setIsSaving] = useState(false);
+  const selectAfterRefreshRef = useRef<number | null>(null);
 
   const hasBackend = !!import.meta.env.VITE_BACKEND_URL;
 
@@ -94,6 +97,16 @@ const Stack = () => {
   }, [refreshProjects]);
 
   useEffect(() => {
+    // A new project is selected once the refreshed list includes it. Selecting it any
+    // sooner would make the check below jump back to the first project.
+    if (selectAfterRefreshRef.current != null) {
+      const id = selectAfterRefreshRef.current;
+      if (projects.some(p => p.id === id)) {
+        selectAfterRefreshRef.current = null;
+        dispatch(setStackProjectId(id));
+      }
+      return;
+    }
     if (!projects.length) {
       dispatch(setStackProjectId(null));
       return;
@@ -146,18 +159,21 @@ const Stack = () => {
 
   const workspaceSub = userProfile?.email || "Signed in";
 
-  const handleCreate = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleCreate = async () => {
     const name = newName.trim();
     if (!name || !hasBackend) return;
+    setIsSaving(true);
     try {
       const res = await createProject(name);
       setNewName("");
       setModalCreate(false);
+      selectAfterRefreshRef.current = res.project.id;
       await refreshProjects();
-      dispatch(setStackProjectId(res.project.id));
+      showSuccessNotification(`Project "${name}" created.`);
     } catch {
-      /* toast optional */
+      showErrorNotification("Could not create the project. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -169,17 +185,22 @@ const Stack = () => {
     });
   }, [friends, members]);
 
-  const handleInvite = async (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleInvite = async () => {
     if (stackProjectId == null || inviteFriendId === "") return;
+    setIsSaving(true);
     try {
       await inviteProjectMember(stackProjectId, Number(inviteFriendId));
       setModalInvite(false);
       setInviteFriendId("");
       const m = await getProjectMembers(stackProjectId);
       setMembers(m.members || []);
+      // The board reads the team too, for its avatars and assignee lists.
+      window.dispatchEvent(new Event(STACK_COUNTS_REFRESH));
+      showSuccessNotification("Teammate added to the project.");
     } catch {
-      /* ignore */
+      showErrorNotification("Could not add your teammate. Please try again.");
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -306,53 +327,58 @@ const Stack = () => {
         )}
       </div>
 
-      <Modal isOpen={modalCreate} toggle={() => setModalCreate(false)} centered>
-        <ModalHeader toggle={() => setModalCreate(false)}>New project</ModalHeader>
-        <ModalBody>
-          <Form onSubmit={handleCreate}>
-            <Input
-              className="mb-3"
-              placeholder="Project name"
-              value={newName}
-              onChange={e => setNewName(e.target.value)}
-              autoFocus
-            />
-            <Button color="primary" type="submit" disabled={!newName.trim()}>
-              Create
-            </Button>
-          </Form>
-        </ModalBody>
-      </Modal>
+      <BoardModal
+        isOpen={modalCreate}
+        onClose={() => setModalCreate(false)}
+        title="New project"
+        subtitle="A board for your team's tasks."
+        icon="bx bxs-folder-plus"
+        submitLabel="Create project"
+        canSubmit={!!newName.trim()}
+        isBusy={isSaving}
+        hint="Give your project a name"
+        onSubmit={handleCreate}
+      >
+        <div className="tm-modal__field">
+          <label className="tm-modal__label" htmlFor="tm-project-name">
+            Project name
+          </label>
+          <input
+            id="tm-project-name"
+            data-autofocus
+            type="text"
+            placeholder="e.g. Website redesign"
+            autoComplete="off"
+            value={newName}
+            onChange={e => setNewName(e.target.value)}
+          />
+        </div>
+      </BoardModal>
 
-      <Modal isOpen={modalInvite} toggle={() => setModalInvite(false)} centered>
-        <ModalHeader toggle={() => setModalInvite(false)}>Add teammate</ModalHeader>
-        <ModalBody>
-          <p className="small text-muted">
-            Friends must be connected in Contacts first (accepted friend requests).
-          </p>
-          <Form onSubmit={handleInvite}>
-            <Input
-              type="select"
-              className="mb-3"
-              value={inviteFriendId === "" ? "" : String(inviteFriendId)}
-              onChange={e => {
-                const v = e.target.value;
-                setInviteFriendId(v === "" ? "" : parseInt(v, 10));
-              }}
-            >
-              <option value="">Choose a friend…</option>
-              {inviteOptions.map((f: any) => (
-                <option key={f.id} value={f.id}>
-                  {`${(f.firstName || "").trim()} ${(f.lastName || "").trim()}`.trim() || `User ${f.id}`}
-                </option>
-              ))}
-            </Input>
-            <Button color="primary" type="submit" disabled={inviteFriendId === ""}>
-              Invite
-            </Button>
-          </Form>
-        </ModalBody>
-      </Modal>
+      <BoardModal
+        isOpen={modalInvite}
+        onClose={() => setModalInvite(false)}
+        title="Add teammate"
+        subtitle="They'll be able to see and work on this board."
+        icon="bx bxs-user-plus"
+        submitLabel="Add to project"
+        canSubmit={inviteFriendId !== ""}
+        isBusy={isSaving}
+        hint="Choose a friend"
+        onSubmit={handleInvite}
+      >
+        <PersonPicker
+          label="Friends"
+          people={inviteOptions.map((f: any) => ({
+            id: Number(f.id),
+            name: `${(f.firstName || "").trim()} ${(f.lastName || "").trim()}`.trim() || `User ${f.id}`,
+            image: f.profileImage,
+          }))}
+          value={inviteFriendId}
+          onChange={setInviteFriendId}
+          emptyText="All your friends are already on this project. Use search to connect with more people."
+        />
+      </BoardModal>
     </div>
   );
 };

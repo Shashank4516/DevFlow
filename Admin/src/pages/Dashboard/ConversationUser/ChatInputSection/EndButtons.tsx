@@ -41,7 +41,7 @@ const EndButtons = ({
           className="btn btn-primary btn-lg chat-send waves-effect waves-light"
           onClick={onSubmit}
         >
-          <i className="bx bxs-send align-middle"></i>
+          <i className="bx bx-up-arrow-alt align-middle"></i>
         </Button>
       </div>
     </div>
